@@ -62,7 +62,7 @@
       main { padding: .75rem !important; padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px)); }
       #toast, .toast { bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
     }
-    @media all and (display-mode: standalone) { #btnInstall { display: none !important; } }
+    @media all and (display-mode: standalone) { #btnInstall, #installBanner { display: none !important; } }
     .tab-on { color: #166534; border-bottom-width: 2px; border-color: #16a34a; }
     .tab-off { color: #94a3b8; border-bottom-width: 2px; border-color: transparent; }
   </style>
@@ -86,6 +86,18 @@
       </div>
     </div>
   </header>
+
+  <div id="installBanner" hidden class="bg-yellow-100 border-b border-yellow-300 text-green-950 text-xs px-3 py-2 flex items-center justify-between gap-2">
+    <span>📲 <b>Installez l'application</b> sur votre téléphone : icône sur l'écran d'accueil, plein écran.</span>
+    <span class="flex items-center gap-1 shrink-0">
+      <button onclick="installApp()" class="bg-green-800 text-white font-bold px-3 py-1.5 rounded">Installer</button>
+      <button onclick="dismissInstallBanner()" title="Masquer" class="px-2 py-1.5 text-green-900">✕</button>
+    </span>
+  </div>
+  <div id="updateBar" hidden class="fixed left-0 right-0 bottom-0 z-[70] bg-green-800 text-white text-sm px-4 py-3 flex items-center justify-between gap-2" style="padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px));">
+    <span>🔄 Une nouvelle version est disponible.</span>
+    <button onclick="applyAppUpdate()" class="bg-yellow-400 text-green-950 font-bold px-3 py-1.5 rounded shrink-0">Mettre à jour</button>
+  </div>
 
   <main class="max-w-3xl mx-auto p-4 space-y-4">
 
@@ -258,7 +270,7 @@
         <div id="itemsSearchPane" class="space-y-6">
         <!-- Planning visuel dupliqué ici : visible au moniteur comme à l'admin/gestionnaire
              directement depuis la partie Matériel, sans changer d'onglet. -->
-        <div class="bg-white border border-slate-200 rounded-xl p-3">
+        <div id="itemsCalendarCard" class="bg-white border border-slate-200 rounded-xl p-3">
           <div class="flex items-center justify-between mb-2">
             <button onclick="planningCalendarShift(-1)" class="px-2 py-1 border border-slate-300 rounded text-xs">◀</button>
             <p id="itemsCalendarTitle" class="font-bold text-sm"></p>
@@ -2368,6 +2380,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     show("addItemCard", canManage && canUse("items"));
     show("itemsSubTabs", canManage && canUse("items"));
     switchItemsSubTab("search");
+    show("itemsCalendarCard", role !== "instructor");   // pas de planning visuel dans la partie Matériel du moniteur
     show("packsManageCard", canManage && canUse("items"));
     show("instructorPrefBox", isStaff);
     show("tabUsers", canManage && canUse("usersBlock"));
@@ -5527,7 +5540,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // instant (page non montée) sont ignorées silencieusement.
   function renderAllPlanningCalendars() {
     renderOnePlanningCalendar("planningCalendar");
-    renderOnePlanningCalendar("itemsCalendar");
+    if (currentRole !== "instructor") renderOnePlanningCalendar("itemsCalendar");
   }
 
   /* ------------------------------------------------------------------ */
@@ -6058,13 +6071,19 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   }
 
   /* ------------------------------------------------------------------ */
-  /*  VERSION TÉLÉPHONE : installation sur l'écran d'accueil              */
+  /*  VERSION TÉLÉPHONE : installation + mise à jour automatique          */
   /* ------------------------------------------------------------------ */
+  // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
+  // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
+  const APP_VERSION = "2026-10-15.70";
+
   (function setupPwa() {
     try {
+      if (!/^https?:/.test(location.protocol)) return;
       const base = location.origin + location.pathname;
+      const addManifest = href => { const l = document.createElement("link"); l.rel = "manifest"; l.href = href; document.head.appendChild(l); };
       const manifest = {
-        name: "Les Grands Espaces", short_name: "Grands Espaces", lang: "fr",
+        name: "Les Grands Espaces", short_name: "Grands Espaces", lang: "fr", id: base,
         start_url: base, scope: base.replace(/[^/]*$/, ""), display: "standalone", orientation: "portrait",
         background_color: "#166534", theme_color: "#166534",
         icons: [
@@ -6072,33 +6091,81 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           { src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAIAAAB7GkOtAAAkKklEQVR42u3dT2gbeZ/n8ZIlueR/qnR60MOGlKHBGmZx9WVlmEWCZxkNDKlADzHsYj2w4Fxin570JT5NcnJu7kuUU5xLvCcbHlBghlYurYEFC2aIl12QoVkbGlJmHlbPdGKV/EdlSdYeqlvjcRxHUpWk+vN+0Yd+uvtJnJ/l7+f3/xeIPZgTAAD+M0ITAAABAAAgAAAABAAAgAAAABAAAAACAABAAAAACAAAAAEAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAAAAAQAAIAAAAAQAAIAAAAAQAAAAAgAAQAAAAAEAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAAAAAQAAIAAAAAQAAIAAAAAQAAAAAgAAQAAAAAgAAAABAAAgAAAABAAAgAAAABAAAAACAABAAAAAAQAAIAAAAAQAAIAAAAAQAAAAAgAAQAAAAAgAAAABAAAgAAAABAAAgAAAABAAAAACAABAAAAACAAAAAEAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAAAgAAAABAAAgAAAABAAAAACAABAAAAACAAAAAEAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAAAAAQAAIAAAAAQAAIAAAAAQAAAAAgAAQAAAAAgAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAACA+4RoAmC4ZKmZkuuy1BQEYbMU0SpB2gQEAOBlkthS48ZS4nQ21mj/w6XE6fzmjVKZH0wMQiD2YI5WAAZc+pfmTpYSp1Gx9fG/1Y0AGQBGAIAHraSOP1X6TVGxtTGvp199UTECNBf6ikVgYECScn1n+f2j5Mk11d90O9p8NV+hxdBvwYnELVoB6CtJbK3/bfXxb48/W/rbZOn8RqRV+GmU1gMBALiVGjdymcOLK70dStxq7P4ptP+eeVr0C1NAQB87/lm1+uqe3nnH/5KsWjW3hwIEAOAaSqyRyxwuKDUrv0hUbG3c02lM9AlTQID9MkrtxTe6LJ1b/6ViE+eBgFDUWAwAIwDA8Z6mj56p1Z6nfT72KHmSlOs0LAgAwLkksZXLHD5InNr+Kz+/W5XsSxTAxBQQYA8l1tiY1xO3Gv34xaNiKxJiVygYAQCOrP697fXs3IPEKRNBIAAAZ8kotR8WP0T7P0XDRBDsxRQQYLX6P1Org/m9mAgCIwDAKcwNP4P8HZkIAgEA9EiWmlm1Wlj8kFWtTqdk1Wo/Nvx0kjp8H2ELpoDgF5LYevJfjl98U1VijdjEuRJrpL86e/1jxGj2cutyVq1aPOXbM46GgREA0IWkXH+7/POlDvtsrJHLHPYwDhhi9TctJU65IwgEAPB5K6njXObwyl06PWTA0Ku/IAhRsfU0fcx3FgQA8EnmfZyPkifX/DddZYATqr/pzozBajAIAOCT1b/D+zg7zADnVH/T87tVvsuwgkVgeLn6d340NzZxHv+y+fpH0S3VXxCEqNhiNRiMAIB/R4k13i7/3O3FDHdmjOwnNvU/TR85rfqblhKnnA0GAQD8W/X/1JLvZy0otYwjC/01g4BVjgWAAACEX2d+rFzL80ytfry4urY9oRsBZ/6RF5Sa0s9L6EAAAL6o/qaN+cqlXfYVI/CkMOnYPziDABAAoPrbcyHzlS/xbpYiRS3szD97Uq6zJRQEAPzL3uv4Z2ONjxeE17YnHPvHZ0soesA2UHhBVq3+1Vdn9v6aSqxxoAdL5VD7n2h68OvfNGduOvEOhqjYuvTVAowA4H3926O5mj66tL76uODcQcBK6oQtoSAA4CMZpda/O5mjYuvSRJBWCW6VIs5sitvR5tLcCR8JEADwBSXW6Pd7LLOxxqX799eK445tEM6FoSusAcCtZKmZ/++HYv8nvRO3GkVtVNOD5v/UjZFAQHDmrhsxJBhNLocAIwB4miS2Nu7p0UH1djfmKxd71utvxx17LoxBABgBwOPW/ubI9m0/1/esL14VZzQDkVDLsYOA2MR5fl/kQwJGAPCgjFIb/NVsd2YMNW64YhCwoNR4LwwEADxoAAu/n3LxHfmKEXDsdiBBEFaSbAcCAQBvkcTWxrw+rN89KrayFw7cvtgZc2xDMQhAJ1gDgJus/231P/2HYc68z9xs7v4ptP8+JAiCboxMS+eOvYlTElusBIARADxiKXF6Z8YY+pdxcSLIyWcCGASAEQA8Qok1snerogOuurm4I4hBABgBAIPod0cds739zozR3gO66eClYAYBIADgek/TR7MO62U/v/vLRFBRCzv2nQCB7UAgAOBqSbnev+veenbx5jUnvxOwoNQ4GAwCAK4kiS3HPnXyKHliTrAUtfDBrzcFORBXhIIAgCutpI5vR507i92+LHptmytCQQAA9nHm5M+lrzCj1ARB2CxFHHszRFRsMQgAAQA3cfLkz0Wr6SOzf73u4IPBDAJAAMAdlFjjafqocP+Dkyd/Pu5fO3k/aFRsXbzJDjAFYg/maAU4pO5nlJoaP3NF3b9kbv2mVglm1ergrynt0IEeTLy4yccMF3ESGEMmia35/2hk1eqj1EniViPqzpkKJdbYKkUqxkjGqQEQFVsHerBUDvGRQxufBgyzaC4lTh3bZe5KUq4n5XpRC++WQ7NOvRliKXHq5HkqDB5rABiCjFIrLH74YfGDN6q/yVyydvJS8Gys4cxXzEAAwPsksbWSOt57+K/P1Kpju8k9ux1tZpRafk907H5QQRCW5075HIIAwEDJUnMldfx2+edHyZOod/cjrqaPBEHI7zn3As47MwbXw6GNRWD0vfQ/TR9n1WpSroteX3ISQ4LRFNZ3xpYcfH6NO6LBCACDKDRP00dvl957aaL/s5YSp3ptxMn3g6pxg0NhYASAPpb+h//55MU3ug+XHMWQEJs4f7MvqvEzJw9TitooH1SwDRQ2yyi11fRR1Md9zAWltlYc142AYxshoxjdXmEtS0115iw1XZejzdlY4+XO2OPCJJ92RgDAL5Jy/fXvKgtKTfR9v0ISW//rj+HELYfudOr8UFj7mN7j3x6nvzqbudmMTZwLgpC41QgEGEa4HmsAsIEsNTfm9Vzm0I23OPRpEPD9nujwr/Czpd/cuPWpPbuPkieK5/byMgIAurOSOs56cV+/RQFB0I2ALJ07NbPP3+yL5eORK0u/uYTzV199ZuPW3K3Gxv8Z43tNAMCPlFhj879W7v2FwZzPlY2j6UHHBoAgCJGQcGk/aOel3xSbONeNkZ0/hvl2u7Wbwm2g6Lnj/4gHx91MNwJzL76s/HpuubfV+0u/CBgBwC8df5rC1cSQUD7+t/57LnPYw7Ylc9srJ8tcikVgdN3x/2HxAzP+3nDxaqCet/QsKDXumCMA4HGy1MxlDpn28ZLb0Wa7duf3et/TuZI6pjEJAHiWGjcKix/o6HlP+wWbbQvXVyTlesZPF34QAPCRp+mjV/f0KBfIeNGCUjOvBtIqwQM9aGEQwNDQfVgExnVkqfk6U7nj1GttYIv2UvC01Oz59DJPTjICgKck5XqB9V4faC8Fb1u7xHQ1fcQ9owQAvCCj1HrbFwjXaS8FF99ZutsnKraW5pgIIgDgclm1+kyt0g6+yntBECpGwOJLBkuJUwYBBADcShJbuczhAjs6fKa9FGwxABgEEABwd/Vnr6dvM0Cw40FjBgEEANxHiTXeLv/Mkq9vmbNApXJIt3axD4MAAgDuq/4s+frcbKxh3u9v/ZmXjMI9UQQAXCIp16n+aA8Ctt9Zvd75drTJwWACAO74maf6w2QuA1hcBzZxMJgAgAuqP9s90RYVW2rcsL4MwCCAAADVH278VBiCYM9r72wmJgBA9Yeb3JkxJLFlfRlAEISkXGdLMQEAqj/cZEGp5fdHbfmlLj44AwIAw6fEGqvpI9oB1/QPLF4NfXE8IUtNmpQAgFOqP3t+cL3ZWEOWmrbMAgmCsJxgEEAAgOoPVw0CbNkMKly4ZQgEAIZGEltZtUr1R2cBYGzbFADm1lKalADAMKt/LnPIPT/o0O1oUxJbtiwDCBwKIwAwXKvpI6o/uhwE1OxaBmg/OAMCAIO2kjrmSA66pcbP7FoGEH69ZQgEAAbdj3uUZACOXrrtFcsXQrSxFEwAYNDY8g8rUnLdrmUAgZshCAAMEtt+YJEaP7NrGUDgVDABgEHK3q2y8Asrbkebun2zQCwFEwAYkKXE6Z0ZNl/DKlk6t/FXYymYAEDfMfUPGz9LNi4DqHGDpWACAH0kia2NeZ12gC1uR5uVmm2zQJwKdpoQTeAxq+mj21HuX7TfbjlUMQK6MVIqBwVBqNRGSuVffnx0I9D++0761O2V+dT0mfk35uT4xX/lHPZe57mg1DZLET5OBADsp8YNNttZZFZzrRLU9JFSOVSpjZil365f/2JUXHnSyoyB1PSZJLZmYw1npkLPknJdlppaJcgnjQCAncx9n7RDD1370q9/2VvrrSTExWwwkyA1fabEmkqsMeARnu3xo86cre+M8cFzgkDswRyt4A0b8zo7f7qq+EUt3PnUjXPIUlOJNVJyPSnX3bjTd7ccSm98weeQEQDs61XFDar/9UWnqIW3tXDx3ejQ+/gWaZWgVgnm90RzcJCcPlNnzlLTdbes/ZjzWm6MXkYAcCJJbL1d/plDv5cc6MH83qg3in4nlFhDjRvqzJnzhwUvd8YeFyb5iBIAsEFWrbL22/ZmX9x+F87vj/p2pVGWmurMWUapOTYJDvRg4sVNPqsEAKxKyvVc5tDnjaAbgfyemN8f9Ulnv/MxQUapLSg1B44O/3rjC2aBCABYtbP83rcb/9t135wQx6eYMeCoq3iYBSIAYNVK6tif1/2/2Rfze6McKep2sGgmgRO+GGaBCABY4sO13wM9+OLtmJ/n962TpeZK8sQJMcAs0NAFJxK3aAWXWvubo8Qtv1z4vFWKPClMPilM7vwxrBvcYdU73RjJ74tbuxFJbClDXSU+awYKP43yHWEEgK4pscYPix980uXfKkVY2u3Tp2g1fTSstQFmgYaO8Zdbef7C56IWXt8ZY3W3r0rl0PzmDTVuPE0fD34rwe1ok3uBhospIFdKyvWVlGfXfrdKkW/zU8//aXz/PR2UQdh/H9oqRSKh1uBnFLVKcOePYb4Fw8IUkCvlMofee11PNwJbpciLnTG6hEPsWGzMVwa5rYB7gYaLHpYrf0o9Vv11I7C+M7b+dpyJ/uEqauG5F19m71YHdq/UbKwhiS2+78PCFJD7ZO9W7X2pdbil//k/jy//vVT4adRoUgWGz2gGXv8oBgLCwDoZ+++DbAZlBAB/df/p9TvZ2vaEVgmupo8GMB2UlOsc6CMA0JGV1DGlHwOwWYqUyqFc5rDfGaDGDSE/RYMPBQdq6P4P1MudsbkXX65tT1D9nc/cJLrb5/mZ6LDPoxEAoPvfd2/2xbn1m48Lk5R+MuCKQQAIAFxDiTVc2v0vauH5zRuLuSj7O92oYgT6nQHqzBntTADgOkuJU9d9zboR+DY/Nb954+IT5yADLjE3g9LOBACuJokt17359V1xfO7Fl2zwIAM6kZxmEDAE7AJySfd/zk0XPxS18JPCJJu7h9tjMN+DnJaasnT1JT+V2oj5PepwfGZmQC5z2I+XJlNynXufCABcLaO4Y5VMNwJPCpP0+gdMlppy9Dw1fabEmlHxvIe1It0IlMqhohYulUPXPKtpZkA/XqHw3tUmBADsocYNVzz6+GZffPj9FJt8BsPcFJCariuxhvWPR1RsXdxkvFsObZYiVz680x4H2JsB3AkxFFwG5wIb8/rA7mbpzYEe/P33U6z0DqCnn5LravwsKZ8N5sq2ohbeKkU+HtL14zmK+6+jzAIRALj8M/926b2Tv8KXO2Mc7Op3Z1+NG+rM2eyQDkxd+SxPRqk9U6v2fpB4Jn7AmAJyOidvkdaNwGJOouPfv+xfTpyq8bOhTwDejjZX00fLc6dr2+Pt0cBmKZKU6zZuTmMZgBEALissfph15EF5Zvz7xNzym1Fqzvy+X9riZe/n88+zf8YnapA4B+D0sb8Dq4BuBO6/ji7movys2isp17Nq9f8+/NfV9NGsU6/HScr1HxY/tI8lLr6O6vZ9DGa5FGiweA/A0R7+5cngX+m73m45NL91Y+dfmPaxU0apZdXq7//yxC3XoqW/Ovv6N81//Gm0fDyy/z547y/s2aRwoI8UtVE+DwPDGoCjqXFnLQB8Vxxf257g+2Jv6V9Jndg+y79bDml6sFQOtk977ZZDV47Y2kfGUtNn5t8rsUYnW4zuzBi5THPxdTS/J77cGXtgx1UlLAMMGGsAztWPnXY9Y73X4aX/QA9uvwuXyiHzPJf1z54Sa3Sy31Q3AvObN7RKsHD/g/U/i24E4tk/47NBAEB4mj564IwL4HbLofnNG8z4O7D0X3Niy75hqKHOnKlx41NJYGaALDVf3dOt/3Z/vfEFl4gMDA3tXA6Z/2F3to2Scn0ldWx9ouNAD26WxM1SZAA3bOf3xPyeKBUm1bhxZW5FxVYuc5je+KKoha3/0ZRYgwAgAPxOlppD3/3NxT42ksTWavrI+q75ohZe3xkb/InZihHYLEU2S5Erhy9RsbVxT3+Yn7I+acnrYIPELiDHzhIY6a+GOQI40IOZP0iFn9iSYct3s7b53yoWN3RtlSLf5qee/9P4/vth9ttK5dD6ztiBHkxN18ULX0hs4vw3k62dfwlbrOBGM7BFn4MRgM+lpoe5HYJJfxtHclm1anFixIHXa2+WIvk9MXu3evGWqjszhvXazUYgRgAQXnyjD+u33ipFMn+QjCbV36qlxOn6N/rMzd6n8nbLoeW/j35XnCgfO+7MptEMvP5RvDQUUGIN3QiI1qLqzb7owD8vIwAMyBA7QU8Kk+s7Y3wLht7x143A2vZEh9+L9l7+i8kxmAHcZilSKocu3g5t/ZpSWWqyDkwA+Nfd+BAuf2bJ1y5q3MiqVSt18Pp7lsxN+uY1Idcf2jrQg+8qI5995sWiUjk09+JLG18KU2IN7oUmABgBDLT6z2/eoNtlkfWtProReJif+rj8SWJLjRvdvgRwO9q8HW128syLReYrMbacBRMEQYk1+SwNBgfBnOj/rfxpkL/dbjn0MD9F9bfeb82qVSu94KIWvp+TLvbT23Xf3heBPvXMi/UWsOWlsAM9mHhxk08UIwC6/4Oo/mz4sS6j1FbTR1Zq36XVl6Rczyg1G2/bv/QZS8r1ldTJxfv9rSuVQw/zU9bPA7viAVRvYBeQ80rJ17WBZUBRC//uD1R/q56mj/7ut8c9b3050IPzmzfy+2I7SwZzM2hUbKnxs999bZTKIU23Z1Jo/31oWjq3/pUXtVG7viQwAmAEcIWtUuRhfooGt0ISW6/mK1a+ZRenffp0M+hnu9u5zKGNz/s8KUxec3FQpw0bOefTNQBstnWcwRyFp/rb8p0q3P9gpfq/3Bkz598ySm1n+f0ztTqs2Y87M8bb5Z9VO7afVYyA9TvDuRCCAPAjWWpaX0Oj+g+AGjdymUMr9frb/NTjwmRSrg+39LdFxdare3pWrUqWP4HmXRGWfhCijAAIALr/VH9Hyii1V/f0nqPa3HS7rYVzmUOLKWK7BaWWyxzKktUvaW173GJPiI8ZAUAAUP0dJ6tWn6nVnv/v5tM6qemzt0vvnXnvzWysUVj8YPGjmN8TrbwVzBQQAeDPAOhjx4fqb0v1t7I1c7ccWtueeH63+ih54uQ/pnnFv5UlgYoRsHKadwAToSAAfDQCoPpbJImtwuIHK9X/QA9WjMBq+sgV+9zNJYGMhT9vfn/UmT8LaGMbqLP0qTRQ/a1Xf+t33ZgXM7jrD25OdvV2WMycBeq5L88ggBEA3X+q//DJUtPGm85c55la7XkcYGUWiBEAAeAv/ejyUP2tp3Jh8cOsv4vRs16vtrZywRRnwQgAf0lN2/wGJNXfevW35XYzD9iYr/TQJbcSABwFIAD8RbK10BS1MNWf6m/j8DSXOez2I1rUwr0HAEcBCABfsXGeYbccup+TaFKq/9Az4IA73QgADBI3PFP9+9dHyd7t7hDcu8pIz98FGpwA8BFbzoXqRmDxdZTqT/XvkzszRtbCQeiuBhy0NgGA7qr//OYN2x/8o/rjogWlNpgMAAHgF7YsefGyI9V/YBmQ6c9rZbb/UIAAcEMAWN709u1Vj4mD6t8nVg6IDeyHAgSAL7zcGbP9jW+qPz6bAZ+dC5JoVQIAn2Xl3OObffFxYZI27LHlxdbGvE71781n1wNm2cxDAKCTTmhv/8fdcujh9xz46r36O+1JFjdmQGHxw5Xz9RbfmLT9bDwIAE9h06f16k8X1TrzDZmlxOml5r30T+A07Bhxt8WcxKbPnlH9bRQVW6vpo+W50xdvx0rl0LTUXEmdMLQiANAv3+anrNy14nNZtUr1t93taHM1fUQ7uAVTQG61VYqw7cdK9V/o/zZ2gABAR7raLbdbDj1h20+vVlLHVH+AAHCQzqcjWPi1IqPUHP4gO0AA4JNY+O2ZGjeecYkNQAC41HfFcRZ+e6PEGlxhBhAAblXUwmvbE7RDD8yH3TnuCxAArqQbAR756o0ktjbucdkDQAA4uHd//X+wmJNY+O3Nq/kKW/4BAsCtmPrvWVat2vLUGkAAYAh2yyGm/nuzlDhlyz9AALiVueufduhBRqlxLQFAALjYw/wUu/57oMQaVH+AAHCxN/sirzz2wLznmW0/blepUaAIAH/Yfjd66Z8c6EFeeqH6+1mpzHXFBIBf/f77KfZ99mA1fcSmT4AAcLGXO2Ps++wBN30CBID77F4Y7R7oQfZ99oCbPj2GPhAB4EeLOW577hrbfgACwK2W5n7pun5XHGftq1ss/HqPTh+IAPCPjGIIHPrtFdXfe+gGEQD+qf6129GmIAiPeeixezzv7tERANWJAPCHpcSpwM6fXpuObT8eHQFwAJ4A8IGkXJ+NNdj501vTsfDrVRwDJgB8IaPUBI59dU+WmhvzFdrBuyMA1gAIAK+TxNaCUnuzLzL502278ciXt2k61YkA8LoFpaYbAe786Vb2Lgu/Xg8ALsElADxvee50bXuCyZ+urKSO78wYtIOHMSAmALxPjRvvKiPrO2M0RVeNxn0PdP9BALheRjGesPG/G0qskVWrtIP3A4AFAALA2ySxpVVG2OrQVYtl1SoLv37w8fMYIAA8ZTbWYON/V1j49Y9dOkYDQSsPDctcXWHh1z8O9CDbIhgBAL9g4ddXtt/RNyIAAEEQWPj1HxbGCABAEFj49SVmRwkAQBBY+PUf3QgwAiAAABZ+/dn9ZwMoAQDf44V3f2IFmACA3/HCu49HAAQAAQAfk8TWxjxXPfsRCwAEAPzu1XzFfCEZfpPfE2kEAgD+9TR9lJTrtIM/Mf9DAMC/MkrtQeKUdmAEAAIA/sLCL91/rgAiAOBHLPyC7j8BAJ9i4Rf5fY6AEQDwn6xaZeHX53bLIZ6BJADgOxmltqDUaAef2yxFaAQCAP6ixBrPuOoZzP8QAPAbSWzlMoe0A97si8z/EADwl1zmkG0/EAQhv0f3nwCAn2RVLvqHIAiCbgTYAEoAwEeWEqcs/OLX7r/I+S8CAH6RlOuc+EXb+s4YjUAAwBeUWGNjvkI7wLRbDnH/MwEAX+CFd9D9JwDgU6/mKyz8ok03Apz/IgDgC9z3ALr/BAD8iPse8DG6/wQAvC8p17nvAZdslSKc/iUA4HFs+8GV1orjNAIBAC/jmRfQ/ScA4NPqn8sc8swLPsbyLwEAj8ve5bYfXKGohTn8RQDA09Vfrd6ZMWgHfOxJYZJGIADgWdz1hk/ZKkXo/hMA8KyMUuOuN3wKm38IAHiWGjfY8o9ruv9s/iEA4E1KrJGl+uMTdCPA7D8BAM9Wf554xDXWd8Z4+IUAANUfvnOgB9e2J2gHAgBew3FffNbjAtWfAIAXqz/HfXG9ohbm2XcCAN6s/hz3xfUe5qdoBAIAVH/4znfFcbZ+EgCg+sN3dssh1n4JAFD94UdM/hAAoPrDj74rjnPtDwEAqj98h8kfAgCeYp72ovqjE0z+uAIDNHRR/TnthU4w+cMIAFR/+FFRCzP5QwDAIzJKjeqPDulG4H5Ooh3cgmEaPlP9ud8fnVvMSVz5SQDAC7JqlZcd0bnviuNFLUw7EABwN0lsvZqvJOU6TYEOMfVPAMALzIe92O6Jzh3oQab+CQC4nho3smqVJV90TjcCi7koU/8EANztafroQeKUdkBXnhQm2fVPAMDFZKm5cU9n2gfd+q44vlmK0A4EANyKaR/0ZqsUYeGXAIBbSWJrNX3EXk/0oKiFufCHAIBbJeX687tVnvNFD3bLIbb9EACg4w8/Vv/5zRts+yEA4D4ZpbaaPmLGH73RjcDD/BTVnwCAyyixxmr6iPO9sFL95zdvsOmTAICbyFJzJXnCnA+o/iAAfEQSW0tzJ4+SJzQFqP4gAHzU688otaXEKdP9oPqDAPALJdZYSpwy4QOqPwgAH8kotQWl1u0y71YposYNBgr42IEeXMxFqf4EAJwrKdczSq3bIq4bga1S5MXOmFYJysVx7gLCJez397xA7MEcreBSatxQZ85S0/VuT/PulkPrO2P5PfHiz7YktnKZQzIAVH8CADZYSR1rlWCpHLJrBC2JrdlYIzV9lpTrPWznN7v8m6XIp74eSWxl71bvzBh873xuqxR5Upik+hMAsKQ9KV/UwlolqOkjpXKoUhvZLYc++9MlS005ej4tNWWpqcSaSqzR2709uhHI74n5/dH8ntjJf89TwD73cmfscWGSdiAAYA9ZaqozZxml9vEEy4EefFcZufhPlFjDlvXYAz2Y3xvd1sId1v1LufVMrfKN86Fv81Pc708AoI9JoMaNPt3HoBuBoja6/S6c3x/VKkErv1RSrm/MV9ga5B9s9yQAMDhJuW7O5lvs8he18G45VPr1L3vjiq1BPrFbDi2+jlrsNIAAQI+lVo6ep6bPzGBoJ8SlQi8Igm6MlMrBSm2kVA5p+ki/f2K5ONoPWPIlAIBP4gZpr9KNwJPCJJP+vhWcSNyiFXC9Ujn0jz+Nzt1qxCbOaQ3P2C2H7r+WCj+N0hQEAHCd8vHI6x8jkVArcYslAS94uTP2MB/VdCb9CQCgA0YzUPhpdPdPofRXZyJbRVxLNwLL/xBd3xk3mkz6EwAEALqx/z70P/73WPzL5sxNXpN3nzf7Ins9QQDA0lDg9Y8iQwE3dvzXtifo+IMAAEMBH9kqRX73Bzr+uIxtoLAqKdef3632dk8R+u1AD/7++ynzEAnACAA20/Tg+s5YICAosQYzQs6hG4Hn/zy+mJPY6gMCAP1V1EZf/yhOS+fMCDnBVimy/A/RHu4BBAEA9NblHHn9o1jURqelpixxZGxYSRx+mI+u74zpxgitAQIAA6Xpwa1S5EAPfv2bJrdHDNKBHnyYn3r6PyeZ80GHWARGH2WU2krqhPXhAZT+te1xrvQBAQBigNIPEAAgBij9AAEAh1DjxlLitE8PovlEUQuvbU+wtR8EAFxJiTWWEqe8M9OtrVJkfWeMA70gAOB6kthaUGrLc6fMC13vQA++eDu2VYrwaBcIAHhNUq5nlJoaN9g2epFuBPJ74mYpwmwPCAB4f0Cgxg01fnZnxvB5U7zZF/N7o/k9kS4/CACQBNR9gACA/5IgKdc9PDtkzvMUtTB1HwQAcDUl1jDDwBtbSIta2Cz6bOnBEPHhgzuUyqF2rUzK9dT0mevCwCz62+9GWdQFIwDAnpGB+ddsrOG0PChq4d1yqPTrX3yzwAgA6NfIQBAEWWrK0fPU9JkcPZel5rR0PphDBgd68F1lRKsENX1k+92opo9oFa7kBCMAYNjMVJAi50qsIQiCmQ3mv+owIcz6bv69WeXN7KnURqj1IAAAAC7Dm0EAQAAAAAgAAAABAAAgAAAABAAAgAAAABAAAAACAABAAAAACAAAAAEAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAAAAAQAAIAAAAAQAAIAAAAAQAABAAAAACAAAAAEAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAAAAAQAAIAAAAAQAAIAAAAAQAAAAAgAAQAAAAAgAAAABAAAgAAAABAAAgAAAABAAAEAA0AQAQAAAAAgAAAABAAAgAAAABAAAgAAAABAAAAACAABAAAAACAAAAAEAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAAAAAQAAIAAAAAQAAIAAAAAQAABAAAAACAAAAAEAACAAAAAEAACAAAAAEAAAAAIAAEAAAAAIAAAAAQAAIAAAAAQAAIAAAAAQAAAAAgAAQAAAAAgAAAABAAAgAAAABAAAgAAAABAAAEAAAAAIAAAAAQAAIAAAAAQAAIAAAAAQAAAAAgAA4Bb/H7y98yWhomOUAAAAAElFTkSuQmCC", sizes: "512x512", type: "image/png", purpose: "any maskable" }
         ]
       };
-      if (/^https?:/.test(location.protocol)) {
-        const link = document.createElement("link");
-        link.rel = "manifest";
-        link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
-        document.head.appendChild(link);
-      }
+      // Si manifest.webmanifest + sw.js sont posés à côté de index.html, on les utilise
+      // (installation Android la plus fiable) ; sinon, manifeste intégré à la page.
+      fetch("manifest.webmanifest", { method: "HEAD", cache: "no-store" }).then(r => {
+        if (r.ok) {
+          addManifest("manifest.webmanifest");
+          if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(reg => { reg.update().catch(() => {}); }).catch(() => {});
+        } else throw new Error("absent");
+      }).catch(() => addManifest(URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }))));
     } catch (e) { /* l'installation reste possible via le menu du navigateur */ }
   })();
 
   let deferredInstall = null;
   const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
   const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredInstall = e; if (!isStandalone()) show("btnInstall", true); });
-  window.addEventListener("appinstalled", () => { deferredInstall = null; show("btnInstall", false); toast("Application installée."); });
-  if (isIos() && !isStandalone()) show("btnInstall", true);
+  const isPhone = () => /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) || isIos() || (window.matchMedia && matchMedia("(pointer: coarse)").matches && innerWidth < 900);
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredInstall = e; });
+
+  // Le bouton « Installer » et le bandeau sont toujours proposés sur téléphone tant que
+  // l'application n'est pas installée (même si le navigateur ne propose pas l'installation
+  // de lui-même : on affiche alors le mode d'emploi).
+  function refreshInstallUi() {
+    const can = isPhone() && !isStandalone();
+    show("btnInstall", can);
+    let dismissed = false;
+    try { dismissed = localStorage.getItem("installBannerDismissed") === "1"; } catch (e) { /* ignoré */ }
+    show("installBanner", can && !dismissed);
+  }
+  function dismissInstallBanner() { try { localStorage.setItem("installBannerDismissed", "1"); } catch (e) { /* ignoré */ } show("installBanner", false); }
+  window.addEventListener("appinstalled", () => { deferredInstall = null; refreshInstallUi(); toast("Application installée."); });
 
   async function installApp() {
     if (deferredInstall) {
       deferredInstall.prompt();
       try { await deferredInstall.userChoice; } catch (e) { /* ignoré */ }
-      deferredInstall = null; show("btnInstall", false);
-    } else if (isIos()) {
-      alert("Pour installer l'application sur iPhone / iPad :\n\n1. Touchez le bouton Partager (carré avec une flèche) dans Safari.\n2. Choisissez « Sur l'écran d'accueil ».\n3. Touchez « Ajouter ».");
+      deferredInstall = null;
+      return;
+    }
+    if (isIos()) {
+      alert("Pour installer l'application sur iPhone / iPad :\n\n1. Ouvrez cette page dans Safari.\n2. Touchez le bouton Partager (carré avec une flèche).\n3. Choisissez « Sur l'écran d'accueil ».\n4. Touchez « Ajouter ».");
     } else {
-      alert("Pour installer l'application : ouvrez le menu du navigateur (⋮) puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».");
+      alert("Pour installer l'application sur Android :\n\n1. Ouvrez cette page dans Chrome.\n2. Touchez le menu ⋮ (en haut à droite).\n3. Choisissez « Installer l'application » (ou « Ajouter à l'écran d'accueil »).");
     }
   }
+  refreshInstallUi();
+
+  // --- Mise à jour automatique des applications déjà installées -------------
+  // Au lancement, à chaque retour au premier plan et toutes les 10 minutes, l'application
+  // compare son numéro de version à celui du fichier en ligne. Si une nouvelle version existe :
+  // rechargement automatique quand rien n'est en cours de saisie, sinon bandeau « Mettre à jour ».
+  let updateReady = false;
+  function appIsIdle() {
+    if (busy) return false;
+    if (document.querySelector('[id$="Modal"]:not([hidden])')) return false;
+    const a = document.activeElement;
+    return !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  }
+  function applyAppUpdate() { try { saveLocalCache(); } catch (e) { /* ignoré */ } location.reload(); }
+  async function checkForAppUpdate() {
+    if (!/^https?:/.test(location.protocol)) return;
+    try {
+      const r = await fetch(location.origin + location.pathname + "?v=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      const m = (await r.text()).match(new RegExp('APP_VERS' + 'ION = "([^"]+)"'));
+      if (!m || m[1] === APP_VERSION) return;
+      updateReady = true;
+      show("updateBar", true);
+      if (appIsIdle()) applyAppUpdate();
+    } catch (e) { /* hors ligne : on réessaiera */ }
+  }
+  setTimeout(checkForAppUpdate, 4000);
+  setInterval(checkForAppUpdate, 10 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (updateReady && appIsIdle()) applyAppUpdate(); else checkForAppUpdate();
+  });
 
   // Ouverture directe sur un équipement via ?item=ITEM-123 (QR code).
   function applyDeepLink() {
