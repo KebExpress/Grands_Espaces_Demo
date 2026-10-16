@@ -178,7 +178,7 @@
           </div>
           <div>
             <label for="uInputEmail" class="block text-xs text-slate-600 font-bold">Email <span class="text-rose-600">*</span></label>
-            <input type="email" id="uInputEmail" autocomplete="email" oninput="scheduleDupCheck('u')" class="w-full p-2 border border-slate-300 rounded text-sm">
+            <input type="email" id="uInputEmail" autocomplete="email" oninput="autofillByEmail('u'); scheduleDupCheck('u')" class="w-full p-2 border border-slate-300 rounded text-sm">
           </div>
           <div>
             <label for="uInputPhone" class="block text-xs text-slate-600 font-bold">Téléphone <span class="text-rose-600">*</span></label>
@@ -956,7 +956,7 @@
           </div>
           <div>
             <label for="wizardEmail" class="block text-xs text-slate-600 font-bold">Email <span class="text-rose-600">*</span></label>
-            <input type="email" id="wizardEmail" autocomplete="email" oninput="scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
+            <input type="email" id="wizardEmail" autocomplete="email" oninput="autofillByEmail('wizard'); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
           </div>
           <div>
             <label for="wizardPhone" class="block text-xs text-slate-600 font-bold">Téléphone <span class="text-rose-600">*</span></label>
@@ -1179,6 +1179,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   planningCalendarMonth.setDate(1);
   planningCalendarMonth.setHours(0, 0, 0, 0);
   let online = false;
+  let syncLost = false;   // dernière synchronisation (rafraîchissement ou sondage) échouée
   let busy = false;
   // Préférences client (PTV / taille / homologation EN d'une voile), saisies
   // localement pour filtrer la liste du matériel compatible. Jamais envoyées
@@ -1888,6 +1889,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       if (!missingSheets.includes("packs")) appData.packs = indexBy(packs);
 
       online = true;
+      syncLost = false;
       if (wasOffline) showBanner("");
       setSync("☁️ Connecté");
       lastFullRefresh = Date.now();
@@ -1903,7 +1905,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     } catch (err) {
       if (silent) {
         // Échec ponctuel d'un rafraîchissement automatique : on garde les données affichées.
-        if (!String(err.message || "").includes("Session expirée")) setSync("⚠️ Connexion perdue", "error");
+        if (!String(err.message || "").includes("Session expirée")) { syncLost = true; setSync("⚠️ Connexion perdue", "error"); }
         return;
       }
       console.error("Synchronisation impossible :", err);
@@ -2138,6 +2140,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   }
 
   async function persist(sheets) {
+    if (!isSynced()) {   // dernier rempart : aucune écriture tant que la synchro n'est pas rétablie
+      toast("⛔ Enregistrement refusé : application non synchronisée. Reconnexion en cours…", "error");
+      ensureSynced().then(() => { if (isSynced()) renderAll(); });
+      return false;
+    }
     setBusy(true);
     setSync("🔄 Enregistrement…", "work");
     let failed = [];
@@ -2817,7 +2824,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     show(el, true);
     if (match.kind === "email") {
       el.className = "text-xs rounded-lg p-2 bg-emerald-50 border border-emerald-200 text-emerald-800";
-      el.textContent = "✅ Vous êtes déjà enregistré(e) avec cette adresse e-mail : vos coordonnées seront simplement mises à jour, aucune nouvelle fiche ne sera créée.";
+      el.textContent = isStaffViewer()
+        ? "✅ Client déjà enregistré avec cette adresse e-mail : cases préremplies, aucune nouvelle fiche ne sera créée. Vous pouvez poursuivre le prêt."
+        : "✅ Vous êtes déjà enregistré(e) avec cette adresse e-mail : vos coordonnées seront simplement mises à jour, aucune nouvelle fiche ne sera créée. Vous pouvez poursuivre votre demande.";
     } else if (match.kind === "person") {
       dupState[form] = { blocking: true };
       el.className = "text-xs rounded-lg p-2 bg-rose-50 border border-rose-200 text-rose-700 font-bold";
@@ -2903,6 +2912,27 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if ($("uInputCountry")) $("uInputCountry").value = client.country || "France";
   }
 
+  // Dès qu'une adresse e-mail valide est saisie : si elle correspond à un client déjà en base,
+  // on préremplit toutes les cases (aucune nouvelle fiche ne sera créée) et on propose de poursuivre le prêt.
+  const EMAIL_FILL_IDS = {
+    u: { name: "uInputName", phone: "uInputPhone", address: "uInputAddress", postalCode: "uInputPostal", city: "uInputCity", country: "uInputCountry" },
+    wizard: { name: "wizardName", phone: "wizardPhone", address: "wizardAddress", postalCode: "wizardPostal", city: "wizardCity", country: "wizardCountry" }
+  };
+  const emailFilled = {};
+  function autofillByEmail(form) {
+    const emailEl = $(form === "u" ? "uInputEmail" : "wizardEmail");
+    const email = emailEl ? emailEl.value.trim().toLowerCase() : "";
+    if (!isValidEmail(email)) { emailFilled[form] = ""; return; }
+    if (emailFilled[form] === email) return;           // déjà prérempli pour cette adresse : on n'écrase pas les corrections
+    const c = findClientByEmail(email);
+    if (!c) return;
+    emailFilled[form] = email;
+    const ids = EMAIL_FILL_IDS[form];
+    Object.keys(ids).forEach(k => { const el = $(ids[k]); if (el && c[k]) el.value = c[k]; });
+    if (c.blocked) toast("Ce compte client est bloqué.", "error");
+    else toast("✅ Client déjà enregistré : coordonnées préremplies, vous pouvez poursuivre le prêt.");
+  }
+
   // Même principe pour le formulaire de coordonnées de l'assistant de réservation.
   function autofillWizardByName() {
     const client = findClientByName($("wizardName").value);
@@ -2928,6 +2958,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   async function openBorrowConfirmationModal() {
     if (busy) return;
+    if (!isSynced()) { await ensureSynced(); return; }
     const name = $("uInputName").value.trim();
     const email = $("uInputEmail").value.trim();
     const phone = $("uInputPhone").value.trim();
@@ -5005,7 +5036,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const data = await res.json();
       if (data && data.error === "Session expirée") { handleSessionExpired(); return; }
       const age = Date.now() - lastFullRefresh;
-      const recovered = pollFailed; pollFailed = false;
+      const recovered = pollFailed; pollFailed = false; syncLost = false;
       if (data && data.version !== undefined) {
         const changed = String(data.version) !== String(lastDataVersion);
         if (changed || recovered || age > POLL_FULL_REFRESH_MS) {
@@ -5019,6 +5050,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       }
     } catch (err) {
       pollFailed = true;
+      syncLost = true;
       setSync("⚠️ Connexion perdue", "error");
     } finally {
       polling = false;
@@ -5812,7 +5844,23 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /*  MODALS                                                             */
   /* ------------------------------------------------------------------ */
 
-  function openModal(id) { show(id, true); }
+  // Saisie interdite tant que l'application n'est pas synchronisée avec le tableur :
+  // on évite ainsi de saisir des prêts / retours / fiches sur des données périmées.
+  const ENTRY_MODALS = ["wizardModal", "borrowConfirmModal", "returnModal", "thirdPartyBorrowModal", "sellItemModal",
+    "editItemModal", "editClientModal", "editUserModal", "editArchiveModal"];
+  function isSynced() { return online && !syncLost; }
+  async function ensureSynced() {
+    if (isSynced()) return true;
+    toast("⛔ Application non synchronisée : saisie impossible. Reconnexion en cours…", "error");
+    silentFresh = true;
+    try { await fetchCloudData(true); } catch (e) { /* l'état est mis à jour par fetchCloudData */ } finally { silentFresh = false; }
+    if (isSynced()) { toast("✅ Synchronisé : vous pouvez recommencer.", "info"); return false; }
+    return false;
+  }
+  function openModal(id) {
+    if (ENTRY_MODALS.includes(id) && !isSynced()) { ensureSynced(); return; }
+    show(id, true);
+  }
   function closeModal(id) { show(id, false); }
   function backdropClose(event, id) { if (event.target === $(id)) closeModal(id); }
 
@@ -6079,7 +6127,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-16.71";
+  const APP_VERSION = "2026-10-16.72";
 
   (function setupPwa() {
     try {
