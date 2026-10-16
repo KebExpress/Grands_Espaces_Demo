@@ -333,7 +333,7 @@
               <option value="Accessoire">Accessoire</option>
             </select>
             <input type="text" id="newItemShelf" class="p-2 border border-slate-300 rounded" placeholder="Étagère">
-            <input type="text" id="newItemBrand" class="p-2 border border-slate-300 rounded" placeholder="Marque *">
+            <input type="text" id="newItemBrand" list="brandList" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Marque *">
             <input type="text" id="newItemModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle *">
             <input type="text" id="newItemSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série *">
             <select id="newItemENField" class="p-2 border border-slate-300 rounded col-span-2">
@@ -481,6 +481,16 @@
           </label>
           <p id="longTermRentalSettingStatus" class="text-[10px] text-slate-400"></p>
           <button onclick="saveLongTermRentalSetting()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer</button>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+          <h4 class="font-bold text-sm">Constructeurs de matériel</h4>
+          <p class="text-[10px] text-slate-500">Ajoutez un constructeur ici : il sera proposé automatiquement à chaque saisie de matériel. La liste se complète aussi toute seule dès qu'un nouveau matériel est ajouté avec un constructeur inconnu.</p>
+          <div class="flex gap-2">
+            <input type="text" id="settingsNewBrand" maxlength="60" placeholder="Nouveau constructeur" onkeydown="if(event.key==='Enter'){event.preventDefault();addBrandFromSettings();}" class="flex-1 min-w-0 p-2 border border-slate-300 rounded text-sm">
+            <button onclick="addBrandFromSettings()" class="px-4 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-xs">Ajouter</button>
+          </div>
+          <div id="settingsBrandList" class="flex flex-wrap gap-2 text-xs"></div>
         </div>
 
         <div id="managerPermissionsCard" hidden class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
@@ -690,7 +700,7 @@
           <option value="Accessoire">Accessoire</option>
         </select>
         <input type="text" id="editItemShelf" class="p-2 border border-slate-300 rounded" placeholder="Étagère">
-        <input type="text" id="editItemBrand" class="p-2 border border-slate-300 rounded" placeholder="Marque">
+        <input type="text" id="editItemBrand" list="brandList" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Marque">
         <input type="text" id="editItemModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle">
         <input type="text" id="editItemSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série">
         <select id="editItemENField" class="p-2 border border-slate-300 rounded col-span-2">
@@ -783,7 +793,7 @@
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
       <h3 class="font-bold text-lg">Modifier l'article archivé</h3>
       <div class="grid grid-cols-2 gap-2 text-xs">
-        <input type="text" id="editArchiveBrand" class="p-2 border border-slate-300 rounded" placeholder="Marque">
+        <input type="text" id="editArchiveBrand" list="brandList" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Marque">
         <input type="text" id="editArchiveModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle">
         <input type="text" id="editArchiveSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série">
         <select id="editArchiveEN" class="p-2 border border-slate-300 rounded col-span-2">
@@ -1046,6 +1056,7 @@
   <!-- Listes de suggestion pour la pré-saisie par nom (clients / personnel) -->
   <datalist id="clientNamesList"></datalist>
   <datalist id="staffNamesList"></datalist>
+  <datalist id="brandList"></datalist>
 
   <script>
   "use strict";
@@ -2882,6 +2893,83 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return Object.values(appData.users).find(u => String(u.name || "").trim().toLowerCase() === key) || null;
   }
 
+  // ---- Constructeurs : réglage « brands » (JSON) + tous ceux déjà présents sur le matériel / les archives ----
+  function brandKey(b) { return searchNormalize(String(b || "")).replace(/[^a-z0-9]+/g, ""); }
+  function savedBrands() {
+    try { const a = JSON.parse(String(getSetting("brands", "[]"))); return Array.isArray(a) ? a.map(x => String(x).trim()).filter(Boolean) : []; }
+    catch (e) { return []; }
+  }
+  function brandUsage() {
+    const use = {};
+    Object.values(appData.items).concat(Object.values(appData.archives || {})).forEach(i => {
+      const b = String(i.brand || "").trim(); if (!b) return;
+      const k = brandKey(b); if (!k) return;
+      use[k] = use[k] || { name: b, count: 0 }; use[k].count++;
+    });
+    return use;
+  }
+  function getBrandList() {
+    const map = {};
+    savedBrands().forEach(b => { map[brandKey(b)] = map[brandKey(b)] || b; });
+    Object.entries(brandUsage()).forEach(([k, v]) => { if (!map[k]) map[k] = v.name; });
+    return Object.values(map).sort((a, b) => a.localeCompare(b, "fr"));
+  }
+  // Orthographe officielle d'un constructeur : « ozone » saisi → « Ozone » de la liste.
+  function canonicalBrand(name) {
+    const n = String(name || "").trim().replace(/\s+/g, " ");
+    if (!n) return "";
+    const k = brandKey(n);
+    const known = getBrandList().find(b => brandKey(b) === k);
+    if (known) return known;
+    // nouveau nom tapé tout en minuscules : première lettre de chaque mot en majuscule
+    return n === n.toLowerCase() ? n.replace(/(^|[\s-])(\S)/g, (m, sp, ch) => sp + ch.toUpperCase()) : n;
+  }
+  // Ajoute le constructeur au réglage s'il est nouveau. Renvoie true si le réglage a changé.
+  function rememberBrand(name) {
+    const n = String(name || "").trim();
+    if (!n || !canUse("settings")) return false;
+    const k = brandKey(n);
+    if (!k || savedBrands().some(b => brandKey(b) === k)) return false;
+    setSetting("brands", JSON.stringify(savedBrands().concat(n).sort((a, b) => a.localeCompare(b, "fr"))));
+    return true;
+  }
+  function renderBrandSettings() {
+    const el = $("settingsBrandList"); if (!el) return;
+    const use = brandUsage(), saved = savedBrands().map(brandKey);
+    const list = getBrandList();
+    el.innerHTML = list.length ? list.map(b => {
+      const k = brandKey(b), n = use[k] ? use[k].count : 0;
+      const removable = n === 0 && saved.includes(k);
+      return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 border border-slate-200">${esc(b)}${n ? ` <span class="text-slate-400">· ${n}</span>` : ""}${removable ? ` <button onclick="removeBrandFromSettings('${esc(b).replace(/'/g, "&#39;")}')" class="text-rose-600 font-bold" title="Retirer">×</button>` : ""}</span>`;
+    }).join("") : '<span class="text-slate-400">Aucun constructeur pour l\'instant.</span>';
+  }
+  async function addBrandFromSettings() {
+    if (busy) return;
+    if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
+    const inp = $("settingsNewBrand"); const name = canonicalBrand(inp.value);
+    if (name.length < 2) { toast("Saisissez le nom du constructeur.", "error"); return; }
+    if (getBrandList().some(b => brandKey(b) === brandKey(name)) && savedBrands().some(b => brandKey(b) === brandKey(name))) { toast("Ce constructeur existe déjà.", "error"); return; }
+    if (!isSynced()) { await ensureSynced(); return; }
+    rememberBrand(name);
+    const ok = await persist(["settings"]);
+    if (ok) inp.value = "";
+    toast(ok ? "Constructeur ajouté." : "Ajout non enregistré.", ok ? undefined : "error");
+    populateBrandDatalist(); renderBrandSettings();
+  }
+  async function removeBrandFromSettings(name) {
+    if (busy || !canUse("settings")) return;
+    const k = brandKey(name);
+    if (brandUsage()[k]) { toast("Ce constructeur est utilisé par du matériel.", "error"); return; }
+    setSetting("brands", JSON.stringify(savedBrands().filter(b => brandKey(b) !== k)));
+    const ok = await persist(["settings"]);
+    toast(ok ? "Constructeur retiré." : "Modification non enregistrée.", ok ? undefined : "error");
+    populateBrandDatalist(); renderBrandSettings();
+  }
+  function populateBrandDatalist() {
+    const dl = $("brandList");
+    if (dl) dl.innerHTML = getBrandList().map(b => `<option value="${esc(b)}"></option>`).join("");
+  }
+
   // Alimente les <datalist> de suggestion de noms (clients et personnel),
   // pour proposer l'auto-complétion dès la saisie du nom.
   function populateNameDatalists() {
@@ -3841,7 +3929,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   async function addNewItem() {
     if (busy) return;
     if (!canUse("items")) { toast("Action non autorisée.", "error"); return; }
-    const brand = $("newItemBrand").value.trim();
+    const brand = canonicalBrand($("newItemBrand").value);
     const model = $("newItemModel").value.trim();
     const sn = $("newItemSN").value.trim();
     const shelf = $("newItemShelf").value.trim();
@@ -3890,7 +3978,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       dateMiseEnService, couleur, prixAchat, prixHeureVol, taille, coefVente, pretConstructeur, salePriceManual, pairedSecoursId, revisionMonths, revisionHours
     });
 
-    const ok = await persist(["items"]);
+    const brandAdded = rememberBrand(brand);   // constructeur inconnu : ajouté à la liste des réglages
+    const ok = await persist(brandAdded ? ["items", "settings"] : ["items"]);
 
     $("newItemBrand").value = "";
     $("newItemModel").value = "";
@@ -4068,7 +4157,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       toast("Indiquez un prix de vente valide.", "error"); return;
     }
 
-    a.brand = $("editArchiveBrand").value.trim();
+    a.brand = canonicalBrand($("editArchiveBrand").value);
     a.model = $("editArchiveModel").value.trim();
     a.sn = $("editArchiveSN").value.trim();
     a.en = $("editArchiveEN").value;
@@ -4412,7 +4501,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const item = appData.items[editingItemId];
     if (!item) { closeModal("editItemModal"); return; }
 
-    const brand = $("editItemBrand").value.trim();
+    const brand = canonicalBrand($("editItemBrand").value);
     const model = $("editItemModel").value.trim();
     const sn = $("editItemSN").value.trim();
     if (!brand || !model) { toast("Marque et modèle sont obligatoires.", "error"); return; }
@@ -4458,7 +4547,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     item.pairedSecoursId = item.type === "Sellette" ? $("editItemPairedSecours").value : "";
 
     closeModal("editItemModal");
-    const ok = await persist(["items"]);
+    const brandAdded = rememberBrand(brand);
+    const ok = await persist(brandAdded ? ["items", "settings"] : ["items"]);
     editingItemId = null;
     toast(ok ? "Équipement modifié." : "Modification enregistrée localement (hors ligne).");
     renderAll();
@@ -4760,6 +4850,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   function renderSettingsForm() {
     $("settingsLongTermRentalEnabled").checked = isLongTermRentalEnabled();
+    renderBrandSettings();
     if ($("longTermRentalSettingStatus")) $("longTermRentalSettingStatus").textContent = "";
     $("settingsContractText").value = getContractText();
     const m = getMailSettings();
@@ -5882,6 +5973,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   function renderAll() {
     populateNameDatalists();
+    populateBrandDatalist();
     updateReservationWizardLabels();
     if (currentRole === "admin" || currentRole === "instructor") renderAdmin();
     else renderUserSelectors();
@@ -6127,7 +6219,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-16.72";
+  const APP_VERSION = "2026-10-16.73";
 
   (function setupPwa() {
     try {
