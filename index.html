@@ -1737,8 +1737,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           signal: ctrl.signal
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        try { return await res.json(); }
+        let json;
+        try { json = await res.json(); }
         catch (e) { throw new Error("Réponse non JSON : le déploiement doit être accessible à « Tout le monde »."); }
+        // Serveur saturé (verrou occupé, quota momentané) : on réessaie automatiquement.
+        if (json && json.retry === true && i < attempts - 1) { lastErr = new Error(json.error || "Serveur occupé"); await new Promise(r => setTimeout(r, 800 * (i + 1))); continue; }
+        return json;
       } catch (err) {
         lastErr = err;
         if (i < attempts - 1) await new Promise(r => setTimeout(r, 600 * (i + 1) * (i + 1)));
@@ -1763,7 +1767,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // Le serveur garde la réponse en cache tant que les données ne changent pas.
   // Un script plus ancien (sans « readAll ») est géré par la lecture onglet par onglet.
   async function fetchBundle(fresh) {
-    const data = await postJSON({ action: "readAll", token: API_TOKEN, sid: currentSid(), fresh: !!fresh });
+    const data = await postJSON({ action: "readAll", token: API_TOKEN, sid: currentSid(), fresh: !!fresh, periodic: !!silentFresh });
     if (data && data.error === "Session expirée") { handleSessionExpired(); throw new Error("Session expirée"); }
     if (data && data.error && data.error !== "Action inconnue") throw new Error(data.error);
 
@@ -6075,7 +6079,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-15.70";
+  const APP_VERSION = "2026-10-16.71";
 
   (function setupPwa() {
     try {
