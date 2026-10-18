@@ -358,6 +358,10 @@
           </select>
           <button onclick="renderItems()" class="px-3 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-xs shrink-0">🔍 Rechercher</button>
         </div>
+        <div class="flex gap-2 items-center">
+          <select id="itemTypeFilter" onchange="renderItems()" aria-label="Filtrer par type" class="flex-1 min-w-0 p-2 border border-slate-300 rounded text-xs"></select>
+          <select id="itemBrandFilter" onchange="renderItems()" aria-label="Filtrer par marque" class="flex-1 min-w-0 p-2 border border-slate-300 rounded text-xs"></select>
+        </div>
         <button onclick="openQrPrintModal()" class="w-full py-2 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700">🖨️ Imprimer les QR codes (feuille A4 : 4 × 6)</button>
         <div id="itemsListByShelf" class="space-y-4"></div>
         </div>
@@ -371,6 +375,7 @@
               <option value="Sellette">Sellette</option>
               <option value="Secours">Secours</option>
               <option value="Accessoire">Accessoire</option>
+              <option value="Vario">Vario</option>
             </select>
             <input type="text" id="newItemShelf" class="p-2 border border-slate-300 rounded" placeholder="Étagère">
             <input type="text" id="newItemBrand" list="brandList" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Marque *">
@@ -738,6 +743,7 @@
           <option value="Sellette">Sellette</option>
           <option value="Secours">Secours</option>
           <option value="Accessoire">Accessoire</option>
+          <option value="Vario">Vario</option>
         </select>
         <input type="text" id="editItemShelf" class="p-2 border border-slate-300 rounded" placeholder="Étagère">
         <input type="text" id="editItemBrand" list="brandList" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Marque">
@@ -941,7 +947,7 @@
         <div id="stockDemoRow" hidden class="grid grid-cols-2 gap-2">
           <p class="col-span-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">1 unité sort du stock (quantité en rayon −1) et devient un article de démo suivi par numéro de série. Tous les champs * sont obligatoires (pour un accessoire : marque, modèle et numéro de série).</p>
           <select id="stockDemoType" onchange="toggleDemoFields()" aria-label="Type de matériel" class="col-span-2 p-2 border border-slate-300 rounded">
-            <option value="Sellette">Sellette</option><option value="Secours">Secours</option><option value="Accessoire">Accessoire</option>
+            <option value="Sellette">Sellette</option><option value="Secours">Secours</option><option value="Accessoire">Accessoire</option><option value="Vario">Vario</option>
           </select>
           <input type="text" id="stockDemoBrand" list="brandList" autocomplete="off" placeholder="Marque *" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
@@ -1202,14 +1208,15 @@
   // par tous. Tous les comptes (administrateur, gestionnaire, moniteur) doivent
   // exister dans l'onglet "users" du tableur ; la connexion est vérifiée par le serveur.
 
-  const TYPES = ["Voile", "Sellette", "Secours", "Accessoire"];
+  const TYPES = ["Voile", "Sellette", "Secours", "Accessoire", "Vario"];
 
   // Anciens libellés éventuellement présents dans la feuille.
   const TYPE_ALIASES = {
     "harnais": "Sellette", "harness": "Sellette", "sellette": "Sellette",
     "voile": "Voile", "glider": "Voile", "aile": "Voile",
     "secours": "Secours", "parachute": "Secours", "reserve": "Secours",
-    "accessoire": "Accessoire", "accessory": "Accessoire", "casque": "Accessoire"
+    "accessoire": "Accessoire", "accessory": "Accessoire", "casque": "Accessoire",
+    "vario": "Vario", "variometre": "Vario", "variomètre": "Vario"
   };
 
 
@@ -2752,7 +2759,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (content) content.innerHTML = lines.join("") || `<p class="text-slate-400">Ce pack n'a aucun article associé.</p>`;
 
     if (accBox) {
-      const accessories = itemsOfType("Accessoire").filter(i => i.status === "Disponible");
+      const accessories = itemsOfType("Accessoire").concat(itemsOfType("Vario")).filter(i => i.status === "Disponible");
       accBox.innerHTML = accessories.length
         ? accessories.map(a => `<label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2 py-1">
             <input type="checkbox" ${packSelectedAccessoryIds.includes(a.id) ? "checked" : ""} onchange="toggleAccessoryChoice('${esc(a.id)}', this.checked)"> ${esc(itemLabel(a))}
@@ -3713,7 +3720,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       $("stockEditColor").value = r.color || ""; $("stockEditShelf").value = r.shelf || ""; $("stockEditMin").value = stockMin(r) || ""; $("stockEditNote").value = r.note || "";
     }
     if (kind === "demo") {
-      $("stockDemoType").value = r.category === "Sellette" ? "Sellette" : r.category === "Secours" ? "Secours" : "Accessoire";
+      $("stockDemoType").value = r.category === "Sellette" ? "Sellette" : r.category === "Secours" ? "Secours" : r.category === "Vario" ? "Vario" : "Accessoire";
       $("stockDemoBrand").value = r.brand || ""; $("stockDemoModel").value = r.model || ""; $("stockDemoSN").value = "";
       $("stockDemoSize").value = r.size || ""; $("stockDemoShelf").value = r.shelf || ""; $("stockDemoColor").value = r.color || "";
       $("stockDemoDate").value = ""; $("stockDemoPrix").value = "";
@@ -4126,6 +4133,20 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const statusFilter = $("itemStatusFilter") ? $("itemStatusFilter").value : "";
 
     let items = Object.values(appData.items);
+    // Filtres par type et par marque (les listes se construisent d'après le matériel existant).
+    const typeSel = $("itemTypeFilter"), brandSel = $("itemBrandFilter");
+    if (typeSel && brandSel) {
+      const curType = typeSel.value, curBrand = brandSel.value;
+      const typesPresent = TYPES.filter(t => items.some(i => i.type === t));
+      typeSel.innerHTML = `<option value="">Tous les types</option>` + typesPresent.map(t => `<option value="${esc(t)}">${esc(t)} (${items.filter(i => i.type === t).length})</option>`).join("");
+      typeSel.value = typesPresent.includes(curType) ? curType : "";
+      const inType = typeSel.value ? items.filter(i => i.type === typeSel.value) : items;
+      const brandsPresent = Array.from(new Set(inType.map(i => i.brand).filter(Boolean))).sort((a, b) => a.localeCompare(b, "fr"));
+      brandSel.innerHTML = `<option value="">Toutes les marques</option>` + brandsPresent.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join("");
+      brandSel.value = brandsPresent.includes(curBrand) ? curBrand : "";
+      if (typeSel.value) items = items.filter(i => i.type === typeSel.value);
+      if (brandSel.value) items = items.filter(i => i.brand === brandSel.value);
+    }
     if (query) {
       items = items.filter(i => {
         const hay = norm([i.brand, i.model, i.sn, i.shelf, i.type, i.color, i.couleur, i.taille, i.categorie, i.en].join(" "));
@@ -6773,7 +6794,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.84";
+  const APP_VERSION = "2026-10-18.85";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6784,6 +6805,13 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 85, title: "Matériel : filtres type et marque, catégorie Vario", aud: "staff", items: [
+      { icon: "🔎", t: "Filtrer le matériel par type et par marque", steps: [
+        "Onglet Matériel › sous la barre de recherche : deux menus « Tous les types » et « Toutes les marques ».",
+        "La liste des marques s'adapte au type choisi ; ils se combinent avec la recherche et le statut."] },
+      { icon: "📟", t: "Nouvelle catégorie « Vario »", steps: [
+        "Les varios ont leur propre type, à la création, dans la fiche ✏️ et dans « Passer en démo » depuis le stock.",
+        "Pour un vario déjà créé comme accessoire : ✏️ › Type › Vario."] } ] },
     { v: 84, title: "Démo : accessoires et vérification de l'enregistrement", aud: "staff", items: [
       { icon: "🪂", t: "Passer un accessoire en démo", steps: [
         "Pour un accessoire (casque, vario…), seuls la marque, le modèle et le numéro de série sont obligatoires.",
