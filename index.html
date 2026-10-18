@@ -267,9 +267,17 @@
           </div>
           <button onclick="addStockRef()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Ajouter au stock</button>
         </div>
-        <div class="flex gap-2 items-center">
-          <input type="search" id="stockSearch" oninput="renderStock()" placeholder="🔍 Rechercher (marque, modèle, taille…)" class="flex-1 min-w-0 p-2 border border-slate-300 rounded">
-          <select id="stockFilter" onchange="renderStock()" class="p-2 border border-slate-300 rounded"></select>
+        <div class="space-y-2">
+          <input type="search" id="stockSearch" oninput="renderStock()" placeholder="🔍 Rechercher (marque, modèle, taille, couleur, étagère, emprunteur…)" class="w-full p-2 border border-slate-300 rounded">
+          <div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Type</p>
+            <div id="stockTypeChips" class="flex flex-wrap gap-1"></div>
+          </div>
+          <div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Disponibilité</p>
+            <div id="stockAvailChips" class="flex flex-wrap gap-1"></div>
+          </div>
+          <p id="stockResultInfo" class="text-[11px] text-slate-500"></p>
         </div>
         <div id="stockList" class="space-y-3"></div>
       </div>
@@ -3525,6 +3533,23 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     modifier:   { title: "✏️ Modifier la référence", hist: "Stock modification" }
   };
   let stockActionState = null;
+  let stockTypeFilter = "";     // "" = tous les types
+  let stockAvailFilter = "";    // "" | dispo | bas | rupture | prete
+  const STOCK_AVAIL = [
+    ["", "Tous"], ["dispo", "✅ Disponible"], ["bas", "🟠 Stock bas"], ["rupture", "🔴 Rupture"], ["prete", "📤 Avec prêts en cours"]
+  ];
+  function stockAvailMatch(r, f) {
+    if (!f) return true;
+    if (f === "dispo") return stockQty(r) > 0;
+    if (f === "bas") return stockQty(r) > 0 && stockIsLow(r);
+    if (f === "rupture") return stockQty(r) === 0;
+    if (f === "prete") return stockOut(r) > 0;
+    return true;
+  }
+  function setStockFilter(kind, value) {
+    if (kind === "type") stockTypeFilter = value; else stockAvailFilter = value;
+    renderStock();
+  }
 
   function stockAllowed() { return currentRole === "admin" || currentRole === "instructor" || (currentRole === "manager" && canUse("items")); }
   function stockLoans(r) {
@@ -3545,8 +3570,6 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const box = $("stockList"); if (!box) return;
     const cats = $("stockNewCat");
     if (cats && !cats.options.length) cats.innerHTML = STOCK_CATS.map(c => `<option value="${c}">${STOCK_ICON[c]} ${c}</option>`).join("");
-    const flt = $("stockFilter");
-    if (flt && !flt.options.length) flt.innerHTML = `<option value="">Toutes catégories</option>` + STOCK_CATS.map(c => `<option value="${c}">${c}</option>`).join("");
     show("stockMissingNote", missingSheets.includes("stock"));
     show("stockAddCard", currentRole !== "instructor");
     const all = Object.values(appData.stock || {});
@@ -3554,10 +3577,20 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const tab = $("tabStock");
     if (tab) tab.textContent = low ? `🧰 Stock · ⚠ ${low}` : "🧰 Stock";
     const words = searchWords($("stockSearch") ? $("stockSearch").value : "");
-    const cat = flt ? flt.value : "";
-    const list = all.filter(r => (!cat || r.category === cat) && (!words.length || recordMatchesWords(r, words, [])))
+    // Recherche : tous les champs + le nom des emprunteurs (colonne « loans »).
+    const matchWords = r => !words.length || recordMatchesWords(r, words, [Object.keys(stockLoans(r)).join(" ")]);
+    // Pastilles de filtre avec compteurs : chaque groupe est compté en tenant compte de l'autre filtre et de la recherche.
+    const chip = (kind, val, label, count, active) => `<button onclick="setStockFilter('${kind}','${val}')" class="px-2.5 py-1 rounded-full border font-bold ${active ? "bg-green-700 border-green-700 text-white" : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"}">${label} <span class="${active ? "text-green-100" : "text-slate-400"} font-normal">${count}</span></button>`;
+    const baseForType = all.filter(r => stockAvailMatch(r, stockAvailFilter) && matchWords(r));
+    const baseForAvail = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && matchWords(r));
+    const typeBox = $("stockTypeChips"), availBox = $("stockAvailChips");
+    if (typeBox) typeBox.innerHTML = chip("type", "", "Tous", baseForType.length, !stockTypeFilter) + STOCK_CATS.map(c => chip("type", c, `${STOCK_ICON[c]} ${c}`, baseForType.filter(r => r.category === c).length, stockTypeFilter === c)).join("");
+    if (availBox) availBox.innerHTML = STOCK_AVAIL.map(([v, l]) => chip("avail", v, l, baseForAvail.filter(r => stockAvailMatch(r, v)).length, stockAvailFilter === v)).join("");
+    const list = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && stockAvailMatch(r, stockAvailFilter) && matchWords(r))
       .sort((a, b) => STOCK_CATS.indexOf(a.category) - STOCK_CATS.indexOf(b.category) || String(a.brand).localeCompare(String(b.brand), "fr") || String(a.model).localeCompare(String(b.model), "fr"));
-    if (!list.length) { box.innerHTML = `<p class="text-slate-400">${all.length ? "Aucun résultat." : "Aucune référence en stock pour l'instant."}</p>`; return; }
+    const info = $("stockResultInfo");
+    if (info) info.textContent = `${list.length} référence(s) sur ${all.length} · ${list.reduce((a, r) => a + stockQty(r), 0)} unité(s) en rayon · ${list.reduce((a, r) => a + stockOut(r), 0)} prêtée(s)`;
+    if (!list.length) { box.innerHTML = `<p class="text-slate-400">${all.length ? "Aucun résultat pour ces filtres." : "Aucune référence en stock pour l'instant."}</p>`; return; }
     const canEdit = currentRole === "admin" || currentRole === "manager";
     let lastCat = "";
     box.innerHTML = list.map(r => {
@@ -6602,7 +6635,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.78";
+  const APP_VERSION = "2026-10-18.79";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6613,6 +6646,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 79, title: "Filtres du stock", aud: "staff", items: [
+      { icon: "🧰", t: "Filtrer le stock par type et disponibilité", steps: [
+        "Onglet « Stock » : touchez une pastille de Type (Sellette, Secours, Casque, Vario) pour n'afficher que celle-ci.",
+        "Pastilles Disponibilité : Disponible, Stock bas, Rupture, ou références avec prêts en cours. Les deux filtres se combinent.",
+        "Chaque pastille indique combien de références correspondent ; la recherche (marque, modèle, taille, emprunteur…) se combine aussi."], go: "tab:stock" } ] },
     { v: 78, title: "Impression des QR codes corrigée", aud: "staff", items: [
       { icon: "🖨️", t: "Logo à la bonne taille", steps: [
         "À l'impression, le logo au centre du QR code reste petit : le QR code est de nouveau entièrement lisible.",
