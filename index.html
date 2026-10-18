@@ -30,11 +30,16 @@
     .qr-page:last-child { break-after: auto; page-break-after: auto; }
     .qr-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 0.2mm dashed #bbb; padding: 1.5mm; text-align: center; overflow: hidden; color: #000; font-family: Arial, sans-serif; }
     .qr-cell .qr-img { width: 30mm; height: 30mm; }
-    .qr-cell .qr-img img, .qr-cell .qr-img canvas { width: 30mm !important; height: 30mm !important; display: block; }
+    /* Seuls l'image du QR (et son canvas masqué) prennent la taille du QR : le logo central garde ses 21 %. */
+    .qr-cell .qr-img img:not(.qr-logo), .qr-cell .qr-img canvas { width: 30mm !important; height: 30mm !important; }
+    .qr-cell .qr-img img:not(.qr-logo) { display: block; }
+    .qr-cell .qr-img .qr-logo { width: 21% !important; height: 21% !important; }
     .qr-cell .qr-l1 { font-size: 8pt; font-weight: bold; line-height: 1.15; margin-top: 1.2mm; max-height: 9.5mm; overflow: hidden; }
     .qr-cell .qr-l2 { font-size: 6.5pt; color: #333; line-height: 1.15; max-height: 5mm; overflow: hidden; }
     .qr-single { width: 194mm; height: 280mm; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #000; font-family: Arial, sans-serif; }
-    .qr-single .qr-img, .qr-single .qr-img img, .qr-single .qr-img canvas { width: 90mm !important; height: 90mm !important; }
+    .qr-single .qr-img, .qr-single .qr-img img:not(.qr-logo), .qr-single .qr-img canvas { width: 90mm !important; height: 90mm !important; }
+    .qr-single .qr-img img:not(.qr-logo) { display: block; }
+    .qr-single .qr-img .qr-logo { width: 21% !important; height: 21% !important; }
     .qr-single .qr-l1 { font-size: 20pt; font-weight: bold; margin-top: 8mm; }
     .qr-single .qr-l2 { font-size: 13pt; color: #333; margin-top: 2mm; }
     button:focus-visible, select:focus-visible, input:focus-visible {
@@ -6597,7 +6602,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.77";
+  const APP_VERSION = "2026-10-18.78";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6608,6 +6613,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 78, title: "Impression des QR codes corrigée", aud: "staff", items: [
+      { icon: "🖨️", t: "Logo à la bonne taille", steps: [
+        "À l'impression, le logo au centre du QR code reste petit : le QR code est de nouveau entièrement lisible.",
+        "Une page A4 contient bien 24 QR codes (4 × 6) ; avant, certaines planches débordaient sur une page de plus.",
+        "Matériel › « Imprimer les QR codes » (planche) ou le bouton d'impression d'un QR code seul."] } ] },
     { v: 77, title: "Rappel manuel par e-mail", aud: "staff", items: [
       { icon: "✉️", t: "Relancer un emprunteur", steps: [
         "Onglet « Prêts en cours » : sous chaque prêt, touchez « ✉️ Envoyer un rappel par e-mail ».",
