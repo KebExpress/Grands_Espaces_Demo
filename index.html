@@ -6333,8 +6333,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   }
 
   let qrPrintChecked = {};
+  // Un équipement rendu indisponible n'est plus proposé à l'impression des QR codes.
+  function qrPrintable(i) { return i && i.status !== "Indisponible"; }
+
   function openQrPrintModal() {
-    const items = Object.values(appData.items);
+    const items = Object.values(appData.items).filter(qrPrintable);
     if (!items.length) { toast("Aucun matériel à imprimer.", "error"); return; }
     qrPrintChecked = {};
     items.forEach(i => { qrPrintChecked[i.id] = true; });
@@ -6349,13 +6352,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const words = searchWords($("qrPrintSearch").value);
     const type = $("qrPrintType").value;
     return Object.values(appData.items)
+      .filter(qrPrintable)
       .filter(i => (!type || (i.type || "Autre") === type))
       .filter(i => !words.length || words.every(w => searchNormalize([i.brand, i.model, i.sn, i.shelf, i.type, i.taille, i.couleur].join(" ")).includes(w)))
       .sort((a, b) => String(a.type).localeCompare(String(b.type), "fr") || String(a.brand).localeCompare(String(b.brand), "fr") || String(a.model).localeCompare(String(b.model), "fr"));
   }
 
   function qrPrintUpdateCount() {
-    const n = Object.keys(qrPrintChecked).filter(id => qrPrintChecked[id] && appData.items[id]).length;
+    const n = Object.keys(qrPrintChecked).filter(id => qrPrintChecked[id] && qrPrintable(appData.items[id])).length;
     const pages = Math.ceil(n / 24);
     $("qrPrintCount").textContent = `${n} QR code(s) · ${pages} page(s) A4`;
   }
@@ -6378,7 +6382,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   function printSelectedQrs() {
     const chosen = Object.values(appData.items)
-      .filter(i => qrPrintChecked[i.id])
+      .filter(i => qrPrintChecked[i.id] && qrPrintable(i))
       .sort((a, b) => String(a.type).localeCompare(String(b.type), "fr") || String(a.brand).localeCompare(String(b.brand), "fr") || String(a.model).localeCompare(String(b.model), "fr"));
     if (!chosen.length) { toast("Cochez au moins un matériel.", "error"); return; }
     const PER_PAGE = 24;   // 4 colonnes × 6 lignes
@@ -6746,7 +6750,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.82";
+  const APP_VERSION = "2026-10-18.83";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6757,6 +6761,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 83, title: "QR codes : matériel indisponible exclu", aud: "staff", items: [
+      { icon: "🖨️", t: "Un matériel indisponible n'est plus imprimable", steps: [
+        "Dans « Imprimer les QR codes », les équipements marqués « Indisponible » n'apparaissent plus dans la liste et ne sont jamais imprimés.",
+        "Dès qu'ils sont remis à disposition, ils réapparaissent."] } ] },
     { v: 82, title: "Du stock vers la démo", aud: "staff", items: [
       { icon: "🪂", t: "Passer un article du stock en démo", steps: [
         "Onglet « Stock » › bouton « 🪂 Démo » sur la carte de l'article (administrateur et gestionnaire uniquement).",
