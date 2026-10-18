@@ -938,6 +938,20 @@
           <input type="number" id="stockEditMin" min="0" step="1" placeholder="Seuil d'alerte" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditNote" placeholder="Note permanente" class="p-2 border border-slate-300 rounded col-span-2">
         </div>
+        <div id="stockDemoRow" hidden class="grid grid-cols-2 gap-2">
+          <p class="col-span-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">1 unité sort du stock (quantité en rayon −1) et devient un article de démo suivi par numéro de série. Tous les champs * sont obligatoires.</p>
+          <select id="stockDemoType" aria-label="Type de matériel" class="col-span-2 p-2 border border-slate-300 rounded">
+            <option value="Sellette">Sellette</option><option value="Secours">Secours</option><option value="Accessoire">Accessoire</option>
+          </select>
+          <input type="text" id="stockDemoBrand" list="brandList" autocomplete="off" placeholder="Marque *" class="p-2 border border-slate-300 rounded">
+          <input type="text" id="stockDemoModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
+          <input type="text" id="stockDemoSN" placeholder="Numéro de série *" class="col-span-2 p-2 border border-slate-300 rounded">
+          <input type="text" id="stockDemoSize" placeholder="Taille *" class="p-2 border border-slate-300 rounded">
+          <input type="text" id="stockDemoShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
+          <input type="text" id="stockDemoColor" placeholder="Couleur *" class="p-2 border border-slate-300 rounded">
+          <label class="text-[11px] text-slate-500">Date d'achat *<input type="date" id="stockDemoDate" class="w-full p-2 border border-slate-300 rounded"></label>
+          <input data-fin="1" type="number" id="stockDemoPrix" min="0" step="0.01" placeholder="Prix d'achat (€) *" class="p-2 border border-slate-300 rounded self-end">
+        </div>
         <p id="stockModalError" hidden class="text-rose-600 font-bold"></p>
       </div>
       <div class="flex justify-end gap-2">
@@ -3532,7 +3546,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     retour:     { title: "📥 Retour de prêt", qty: "Quantité rendue", hist: "Stock retour", person: true },
     perte:      { title: "⚠️ Perte / casse / réforme", qty: "Quantité retirée du stock", hist: "Stock retrait" },
     inventaire: { title: "🧮 Inventaire", qty: "Quantité réellement comptée en rayon", hist: "Stock inventaire" },
-    modifier:   { title: "✏️ Modifier la référence", hist: "Stock modification" }
+    modifier:   { title: "✏️ Modifier la référence", hist: "Stock modification" },
+    demo:       { title: "🪂 Passer en démo", hist: "Stock passage en démo" }
   };
   let stockActionState = null;
   let stockTypeFilter = "";     // "" = tous les types
@@ -3617,7 +3632,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         </div>
         ${loanTxt ? `<p class="text-slate-600">📤 ${loanTxt}</p>` : ""}
         ${r.note ? `<p class="text-slate-500 italic">${esc(r.note)}</p>` : ""}
-        <div class="flex flex-wrap gap-1">${btn("entree", "➕ Entrée")}${btn("sortie", "📤 Sortie")}${btn("retour", "📥 Retour")}${btn("perte", "⚠️ Perte")}${btn("inventaire", "🧮 Inventaire")}${canEdit ? btn("modifier", "✏️") : ""}${canEdit ? `<button onclick="deleteStockRef('${k}')" class="px-2 py-1 rounded border border-rose-300 text-rose-600">🗑</button>` : ""}</div>
+        <div class="flex flex-wrap gap-1">${btn("entree", "➕ Entrée")}${btn("sortie", "📤 Sortie")}${btn("retour", "📥 Retour")}${btn("perte", "⚠️ Perte")}${btn("inventaire", "🧮 Inventaire")}${canEdit ? btn("demo", "🪂 Démo", "border-sky-300 text-sky-700 hover:bg-sky-50") : ""}${canEdit ? btn("modifier", "✏️") : ""}${canEdit ? `<button onclick="deleteStockRef('${k}')" class="px-2 py-1 rounded border border-rose-300 text-rose-600">🗑</button>` : ""}</div>
       </div>`;
     }).join("");
   }
@@ -3653,12 +3668,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (!stockAllowed()) { toast("Action non autorisée.", "error"); return; }
     const r = appData.stock[id], def = STOCK_ACTIONS[kind];
     if (!r || !def) return;
-    if (kind === "modifier" && currentRole === "instructor") { toast("Action non autorisée.", "error"); return; }
+    if ((kind === "modifier" || kind === "demo") && currentRole === "instructor") { toast("Action non autorisée.", "error"); return; }
+    if (kind === "demo" && stockQty(r) < 1) { toast("Aucune unité en rayon : impossible de passer en démo.", "error"); return; }
     stockActionState = { id, kind };
     $("stockModalTitle").textContent = def.title;
     $("stockModalLabel").textContent = stockLabel(r);
     $("stockModalInfo").textContent = `En rayon : ${stockQty(r)} · prêtés : ${stockOut(r)}`;
-    show("stockQtyRow", kind !== "modifier"); show("stockNoteRow", kind !== "modifier"); show("stockEditRow", kind === "modifier");
+    show("stockQtyRow", kind !== "modifier" && kind !== "demo"); show("stockNoteRow", kind !== "modifier" && kind !== "demo"); show("stockEditRow", kind === "modifier");
+    show("stockDemoRow", kind === "demo");
     show("stockModalError", false);
     $("stockQtyLabel").textContent = def.qty || "";
     $("stockQty").value = kind === "inventaire" ? stockQty(r) : "1";
@@ -3682,6 +3699,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       $("stockEditBrand").value = r.brand || ""; $("stockEditModel").value = r.model || ""; $("stockEditSize").value = r.size || "";
       $("stockEditColor").value = r.color || ""; $("stockEditShelf").value = r.shelf || ""; $("stockEditMin").value = stockMin(r) || ""; $("stockEditNote").value = r.note || "";
     }
+    if (kind === "demo") {
+      $("stockDemoType").value = r.category === "Sellette" ? "Sellette" : r.category === "Secours" ? "Secours" : "Accessoire";
+      $("stockDemoBrand").value = r.brand || ""; $("stockDemoModel").value = r.model || ""; $("stockDemoSN").value = "";
+      $("stockDemoSize").value = r.size || ""; $("stockDemoShelf").value = r.shelf || ""; $("stockDemoColor").value = r.color || "";
+      $("stockDemoDate").value = ""; $("stockDemoPrix").value = "";
+    }
     openModal("stockModal");
   }
 
@@ -3695,6 +3718,36 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const who = currentUser ? currentUser.name : roleLabel(currentRole);
     let note = $("stockNote").value.trim(), person = "";
 
+    if (kind === "demo") {
+      if (!(currentRole === "admin" || currentRole === "manager")) { err("Action non autorisée."); return; }
+      if (stockQty(r) < 1) { err("Aucune unité en rayon."); return; }
+      const type = $("stockDemoType").value;
+      const brand = canonicalBrand($("stockDemoBrand").value), model = $("stockDemoModel").value.trim();
+      const sn = $("stockDemoSN").value.trim(), taille = $("stockDemoSize").value.trim(), couleur = $("stockDemoColor").value.trim();
+      const shelf = $("stockDemoShelf").value.trim(), dateMES = $("stockDemoDate").value, prix = $("stockDemoPrix").value;
+      const missing = [];
+      if (!brand) missing.push("marque"); if (!model) missing.push("modèle"); if (!sn) missing.push("numéro de série");
+      if (!taille) missing.push("taille"); if (!couleur) missing.push("couleur"); if (!dateMES) missing.push("date d'achat");
+      if (canSeeFinances() && prix === "") missing.push("prix d'achat");
+      if (missing.length) { err("Champs obligatoires manquants : " + missing.join(", ") + "."); return; }
+      if (Object.values(appData.items).some(i => i.sn && i.sn.toLowerCase() === sn.toLowerCase())) { err("Ce numéro de série existe déjà."); return; }
+      const itemId = `ITEM-${Date.now()}`;
+      appData.items[itemId] = normalizeItem({
+        id: itemId, shelf, type, brand, model, sn, en: "", categorie: "", ptvMin: "", ptvMax: "",
+        hours: 0, flights: 0, status: "Disponible", borrowerName: "", borrowerEmail: "",
+        dateMiseEnService: dateMES, couleur, prixAchat: canSeeFinances() ? prix : "", prixHeureVol: "", taille, coefVente: "1.4",
+        pretConstructeur: false, salePriceManual: "", pairedSecoursId: "", revisionMonths: "", revisionHours: ""
+      });
+      r.qty = stockQty(r) - 1;
+      stockHistory(def.hist, r, who, `×1 · devient article de démo ${type} n° de série ${sn}`);
+      closeModal("stockModal");
+      const brandAdded = rememberBrand(brand);
+      const okD = await persist(brandAdded ? ["stock", "items", "history", "settings"] : ["stock", "items", "history"]);
+      stockActionState = null;
+      toast(okD ? "Article passé en démo (retiré du stock)." : "Passage en démo non enregistré.", okD ? undefined : "error");
+      renderAll();
+      return;
+    }
     if (kind === "modifier") {
       if (currentRole === "instructor") { err("Action non autorisée."); return; }
       const brand = canonicalBrand($("stockEditBrand").value), model = $("stockEditModel").value.trim();
@@ -6389,7 +6442,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     ["Turquoise", "#14b8a6"], ["Vert", "#16a34a"], ["Vert clair", "#84cc16"], ["Jaune", "#facc15"], ["Orange", "#f97316"],
     ["Rouge", "#dc2626"], ["Rose", "#ec4899"], ["Violet", "#7c3aed"], ["Marron", "#92400e"]
   ];
-  const COLOR_INPUT_IDS = ["newItemCouleur", "editItemCouleur", "stockNewColor", "stockEditColor"];
+  const COLOR_INPUT_IDS = ["newItemCouleur", "editItemCouleur", "stockNewColor", "stockEditColor", "stockDemoColor"];
   function colorList(v) { return String(v || "").split(/\s*[\/,;+]\s*/).map(x => x.trim()).filter(Boolean); }
   function colorKey(x) { return searchNormalize(x).replace(/[^a-z0-9]+/g, ""); }
   function toggleColor(inputId, name) {
@@ -6693,7 +6746,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.81";
+  const APP_VERSION = "2026-10-18.82";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6704,6 +6757,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 82, title: "Du stock vers la démo", aud: "staff", items: [
+      { icon: "🪂", t: "Passer un article du stock en démo", steps: [
+        "Onglet « Stock » › bouton « 🪂 Démo » sur la carte de l'article (administrateur et gestionnaire uniquement).",
+        "Une unité sort du stock (quantité en rayon −1) et devient un article de matériel de prêt.",
+        "Renseignez le numéro de série et les champs obligatoires (marque, modèle, taille, couleur, date d'achat, prix d'achat) : les informations du stock sont déjà préremplies.",
+        "Le passage est noté dans l'historique du stock."], go: "tab:stock" } ] },
     { v: 81, title: "Plusieurs couleurs au choix", aud: "staff", items: [
       { icon: "🎨", t: "Voiles, sellettes, secours et stock : une ou plusieurs couleurs", steps: [
         "Dans la fiche d'un matériel (création ou ✏️) et dans le Stock, touchez les pastilles de couleur : vous pouvez en cocher plusieurs (ex. Bleu + Blanc).",
