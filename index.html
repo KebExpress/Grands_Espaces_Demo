@@ -257,7 +257,7 @@
           <p class="text-[10px] text-slate-500">Pour le matériel suivi en quantité, sans numéro de série.</p>
           <div class="grid grid-cols-2 gap-2">
             <select id="stockNewCat" class="p-2 border border-slate-300 rounded col-span-2"></select>
-            <input type="text" id="stockNewBrand" list="brandList" autocomplete="off" placeholder="Marque *" class="p-2 border border-slate-300 rounded">
+            <select id="stockNewBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
             <input type="text" id="stockNewModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
             <input type="text" id="stockNewSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
             <input type="text" id="stockNewColor" placeholder="Couleur" class="p-2 border border-slate-300 rounded">
@@ -378,7 +378,7 @@
               <option value="Vario">Vario</option>
             </select>
             <input type="text" id="newItemShelf" class="p-2 border border-slate-300 rounded" placeholder="Étagère">
-            <input type="text" id="newItemBrand" list="brandList" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Marque *">
+            <select id="newItemBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
             <input type="text" id="newItemModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle *">
             <input type="text" id="newItemSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série *">
             <select id="newItemENField" class="p-2 border border-slate-300 rounded col-span-2">
@@ -746,7 +746,7 @@
           <option value="Vario">Vario</option>
         </select>
         <input type="text" id="editItemShelf" class="p-2 border border-slate-300 rounded" placeholder="Étagère">
-        <input type="text" id="editItemBrand" list="brandList" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Marque">
+        <select id="editItemBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
         <input type="text" id="editItemModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle">
         <input type="text" id="editItemSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série">
         <select id="editItemENField" class="p-2 border border-slate-300 rounded col-span-2">
@@ -839,7 +839,7 @@
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
       <h3 class="font-bold text-lg">Modifier l'article archivé</h3>
       <div class="grid grid-cols-2 gap-2 text-xs">
-        <input type="text" id="editArchiveBrand" list="brandList" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Marque">
+        <select id="editArchiveBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
         <input type="text" id="editArchiveModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle">
         <input type="text" id="editArchiveSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série">
         <select id="editArchiveEN" class="p-2 border border-slate-300 rounded col-span-2">
@@ -936,7 +936,7 @@
         <div id="stockEditRow" hidden class="grid grid-cols-2 gap-2">
           <div class="col-span-2"><label for="stockEditCat" class="block font-bold text-slate-600">Catégorie</label>
             <select id="stockEditCat" class="w-full p-2 border border-slate-300 rounded"></select></div>
-          <input type="text" id="stockEditBrand" list="brandList" autocomplete="off" placeholder="Marque" class="p-2 border border-slate-300 rounded">
+          <select id="stockEditBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
           <input type="text" id="stockEditModel" placeholder="Modèle" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditColor" placeholder="Couleur" class="p-2 border border-slate-300 rounded">
@@ -949,7 +949,7 @@
           <select id="stockDemoType" onchange="toggleDemoFields()" aria-label="Type de matériel" class="col-span-2 p-2 border border-slate-300 rounded">
             <option value="Sellette">Sellette</option><option value="Secours">Secours</option><option value="Accessoire">Accessoire</option><option value="Vario">Vario</option>
           </select>
-          <input type="text" id="stockDemoBrand" list="brandList" autocomplete="off" placeholder="Marque *" class="p-2 border border-slate-300 rounded">
+          <select id="stockDemoBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
           <input type="text" id="stockDemoModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoSN" placeholder="Numéro de série *" class="col-span-2 p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoSize" placeholder="Taille *" data-lc="1" class="p-2 border border-slate-300 rounded">
@@ -3111,6 +3111,51 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function populateBrandDatalist() {
     const dl = $("brandList");
     if (dl) dl.innerHTML = getBrandList().map(b => `<option value="${esc(b)}"></option>`).join("");
+    fillBrandSelects();
+  }
+
+  // Menus déroulants fermés des marques : plus de saisie libre. Une nouvelle marque ne s'ajoute que
+  // par l'application (Réglages › Constructeurs, ou l'entrée « ➕ Nouvelle marque… » du menu).
+  function fillBrandSelects() {
+    const list = getBrandList();
+    document.querySelectorAll("select[data-brand-select]").forEach(sel => {
+      const cur = sel.value && sel.value !== "__new__" ? sel.value : "";
+      const names = cur && !list.some(b => brandKey(b) === brandKey(cur)) ? list.concat(cur) : list;   // valeur existante hors liste : conservée
+      sel.innerHTML = `<option value="">${esc(sel.dataset.ph || "Marque")}</option>` + names.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join("") + `<option value="__new__">➕ Nouvelle marque…</option>`;
+      sel.value = cur;
+    });
+  }
+  // Positionne un menu de marque sur une valeur (ajoutée au menu si elle n'y figure pas encore).
+  function setBrandSelect(id, value) {
+    const sel = $(id); if (!sel) return;
+    const v = String(value || "").trim();
+    if (v && ![...sel.options].some(o => o.value === v)) {
+      const known = getBrandList().find(b => brandKey(b) === brandKey(v));
+      if (known && [...sel.options].some(o => o.value === known)) { sel.value = known; return; }
+      const opt = document.createElement("option"); opt.value = v; opt.textContent = v;
+      sel.insertBefore(opt, sel.querySelector('option[value="__new__"]'));
+    }
+    sel.value = v;
+  }
+  async function brandSelectChanged(sel) {
+    if (sel.value !== "__new__") return;
+    sel.value = "";
+    if (busy) return;
+    if (!canUse("settings")) { toast("Votre profil ne peut pas ajouter de marque : demandez à l'administrateur (Réglages › Constructeurs).", "error"); return; }
+    const raw = window.prompt("Nom de la nouvelle marque (constructeur) :", "");
+    if (raw === null) return;
+    const name = canonicalBrand(raw);
+    if (name.length < 2) { toast("Saisissez le nom de la marque.", "error"); return; }
+    const exists = getBrandList().find(b => brandKey(b) === brandKey(name));
+    if (!exists) {
+      if (!isSynced()) { await ensureSynced(); return; }
+      rememberBrand(name);
+      const ok = await persist(["settings"]);
+      if (!ok) { toast("Marque non enregistrée : réessayez.", "error"); return; }
+      toast("Marque ajoutée.");
+    }
+    populateBrandDatalist(); renderBrandSettings();
+    setBrandSelect(sel.id, exists || name);
   }
 
   // Alimente les <datalist> de suggestion de noms (clients et personnel),
@@ -3716,12 +3761,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const cats = STOCK_CATS.includes(r.category) ? STOCK_CATS : STOCK_CATS.concat(r.category ? [r.category] : []);   // catégorie héritée inconnue : conservée
       cs.innerHTML = cats.map(c => `<option value="${esc(c)}">${STOCK_ICON[c] || ""} ${esc(c)}</option>`).join("");
       cs.value = r.category || cats[0];
-      $("stockEditBrand").value = r.brand || ""; $("stockEditModel").value = r.model || ""; $("stockEditSize").value = r.size || "";
+      setBrandSelect("stockEditBrand", r.brand); $("stockEditModel").value = r.model || ""; $("stockEditSize").value = r.size || "";
       $("stockEditColor").value = r.color || ""; $("stockEditShelf").value = r.shelf || ""; $("stockEditMin").value = stockMin(r) || ""; $("stockEditNote").value = r.note || "";
     }
     if (kind === "demo") {
       $("stockDemoType").value = r.category === "Sellette" ? "Sellette" : r.category === "Secours" ? "Secours" : r.category === "Vario" ? "Vario" : "Accessoire";
-      $("stockDemoBrand").value = r.brand || ""; $("stockDemoModel").value = r.model || ""; $("stockDemoSN").value = "";
+      setBrandSelect("stockDemoBrand", r.brand); $("stockDemoModel").value = r.model || ""; $("stockDemoSN").value = "";
       $("stockDemoSize").value = r.size || ""; $("stockDemoShelf").value = r.shelf || ""; $("stockDemoColor").value = r.color || "";
       $("stockDemoDate").value = ""; $("stockDemoPrix").value = "";
       toggleDemoFields();
@@ -4643,7 +4688,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (!a) return;
     editingArchiveId = id;
     fillENOptions("editArchiveEN", a.en);
-    $("editArchiveBrand").value = a.brand || "";
+    setBrandSelect("editArchiveBrand", a.brand);
     $("editArchiveModel").value = a.model || "";
     $("editArchiveSN").value = a.sn || "";
     $("editArchivePTVMin").value = a.ptvMin !== "" ? a.ptvMin : "";
@@ -4954,7 +4999,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     editingItemId = id;
     $("editItemType").value = item.type;
     $("editItemShelf").value = item.shelf;
-    $("editItemBrand").value = item.brand;
+    setBrandSelect("editItemBrand", item.brand);
     $("editItemModel").value = item.model;
     $("editItemSN").value = item.sn;
     $("editItemHours").value = item.hours;
@@ -6794,7 +6839,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.85";
+  const APP_VERSION = "2026-10-18.86";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6805,6 +6850,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 86, title: "Marques : menus déroulants fermés", aud: "staff", items: [
+      { icon: "🏷️", t: "Choisir la marque dans une liste", steps: [
+        "Dans les fiches matériel, le stock, la démo et les archives, la marque se choisit dans un menu déroulant : plus de saisie libre ni de fautes de frappe.",
+        "Une marque absente ? Choisissez « ➕ Nouvelle marque… » en bas du menu (ou Réglages › Constructeurs) : elle s'ajoute à la base pour tout le monde.",
+        "Dans la feuille Google aussi, la colonne « brand » devient une liste déroulante : on n'y tape plus de marque à la main, tout passe par l'application (redéployez le nouveau Code.gs)."] } ] },
     { v: 85, title: "Matériel : filtres type et marque, catégorie Vario", aud: "staff", items: [
       { icon: "🔎", t: "Filtrer le matériel par type et par marque", steps: [
         "Onglet Matériel › sous la barre de recherche : deux menus « Tous les types » et « Toutes les marques ».",
