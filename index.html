@@ -1258,6 +1258,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     thresholdHours: 3,
     pickupSubject: "Confirmation de location",
     pickupBody: "Bonjour {name},\n\nVotre location est enregistrée.\n\nMatériel emprunté :\n{items}\n\nEmprunté le : {start}\nÀ restituer au plus tard le : {end}\n\n--- Contrat de prêt ---\n{contract}",
+    reminderSubject: "Rappel : matériel à restituer",
+    reminderBody: "Bonjour {name},\n\nNous vous rappelons que le matériel suivant, emprunté le {borrowedAt}, n'a pas encore été restitué :\n{items}\n\nMerci de le rapporter dès que possible, ou de nous contacter si besoin.\n\nCordialement,\n{sender}",
     returnSubject: "Restitution enregistrée - {item}",
     returnBody: "Bonjour {name},\n\nLa restitution du matériel suivant est enregistrée :\n{items}\n\nRestitué le : {returnedAt}\nVols effectués : {flights} · Heures de vol : {hours}\nRemarque : {note}\n\nMerci et à bientôt.",
     overdueSubject: "Rappel : matériel à restituer - {item}",
@@ -3894,6 +3896,49 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       </div>`).join("");
   }
 
+  // Rappel manuel : e-mail envoyé à l'emprunteur (client, moniteur, gestionnaire ou administrateur).
+  function lastReminderOf(list) {
+    const ids = list.map(i => i.id);
+    const h = Object.values(appData.history).filter(x => x.action === "Rappel manuel" && ids.includes(x.itemId))
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    return h || null;
+  }
+  function reminderBlock(list) {
+    const email = list[0].borrowerEmail;
+    const last = lastReminderOf(list);
+    const ids = esc(JSON.stringify(list.map(i => i.id)));
+    if (!email) return `<p class="text-[11px] text-slate-400">✉️ Rappel impossible : aucune adresse e-mail enregistrée pour cet emprunteur.</p>`;
+    return `<div class="space-y-1">
+      <button onclick="sendManualReminder(${ids})" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-1.5 rounded">✉️ Envoyer un rappel par e-mail</button>
+      ${last ? `<p class="text-[11px] text-slate-500">Dernier rappel : ${esc(formatFrDateTime(last.date))}${last.person ? " — par " + esc(last.person) : ""}</p>` : ""}
+    </div>`;
+  }
+  async function sendManualReminder(ids) {
+    if (busy) return;
+    if (!isStaffViewer()) { toast("Action non autorisée.", "error"); return; }
+    const list = ids.map(id => appData.items[id]).filter(i => i && i.status === "Loué");
+    if (!list.length) { toast("Ce matériel a été restitué entre-temps.", "error"); renderAlerts(); return; }
+    const first = list[0];
+    if (!isValidEmail(first.borrowerEmail || "")) { toast("Aucune adresse e-mail valide pour cet emprunteur.", "error"); return; }
+    if (!isSynced()) { await ensureSynced(); return; }
+    const who = currentUser ? currentUser.name : roleLabel(currentRole);
+    if (!window.confirm(`Envoyer un rappel par e-mail à ${first.borrowerName || first.borrowerEmail} (${first.borrowerEmail}) ?`)) return;
+    setBusy(true);
+    let res;
+    try {
+      res = await sendTransactionalMail("reminder", {
+        name: first.borrowerName || "", email: first.borrowerEmail,
+        items: list.map(i => "- " + itemLabel(i)).join("\n"),
+        borrowedAt: formatFrDateTime(loanStartedAt(first)) || "—", sender: who
+      });
+    } finally { setBusy(false); }
+    if (!res || !res.ok) { toast(`Rappel non envoyé${res && res.error ? " : " + res.error : ""}.`, "error"); return; }
+    list.forEach(i => addHistory("Rappel manuel", i, who, first.borrowerEmail, `Rappel envoyé à ${first.borrowerName || first.borrowerEmail}`));
+    await persist(["history"]);
+    toast("✉️ Rappel envoyé.");
+    renderAll();
+  }
+
   function renderAlerts() {
     const box = $("alertsList");
     if (!box) return;
@@ -3940,6 +3985,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         <ul class="space-y-0.5 text-slate-600">
           ${list.map(i => `<li>• ${esc(itemLabel(i))} <span class="text-slate-400">(${esc(i.sn || "sans S/N")})</span></li>`).join("")}
         </ul>
+        ${isStaffViewer() ? reminderBlock(list) : ""}
         <button onclick="openReturnModal(${esc(JSON.stringify(ids))})" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 rounded">Enregistrer la restitution</button>
       </div>`;
     }).join("");
@@ -5340,6 +5386,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     let subject, body;
     if (kind === "pickup") { subject = m.pickupSubject; body = m.pickupBody; }
     else if (kind === "return") { subject = m.returnSubject; body = m.returnBody; }
+    else if (kind === "reminder") { subject = m.reminderSubject; body = m.reminderBody; }
     else if (kind === "overdueClient") { subject = m.overdueSubject; body = m.overdueBody; }
     else if (kind === "overdueAdmin") { subject = m.adminAlertSubject; body = m.adminAlertBody; }
     else if (kind === "booking") { subject = m.bookingSubject; body = m.bookingBody; }
@@ -5364,9 +5411,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const result = await res.json().catch(() => null);
       if (result && result.error) {
         console.warn(`Envoi d'email « ${kind} » refusé par le serveur :`, result.error);
+        return { ok: false, error: result.error };
       }
+      return { ok: !!(result && result.status === "success"), error: "" };
     } catch (err) {
       console.warn(`Envoi d'email « ${kind} » impossible :`, err);
+      return { ok: false, error: "Réseau indisponible" };
     }
   }
 
@@ -6547,7 +6597,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.76";
+  const APP_VERSION = "2026-10-18.77";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6558,6 +6608,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 77, title: "Rappel manuel par e-mail", aud: "staff", items: [
+      { icon: "✉️", t: "Relancer un emprunteur", steps: [
+        "Onglet « Prêts en cours » : sous chaque prêt, touchez « ✉️ Envoyer un rappel par e-mail ».",
+        "Valable pour un client comme pour un moniteur, un gestionnaire ou un administrateur ayant une adresse e-mail.",
+        "Le rappel est tracé dans l'historique et en copie « [Trace] » à l'adresse de référence ; la date du dernier rappel s'affiche sous le bouton."], go: "tab:alerts" } ] },
     { v: 76, title: "Traces écrites et nouveautés", aud: "all", items: [
       { icon: "✉️", t: "E-mail à chaque prise et chaque restitution", steps: [
         "À chaque prêt ou retour de matériel, la personne reçoit un e-mail de confirmation.",
