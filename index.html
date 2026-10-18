@@ -928,6 +928,8 @@
         <div id="stockNoteRow"><label for="stockNote" class="block font-bold text-slate-600">Remarque (facultatif)</label>
           <input type="text" id="stockNote" class="w-full p-2 border border-slate-300 rounded"></div>
         <div id="stockEditRow" hidden class="grid grid-cols-2 gap-2">
+          <div class="col-span-2"><label for="stockEditCat" class="block font-bold text-slate-600">Catégorie</label>
+            <select id="stockEditCat" class="w-full p-2 border border-slate-300 rounded"></select></div>
           <input type="text" id="stockEditBrand" list="brandList" autocomplete="off" placeholder="Marque" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditModel" placeholder="Modèle" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
@@ -3522,8 +3524,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // en rayon et les quantités prêtées par personne (colonne « loans », JSON). Chaque mouvement
   // est tracé dans l'historique.
 
-  const STOCK_CATS = ["Sellette", "Secours", "Casque", "Vario"];
-  const STOCK_ICON = { Sellette: "🪑", Secours: "🛟", Casque: "⛑️", Vario: "📟" };
+  const STOCK_CATS = ["Sellette", "Secours", "Casque", "Vario", "Accessoire", "Accessoire sellette"];
+  const STOCK_ICON = { Sellette: "🪑", Secours: "🛟", Casque: "⛑️", Vario: "📟", Accessoire: "🎒", "Accessoire sellette": "🔗" };
   const STOCK_ACTIONS = {
     entree:     { title: "➕ Entrée de stock", qty: "Quantité reçue", hist: "Stock entrée" },
     sortie:     { title: "📤 Sortie / prêt", qty: "Quantité prêtée", hist: "Stock sortie", person: true },
@@ -3673,6 +3675,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       sel.onchange = () => { $("stockQty").value = String(Number(loans[sel.value]) || 1); };
     }
     if (kind === "modifier") {
+      const cs = $("stockEditCat");
+      const cats = STOCK_CATS.includes(r.category) ? STOCK_CATS : STOCK_CATS.concat(r.category ? [r.category] : []);   // catégorie héritée inconnue : conservée
+      cs.innerHTML = cats.map(c => `<option value="${esc(c)}">${STOCK_ICON[c] || ""} ${esc(c)}</option>`).join("");
+      cs.value = r.category || cats[0];
       $("stockEditBrand").value = r.brand || ""; $("stockEditModel").value = r.model || ""; $("stockEditSize").value = r.size || "";
       $("stockEditColor").value = r.color || ""; $("stockEditShelf").value = r.shelf || ""; $("stockEditMin").value = stockMin(r) || ""; $("stockEditNote").value = r.note || "";
     }
@@ -3694,10 +3700,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const brand = canonicalBrand($("stockEditBrand").value), model = $("stockEditModel").value.trim();
       if (!brand || !model) { err("Marque et modèle sont obligatoires."); return; }
       const size = $("stockEditSize").value.trim(), color = $("stockEditColor").value.trim();
-      const key = stockKey(r.category, brand, model, size, color);
-      if (Object.values(appData.stock).some(o => o.id !== id && stockKey(o.category, o.brand, o.model, o.size, o.color) === key)) { err("Une autre référence identique existe déjà."); return; }
-      Object.assign(r, { brand, model, size, color, shelf: $("stockEditShelf").value.trim(), min: Math.max(0, Math.floor(Number($("stockEditMin").value) || 0)), note: $("stockEditNote").value.trim() });
-      stockHistory(def.hist, r, who, "");
+      const category = $("stockEditCat").value || r.category;
+      const key = stockKey(category, brand, model, size, color);
+      if (Object.values(appData.stock).some(o => o.id !== id && stockKey(o.category, o.brand, o.model, o.size, o.color) === key)) { err("Une autre référence identique existe déjà dans cette catégorie."); return; }
+      const oldCat = r.category;
+      Object.assign(r, { category, brand, model, size, color, shelf: $("stockEditShelf").value.trim(), min: Math.max(0, Math.floor(Number($("stockEditMin").value) || 0)), note: $("stockEditNote").value.trim() });
+      stockHistory(def.hist, r, who, category !== oldCat ? `Catégorie : ${oldCat} → ${category}` : "");
     } else {
       const qs = $("stockQty").value, n = Number(qs);
       if (qs === "" || !Number.isInteger(n) || n < 0 || (kind !== "inventaire" && n < 1)) { err("Indiquez une quantité entière valide."); return; }
@@ -3870,6 +3878,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     renderArchives();
     renderStock();
     renderAllPlanningCalendars();
+    syncColorPickers();
   }
 
   // Résumé financier du parc (admin/gestionnaire uniquement) : valeur de vente
@@ -6367,6 +6376,55 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function openModal(id) {
     if (ENTRY_MODALS.includes(id) && !isSynced()) { ensureSynced(); return; }
     show(id, true);
+    syncColorPickers();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  COULEURS MULTIPLES (voiles, sellettes, secours, stock)             */
+  /* ------------------------------------------------------------------ */
+  // Pastilles à cocher : une ou plusieurs couleurs, enregistrées dans le champ « Couleur » sous la forme
+  // « Bleu / Blanc ». Le champ reste modifiable à la main pour une teinte qui n'est pas dans la liste.
+  const COLOR_PALETTE = [
+    ["Blanc", "#ffffff"], ["Noir", "#111827"], ["Gris", "#9ca3af"], ["Bleu", "#2563eb"], ["Bleu clair", "#38bdf8"],
+    ["Turquoise", "#14b8a6"], ["Vert", "#16a34a"], ["Vert clair", "#84cc16"], ["Jaune", "#facc15"], ["Orange", "#f97316"],
+    ["Rouge", "#dc2626"], ["Rose", "#ec4899"], ["Violet", "#7c3aed"], ["Marron", "#92400e"]
+  ];
+  const COLOR_INPUT_IDS = ["newItemCouleur", "editItemCouleur", "stockNewColor", "stockEditColor"];
+  function colorList(v) { return String(v || "").split(/\s*[\/,;+]\s*/).map(x => x.trim()).filter(Boolean); }
+  function colorKey(x) { return searchNormalize(x).replace(/[^a-z0-9]+/g, ""); }
+  function toggleColor(inputId, name) {
+    const el = $(inputId); if (!el) return;
+    const list = colorList(el.value), k = colorKey(name), i = list.findIndex(c => colorKey(c) === k);
+    if (i >= 0) list.splice(i, 1); else list.push(name);
+    el.value = list.join(" / ");
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    syncColorPickers();
+  }
+  function syncColorPickers() {
+    COLOR_INPUT_IDS.forEach(id => {
+      const box = document.querySelector(`[data-colorpicker="${id}"]`), el = $(id);
+      if (!box || !el) return;
+      const on = new Set(colorList(el.value).map(colorKey));
+      box.querySelectorAll("button[data-c]").forEach(b => {
+        const sel = on.has(colorKey(b.dataset.c));
+        b.setAttribute("aria-pressed", sel ? "true" : "false");
+        b.className = "inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] " + (sel ? "bg-green-700 border-green-700 text-white font-bold" : "bg-white border-slate-300 text-slate-600");
+      });
+    });
+  }
+  function initColorPickers() {
+    COLOR_INPUT_IDS.forEach(id => {
+      const el = $(id); if (!el || document.querySelector(`[data-colorpicker="${id}"]`)) return;
+      el.classList.add("col-span-2");
+      el.placeholder = "Couleur(s)" + (/\*/.test(el.placeholder || "") ? " *" : "") + " — ex. Bleu / Blanc";
+      const box = document.createElement("div");
+      box.setAttribute("data-colorpicker", id);
+      box.className = "col-span-2 flex flex-wrap gap-1";
+      box.innerHTML = COLOR_PALETTE.map(([n, hex]) => `<button type="button" data-c="${n}" onclick="toggleColor('${id}','${n}')"><span style="width:.8rem;height:.8rem;border-radius:9999px;display:inline-block;background:${hex};border:1px solid #94a3b8"></span>${n}</button>`).join("");
+      el.insertAdjacentElement("afterend", box);
+      el.addEventListener("input", syncColorPickers);
+    });
+    syncColorPickers();
   }
   function closeModal(id) { show(id, false); }
   function backdropClose(event, id) { if (event.target === $(id)) closeModal(id); }
@@ -6635,7 +6693,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.79";
+  const APP_VERSION = "2026-10-18.81";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6646,6 +6704,16 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 81, title: "Plusieurs couleurs au choix", aud: "staff", items: [
+      { icon: "🎨", t: "Voiles, sellettes, secours et stock : une ou plusieurs couleurs", steps: [
+        "Dans la fiche d'un matériel (création ou ✏️) et dans le Stock, touchez les pastilles de couleur : vous pouvez en cocher plusieurs (ex. Bleu + Blanc).",
+        "Elles s'enregistrent sous la forme « Bleu / Blanc » ; touchez de nouveau une pastille pour l'enlever.",
+        "Une teinte absente de la liste ? Tapez-la directement dans le champ, séparée par « / »."] } ] },
+    { v: 80, title: "Catégories du stock", aud: "staff", items: [
+      { icon: "🧰", t: "Changer la catégorie d'un article en stock", steps: [
+        "Onglet « Stock » › ✏️ sur la carte de l'article : le champ « Catégorie » est modifiable.",
+        "Deux nouvelles catégories : « Accessoire » et « Accessoire sellette » (aussi proposées à la création et dans les filtres).",
+        "Un changement de catégorie est noté dans l'historique."], go: "tab:stock" } ] },
     { v: 79, title: "Filtres du stock", aud: "staff", items: [
       { icon: "🧰", t: "Filtrer le stock par type et disponibilité", steps: [
         "Onglet « Stock » : touchez une pastille de Type (Sellette, Secours, Casque, Vario) pour n'afficher que celle-ci.",
@@ -6994,6 +7062,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (appData.items[id].status === "Loué") openReturnModal([id]);
   }
 
+  initColorPickers();
   fillENOptions("newItemENField");
   fillCategorieOptions("newItemCategorie");
   fillCategorieOptions("clientPrefCategorie", "", "Tous les types de voile");
