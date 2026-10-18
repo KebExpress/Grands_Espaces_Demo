@@ -939,18 +939,18 @@
           <input type="text" id="stockEditNote" placeholder="Note permanente" class="p-2 border border-slate-300 rounded col-span-2">
         </div>
         <div id="stockDemoRow" hidden class="grid grid-cols-2 gap-2">
-          <p class="col-span-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">1 unité sort du stock (quantité en rayon −1) et devient un article de démo suivi par numéro de série. Tous les champs * sont obligatoires.</p>
-          <select id="stockDemoType" aria-label="Type de matériel" class="col-span-2 p-2 border border-slate-300 rounded">
+          <p class="col-span-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">1 unité sort du stock (quantité en rayon −1) et devient un article de démo suivi par numéro de série. Tous les champs * sont obligatoires (pour un accessoire : marque, modèle et numéro de série).</p>
+          <select id="stockDemoType" onchange="toggleDemoFields()" aria-label="Type de matériel" class="col-span-2 p-2 border border-slate-300 rounded">
             <option value="Sellette">Sellette</option><option value="Secours">Secours</option><option value="Accessoire">Accessoire</option>
           </select>
           <input type="text" id="stockDemoBrand" list="brandList" autocomplete="off" placeholder="Marque *" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoSN" placeholder="Numéro de série *" class="col-span-2 p-2 border border-slate-300 rounded">
-          <input type="text" id="stockDemoSize" placeholder="Taille *" class="p-2 border border-slate-300 rounded">
+          <input type="text" id="stockDemoSize" placeholder="Taille *" data-lc="1" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
-          <input type="text" id="stockDemoColor" placeholder="Couleur *" class="p-2 border border-slate-300 rounded">
-          <label class="text-[11px] text-slate-500">Date d'achat *<input type="date" id="stockDemoDate" class="w-full p-2 border border-slate-300 rounded"></label>
-          <input data-fin="1" type="number" id="stockDemoPrix" min="0" step="0.01" placeholder="Prix d'achat (€) *" class="p-2 border border-slate-300 rounded self-end">
+          <input type="text" id="stockDemoColor" placeholder="Couleur *" data-lc="1" class="p-2 border border-slate-300 rounded">
+          <label id="stockDemoDateLbl" class="text-[11px] text-slate-500">Date d'achat *<input type="date" id="stockDemoDate" class="w-full p-2 border border-slate-300 rounded"></label>
+          <input data-fin="1" data-lc="1" type="number" id="stockDemoPrix" min="0" step="0.01" placeholder="Prix d'achat (€) *" class="p-2 border border-slate-300 rounded self-end">
         </div>
         <p id="stockModalError" hidden class="text-rose-600 font-bold"></p>
       </div>
@@ -2281,6 +2281,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return failed;
   }
 
+  let lastPersistFailed = [];   // onglets refusés lors du dernier persist() (persist ne renvoie que le verdict « items »)
   async function persist(sheets) {
     if (!isSynced()) {   // dernier rempart : aucune écriture tant que la synchro n'est pas rétablie
       toast("⛔ Enregistrement refusé : application non synchronisée. Reconnexion en cours…", "error");
@@ -2290,6 +2291,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     setBusy(true);
     setSync("🔄 Enregistrement…", "work");
     let failed = [];
+    lastPersistFailed = [];
     if (sheets.length > 1) {
       failed = await saveCloudSheets(sheets);
     } else {
@@ -2300,6 +2302,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     }
     setSync(online ? "☁️ Connecté" : "⚠️ Hors ligne", online ? "" : "error");
     setBusy(false);
+    lastPersistFailed = failed.slice();
     if (failed.length) console.warn("Onglets non enregistrés :", failed.join(", "));
     return sheets.includes("items") ? !failed.includes("items") : failed.length === 0;
   }
@@ -3664,6 +3667,16 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     renderAll();
   }
 
+  // Un accessoire (casque, vario…) n'a pas de cycle de vie : seuls marque, modèle et n° de série sont obligatoires.
+  function toggleDemoFields() {
+    const lc = LIFECYCLE_TYPES.includes($("stockDemoType").value);
+    const star = lc ? " *" : " (facultatif)";
+    $("stockDemoSize").placeholder = "Taille" + star;
+    $("stockDemoColor").placeholder = "Couleur" + star;
+    $("stockDemoDateLbl").hidden = !lc;
+    const prix = $("stockDemoPrix"); prix.hidden = !lc || !canSeeFinances();
+  }
+
   function openStockAction(id, kind) {
     if (!stockAllowed()) { toast("Action non autorisée.", "error"); return; }
     const r = appData.stock[id], def = STOCK_ACTIONS[kind];
@@ -3704,6 +3717,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       $("stockDemoBrand").value = r.brand || ""; $("stockDemoModel").value = r.model || ""; $("stockDemoSN").value = "";
       $("stockDemoSize").value = r.size || ""; $("stockDemoShelf").value = r.shelf || ""; $("stockDemoColor").value = r.color || "";
       $("stockDemoDate").value = ""; $("stockDemoPrix").value = "";
+      toggleDemoFields();
     }
     openModal("stockModal");
   }
@@ -3714,7 +3728,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const { id, kind } = stockActionState, r = appData.stock[id], def = STOCK_ACTIONS[kind];
     if (!r) { closeModal("stockModal"); return; }
     if (!isSynced()) { await ensureSynced(); return; }
-    const err = m => { $("stockModalError").textContent = m; show("stockModalError", true); };
+    const err = m => { $("stockModalError").textContent = m; show("stockModalError", true); try { $("stockModalError").scrollIntoView({ block: "nearest" }); } catch (e) { /* sans importance */ } };
     const who = currentUser ? currentUser.name : roleLabel(currentRole);
     let note = $("stockNote").value.trim(), person = "";
 
@@ -3725,17 +3739,21 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const brand = canonicalBrand($("stockDemoBrand").value), model = $("stockDemoModel").value.trim();
       const sn = $("stockDemoSN").value.trim(), taille = $("stockDemoSize").value.trim(), couleur = $("stockDemoColor").value.trim();
       const shelf = $("stockDemoShelf").value.trim(), dateMES = $("stockDemoDate").value, prix = $("stockDemoPrix").value;
+      if (missingSheets.includes("stock")) { err("L'onglet « stock » est absent de la base : redéployez le nouveau Code.gs, puis réessayez."); return; }
+      const lc = LIFECYCLE_TYPES.includes(type);
       const missing = [];
       if (!brand) missing.push("marque"); if (!model) missing.push("modèle"); if (!sn) missing.push("numéro de série");
-      if (!taille) missing.push("taille"); if (!couleur) missing.push("couleur"); if (!dateMES) missing.push("date d'achat");
-      if (canSeeFinances() && prix === "") missing.push("prix d'achat");
+      if (lc) {
+        if (!taille) missing.push("taille"); if (!couleur) missing.push("couleur"); if (!dateMES) missing.push("date d'achat");
+        if (canSeeFinances() && prix === "") missing.push("prix d'achat");
+      }
       if (missing.length) { err("Champs obligatoires manquants : " + missing.join(", ") + "."); return; }
       if (Object.values(appData.items).some(i => i.sn && i.sn.toLowerCase() === sn.toLowerCase())) { err("Ce numéro de série existe déjà."); return; }
       const itemId = `ITEM-${Date.now()}`;
       appData.items[itemId] = normalizeItem({
         id: itemId, shelf, type, brand, model, sn, en: "", categorie: "", ptvMin: "", ptvMax: "",
         hours: 0, flights: 0, status: "Disponible", borrowerName: "", borrowerEmail: "",
-        dateMiseEnService: dateMES, couleur, prixAchat: canSeeFinances() ? prix : "", prixHeureVol: "", taille, coefVente: "1.4",
+        dateMiseEnService: lc ? dateMES : "", couleur, prixAchat: lc && canSeeFinances() ? prix : "", prixHeureVol: "", taille, coefVente: "1.4",
         pretConstructeur: false, salePriceManual: "", pairedSecoursId: "", revisionMonths: "", revisionHours: ""
       });
       r.qty = stockQty(r) - 1;
@@ -3744,7 +3762,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const brandAdded = rememberBrand(brand);
       const okD = await persist(brandAdded ? ["stock", "items", "history", "settings"] : ["stock", "items", "history"]);
       stockActionState = null;
-      toast(okD ? "Article passé en démo (retiré du stock)." : "Passage en démo non enregistré.", okD ? undefined : "error");
+      if (okD && !lastPersistFailed.length) toast("Article passé en démo (retiré du stock).");
+      else {
+        const bad = lastPersistFailed.length ? lastPersistFailed.join(", ") : "items";
+        toast(`⚠️ Passage en démo NON enregistré dans la base (onglet : ${bad}). Vérifiez la connexion / le Code.gs, la synchronisation va recharger la base.`, "error");
+        silentFresh = true; try { await fetchCloudData(true); } catch (e) { /* état mis à jour par fetchCloudData */ } finally { silentFresh = false; }
+      }
       renderAll();
       return;
     }
@@ -4473,7 +4496,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("newItemRevisionHours").value = "";
     $("newItemPairedSecours").value = "";
 
-    toast(ok ? "Équipement ajouté." : "Équipement ajouté localement (hors ligne).");
+    toast(ok ? "Équipement ajouté." : "⚠️ Équipement NON enregistré dans la base (connexion ou droits) : il disparaîtra à la prochaine synchronisation.", ok ? undefined : "error");
     renderAll();
   }
 
@@ -6750,7 +6773,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.83";
+  const APP_VERSION = "2026-10-18.84";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6761,6 +6784,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 84, title: "Démo : accessoires et vérification de l'enregistrement", aud: "staff", items: [
+      { icon: "🪂", t: "Passer un accessoire en démo", steps: [
+        "Pour un accessoire (casque, vario…), seuls la marque, le modèle et le numéro de série sont obligatoires.",
+        "Si l'enregistrement dans la base échoue, l'application l'indique clairement (et recharge la base) au lieu de le laisser croire réussi."] } ] },
     { v: 83, title: "QR codes : matériel indisponible exclu", aud: "staff", items: [
       { icon: "🖨️", t: "Un matériel indisponible n'est plus imprimable", steps: [
         "Dans « Imprimer les QR codes », les équipements marqués « Indisponible » n'apparaissent plus dans la liste et ne sont jamais imprimés.",
