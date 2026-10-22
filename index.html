@@ -252,6 +252,19 @@
       <!-- Stock sans numéro de série : sellettes, secours, casques, varios (quantités). -->
       <div id="adminStockPage" hidden class="space-y-4 text-xs">
         <p id="stockMissingNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">L'onglet « stock » n'est pas disponible : redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version).</p>
+        <p id="stockPriceNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">Les colonnes de prix ne sont pas encore dans l'onglet « stock » : redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version), puis rechargez.</p>
+        <details id="stockPriceSettings" data-fin="1" class="bg-white p-3 rounded-xl border border-slate-200">
+          <summary class="font-bold text-sm cursor-pointer">⚙️ Tarifs : TVA et pourcentages</summary>
+          <p class="text-[11px] text-slate-500 mt-2">Les prix de vente se calculent à partir du prix d'achat TTC : employé = TTC + x %, moniteur = TTC + y %, moniteur extérieur = TTC + z %. Le prix public est saisi à la main.</p>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <label class="text-[11px] text-slate-500">TVA (%)<input type="number" id="stockSetTva" min="0" max="100" step="0.1" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Employé : + (%)<input type="number" id="stockSetEmploye" min="0" max="1000" step="0.1" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Moniteur : + (%)<input type="number" id="stockSetMoniteur" min="0" max="1000" step="0.1" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Moniteur extérieur : + (%)<input type="number" id="stockSetMoniteurExt" min="0" max="1000" step="0.1" class="w-full p-2 border border-slate-300 rounded"></label>
+          </div>
+          <button id="stockSetSave" onclick="saveStockPriceSettings()" class="mt-2 w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer les pourcentages</button>
+          <p id="stockSetInfo" class="text-[11px] text-slate-500 mt-1"></p>
+        </details>
         <div id="stockAddCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
           <h4 class="font-bold text-sm">Ajouter une référence en stock</h4>
           <p class="text-[10px] text-slate-500">Pour le matériel suivi en quantité, sans numéro de série.</p>
@@ -264,6 +277,13 @@
             <input type="text" id="stockNewShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
             <input type="number" id="stockNewQty" min="0" step="1" placeholder="Quantité en stock *" class="p-2 border border-slate-300 rounded">
             <input type="number" id="stockNewMin" min="0" step="1" placeholder="Seuil d'alerte (stock bas)" class="p-2 border border-slate-300 rounded col-span-2">
+            <div data-fin="1" class="col-span-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2">
+              <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">💶 Prix (non visibles du moniteur)</p>
+              <input type="number" id="stockNewHT" min="0" step="0.01" oninput="stockPriceSync('stockNew','ht')" placeholder="Prix d'achat HT (€)" class="p-2 border border-slate-300 rounded">
+              <input type="number" id="stockNewTTC" min="0" step="0.01" oninput="stockPriceSync('stockNew','ttc')" placeholder="Prix d'achat TTC (€)" class="p-2 border border-slate-300 rounded">
+              <input type="number" id="stockNewPublic" min="0" step="0.01" placeholder="Prix de vente public (€)" class="p-2 border border-slate-300 rounded col-span-2">
+              <p id="stockNewPricePreview" class="col-span-2 text-[11px] text-slate-500"></p>
+            </div>
           </div>
           <button onclick="addStockRef()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Ajouter au stock</button>
         </div>
@@ -952,6 +972,13 @@
           <input type="text" id="stockEditShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
           <input type="number" id="stockEditMin" min="0" step="1" placeholder="Seuil d'alerte" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditNote" placeholder="Note permanente" class="p-2 border border-slate-300 rounded col-span-2">
+          <div data-fin="1" class="col-span-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2">
+            <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">💶 Prix</p>
+            <input type="number" id="stockEditHT" min="0" step="0.01" oninput="stockPriceSync('stockEdit','ht')" placeholder="Achat HT (€)" class="p-2 border border-slate-300 rounded">
+            <input type="number" id="stockEditTTC" min="0" step="0.01" oninput="stockPriceSync('stockEdit','ttc')" placeholder="Achat TTC (€)" class="p-2 border border-slate-300 rounded">
+            <input type="number" id="stockEditPublic" min="0" step="0.01" placeholder="Vente public (€)" class="p-2 border border-slate-300 rounded col-span-2">
+            <p id="stockEditPricePreview" class="col-span-2 text-[11px] text-slate-500"></p>
+          </div>
         </div>
         <div id="stockDemoRow" hidden class="grid grid-cols-2 gap-2">
           <p class="col-span-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">1 unité sort du stock (quantité en rayon −1) et devient un article de démo suivi par numéro de série. Tous les champs * sont obligatoires (pour un accessoire : marque, modèle et numéro de série).</p>
@@ -1248,7 +1275,7 @@
     // l'accessoire reste toujours au libre choix du client, quel que soit le pack, donc
     // jamais fixé ici.
     packs: ["id", "name", "description", "voileId", "selletteId", "secoursId", "createdAt"],
-    stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt"]
+    stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic"]
   };
 
   // Colonnes facultatives : écrites seulement si elles existent réellement
@@ -1257,7 +1284,8 @@
   const OPTIONAL_COLUMNS = {
     items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours"],
     users: ["blocked"],
-    clients: ["address", "postalCode", "city", "country", "blocked"]
+    clients: ["address", "postalCode", "city", "country", "blocked"],
+    stock: ["priceHT", "priceTTC", "pricePublic"]
   };
 
   // Catégories de certification des voiles.
@@ -3672,11 +3700,79 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     appData.history[id] = { id, date: new Date().toISOString(), action, itemId: r.id, itemLabel: stockLabel(r), person: person || "", email: "", note: note || "" };
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  PRIX DU STOCK (administrateur / gestionnaire avec « Finances »)     */
+  /* ------------------------------------------------------------------ */
+  const STOCK_PRICE_DEFAULTS = { stockTva: 20, stockPctEmploye: 3, stockPctMoniteur: 5, stockPctMoniteurExt: 10 };
+  function priceNum(v) { const n = parseFloat(String(v === undefined || v === null ? "" : v).replace(",", ".")); return isFinite(n) ? n : NaN; }
+  function stockPct(key) { const n = priceNum(getSetting(key, STOCK_PRICE_DEFAULTS[key])); return n >= 0 ? n : STOCK_PRICE_DEFAULTS[key]; }
+  function cents(x) { return Math.round(x * 100) / 100; }
+  function euro(x) { return isFinite(x) ? cents(x).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €" : "—"; }
+  // Prix dérivés du prix d'achat TTC (NaN si le TTC n'est pas renseigné).
+  function stockSalePrices(ttc) {
+    const t = priceNum(ttc);
+    if (!(t >= 0)) return { employe: NaN, moniteur: NaN, ext: NaN };
+    return { employe: cents(t * (1 + stockPct("stockPctEmploye") / 100)), moniteur: cents(t * (1 + stockPct("stockPctMoniteur") / 100)), ext: cents(t * (1 + stockPct("stockPctMoniteurExt") / 100)) };
+  }
+  function stockPriceSync(prefix, from) {
+    if (!canSeeFinances()) return;
+    const ht = $(prefix + "HT"), ttc = $(prefix + "TTC"), tva = stockPct("stockTva") / 100;
+    if (from === "ht") { const v = priceNum(ht.value); ttc.value = v >= 0 ? String(cents(v * (1 + tva))) : ""; }
+    else { const v = priceNum(ttc.value); ht.value = v >= 0 ? String(cents(v / (1 + tva))) : ""; }
+    stockPricePreview(prefix);
+  }
+  function stockPricePreview(prefix) {
+    const el = $(prefix + "PricePreview"); if (!el) return;
+    if (!canSeeFinances()) { el.textContent = ""; return; }
+    const p = stockSalePrices($(prefix + "TTC").value);
+    el.textContent = isNaN(p.employe) ? "" : `Employé ${euro(p.employe)} · Moniteur ${euro(p.moniteur)} · Moniteur ext. ${euro(p.ext)}`;
+  }
+  function renderStockPriceSettings() {
+    const box = $("stockPriceSettings"); if (!box) return;
+    const canEdit = canSeeFinances() && canUse("settings");
+    const set = (id, key) => { const el = $(id); if (el && document.activeElement !== el) el.value = String(stockPct(key)); if (el) el.disabled = !canEdit; };
+    set("stockSetTva", "stockTva"); set("stockSetEmploye", "stockPctEmploye"); set("stockSetMoniteur", "stockPctMoniteur"); set("stockSetMoniteurExt", "stockPctMoniteurExt");
+    show("stockSetSave", canEdit);
+    const info = $("stockSetInfo"); if (info) info.textContent = canEdit ? "" : "Seuls l'administrateur et les gestionnaires autorisés (Réglages) modifient les pourcentages.";
+  }
+  async function saveStockPriceSettings() {
+    if (busy) return;
+    if (!(canSeeFinances() && canUse("settings"))) { toast("Action non autorisée.", "error"); return; }
+    const vals = { stockTva: $("stockSetTva").value, stockPctEmploye: $("stockSetEmploye").value, stockPctMoniteur: $("stockSetMoniteur").value, stockPctMoniteurExt: $("stockSetMoniteurExt").value };
+    for (const k in vals) { const n = priceNum(vals[k]); if (!(n >= 0 && n <= 1000)) { toast("Indiquez des pourcentages valides (0 ou plus).", "error"); return; } }
+    if (!isSynced()) { await ensureSynced(); return; }
+    Object.keys(vals).forEach(k => setSetting(k, String(priceNum(vals[k]))));
+    const ok = await persist(["settings"]);
+    toast(ok ? "Pourcentages enregistrés." : "Enregistrement refusé : pourcentages non sauvegardés.", ok ? undefined : "error");
+    renderAll();
+  }
+  // Lit les trois champs de prix d'un formulaire ; renvoie {error} ou {ht, ttc, pub} (nombres ou "").
+  function readStockPrices(prefix) {
+    const out = {};
+    for (const [k, id] of [["ht", "HT"], ["ttc", "TTC"], ["pub", "Public"]]) {
+      const raw = String($(prefix + id).value).trim();
+      if (raw === "") { out[k] = ""; continue; }
+      const n = priceNum(raw);
+      if (!(n >= 0)) return { error: "Les prix doivent être des nombres positifs." };
+      out[k] = cents(n);
+    }
+    return out;
+  }
+
+  function stockPriceHtml(r) {
+    if (priceNum(r.priceHT) !== priceNum(r.priceHT) && priceNum(r.priceTTC) !== priceNum(r.priceTTC) && priceNum(r.pricePublic) !== priceNum(r.pricePublic)) return `<p class="text-[11px] text-slate-400">💶 Prix non renseignés (✏️ pour les saisir).</p>`;
+    const p = stockSalePrices(r.priceTTC);
+    const cell = (label, v) => `<div class="bg-slate-50 rounded-lg px-2 py-1"><p class="text-[10px] text-slate-500">${label}</p><p class="font-bold">${euro(priceNum(v))}</p></div>`;
+    return `<div class="grid grid-cols-3 gap-1 text-center">${cell("Achat HT", r.priceHT)}${cell("Achat TTC", r.priceTTC)}${cell("Vente public", r.pricePublic)}${cell("Employé", p.employe)}${cell("Moniteur", p.moniteur)}${cell("Moniteur ext.", p.ext)}</div>`;
+  }
+
   function renderStock() {
     const box = $("stockList"); if (!box) return;
     const cats = $("stockNewCat");
     if (cats && !cats.options.length) cats.innerHTML = STOCK_CATS.map(c => `<option value="${c}">${STOCK_ICON[c]} ${c}</option>`).join("");
     show("stockMissingNote", missingSheets.includes("stock"));
+    show("stockPriceNote", canSeeFinances() && !missingSheets.includes("stock") && !!(sheetHeaders.stock && sheetHeaders.stock.length) && !sheetHeaders.stock.includes("priceTTC"));
+    renderStockPriceSettings();
     show("stockAddCard", currentRole !== "instructor");
     const all = Object.values(appData.stock || {});
     const low = all.filter(stockIsLow).length;
@@ -3722,6 +3818,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           <div class="bg-amber-50 rounded-lg p-2"><p class="text-lg font-bold text-amber-800">${out}</p><p class="text-[10px] text-amber-700">prêtés</p></div>
           <div class="bg-slate-50 rounded-lg p-2"><p class="text-lg font-bold">${qty + out}</p><p class="text-[10px] text-slate-500">total${stockMin(r) ? ` · seuil ${stockMin(r)}` : ""}</p></div>
         </div>
+        ${canSeeFinances() ? stockPriceHtml(r) : ""}
         ${loanTxt ? `<p class="text-slate-600">📤 ${loanTxt}</p>` : ""}
         ${r.note ? `<p class="text-slate-500 italic">${esc(r.note)}</p>` : ""}
         <div class="flex flex-wrap gap-1">${btn("entree", "➕ Entrée")}${btn("sortie", "📤 Sortie")}${btn("retour", "📥 Retour")}${btn("perte", "⚠️ Perte")}${btn("inventaire", "🧮 Inventaire")}${canEdit ? btn("demo", "🪂 Démo", "border-sky-300 text-sky-700 hover:bg-sky-50") : ""}${canEdit ? btn("modifier", "✏️") : ""}${canEdit ? `<button onclick="deleteStockRef('${k}')" class="px-2 py-1 rounded border border-rose-300 text-rose-600">🗑</button>` : ""}</div>
@@ -3745,13 +3842,15 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (Object.values(appData.stock).some(r => stockKey(r.category, r.brand, r.model, r.size, r.color) === key)) {
       toast("Cette référence existe déjà : utilisez « ➕ Entrée » pour ajouter des unités.", "error"); return;
     }
+    const pr = canSeeFinances() ? readStockPrices("stockNew") : { ht: "", ttc: "", pub: "" };
+    if (pr.error) { toast(pr.error, "error"); return; }
     const id = `STK-${Date.now()}`;
-    const rec = { id, category, brand, model, size, color, shelf, qty: Number(qtyStr), loans: "{}", min: minStr === "" ? 0 : Number(minStr), note: "", createdAt: new Date().toISOString() };
+    const rec = { id, category, brand, model, size, color, shelf, qty: Number(qtyStr), loans: "{}", min: minStr === "" ? 0 : Number(minStr), note: "", createdAt: new Date().toISOString(), priceHT: pr.ht, priceTTC: pr.ttc, pricePublic: pr.pub };
     appData.stock[id] = rec;
     if (Number(qtyStr) > 0) stockHistory(STOCK_ACTIONS.entree.hist, rec, currentUser ? currentUser.name : "", `×${qtyStr} · création de la référence`);
     const brandAdded = rememberBrand(brand);
     const ok = await persist(brandAdded ? ["stock", "history", "settings"] : ["stock", "history"]);
-    if (ok) ["stockNewBrand", "stockNewModel", "stockNewSize", "stockNewColor", "stockNewShelf", "stockNewQty", "stockNewMin"].forEach(i => { $(i).value = ""; });
+    if (ok) ["stockNewBrand", "stockNewModel", "stockNewSize", "stockNewColor", "stockNewShelf", "stockNewQty", "stockNewMin", "stockNewHT", "stockNewTTC", "stockNewPublic"].forEach(i => { $(i).value = ""; }); stockPricePreview("stockNew");
     toast(ok ? "Référence ajoutée au stock." : "Ajout non enregistré.", ok ? undefined : "error");
     renderAll();
   }
@@ -3800,6 +3899,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       cs.value = r.category || cats[0];
       setBrandSelect("stockEditBrand", r.brand); $("stockEditModel").value = r.model || ""; $("stockEditSize").value = r.size || "";
       $("stockEditColor").value = r.color || ""; $("stockEditShelf").value = r.shelf || ""; $("stockEditMin").value = stockMin(r) || ""; $("stockEditNote").value = r.note || "";
+      $("stockEditHT").value = r.priceHT === undefined || r.priceHT === "" ? "" : String(r.priceHT);
+      $("stockEditTTC").value = r.priceTTC === undefined || r.priceTTC === "" ? "" : String(r.priceTTC);
+      $("stockEditPublic").value = r.pricePublic === undefined || r.pricePublic === "" ? "" : String(r.pricePublic);
+      stockPricePreview("stockEdit");
     }
     if (kind === "demo") {
       $("stockDemoType").value = r.category === "Sellette" ? "Sellette" : r.category === "Secours" ? "Secours" : r.category === "Vario" ? "Vario" : "Accessoire";
@@ -3869,7 +3972,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const key = stockKey(category, brand, model, size, color);
       if (Object.values(appData.stock).some(o => o.id !== id && stockKey(o.category, o.brand, o.model, o.size, o.color) === key)) { err("Une autre référence identique existe déjà dans cette catégorie."); return; }
       const oldCat = r.category;
+      const pr = canSeeFinances() ? readStockPrices("stockEdit") : null;
+      if (pr && pr.error) { err(pr.error); return; }
       Object.assign(r, { category, brand, model, size, color, shelf: $("stockEditShelf").value.trim(), min: Math.max(0, Math.floor(Number($("stockEditMin").value) || 0)), note: $("stockEditNote").value.trim() });
+      if (pr) { r.priceHT = pr.ht; r.priceTTC = pr.ttc; r.pricePublic = pr.pub; }
       stockHistory(def.hist, r, who, category !== oldCat ? `Catégorie : ${oldCat} → ${category}` : "");
     } else {
       const qs = $("stockQty").value, n = Number(qs);
@@ -6573,6 +6679,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (ENTRY_MODALS.includes(id) && !isSynced()) { ensureSynced(); return; }
     show(id, true);
     syncColorPickers();
+    applyFinanceVisibility();
   }
 
   /* ------------------------------------------------------------------ */
@@ -6642,10 +6749,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
 
   function renderAll() {
+    applyFinanceVisibility();   // les droits du compte (réglages) peuvent arriver après la connexion : on réapplique à chaque affichage
     populateNameDatalists();
     populateBrandDatalist();
     updateReservationWizardLabels();
-    if (currentRole === "admin" || currentRole === "instructor") renderAdmin();
+    if (currentRole === "admin" || currentRole === "manager" || currentRole === "instructor") renderAdmin();   // le gestionnaire aussi : sinon ses listes (et ses droits) restaient figés après une synchro
     else renderUserSelectors();
   }
 
@@ -6889,7 +6997,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-22.88";
+  const APP_VERSION = "2026-10-22.90";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6900,6 +7008,15 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 90, title: "Prix du stock réservés aux droits « Finances »", aud: "staff", items: [
+      { icon: "🔒", t: "Aperçu des prix masqué sans le droit Finances", steps: [
+        "Les champs de prix, l'aperçu des prix employé / moniteur / moniteur extérieur et le bloc « Tarifs » ne s'affichent plus pour un gestionnaire sans le droit « Finances », même juste après sa connexion."] } ] },
+    { v: 89, title: "Prix dans le stock", aud: "staff", items: [
+      { icon: "💶", t: "Prix d'achat, de vente et pourcentages sur chaque article du stock", steps: [
+        "Onglet Stock › ✏️ (ou à la création) : saisissez le prix d'achat HT ou TTC (l'autre se calcule avec la TVA) et le prix de vente public.",
+        "Chaque carte affiche aussi les prix calculés depuis le TTC : employé (+3 %), moniteur (+5 %), moniteur extérieur (+10 %).",
+        "Les pourcentages et la TVA se modifient dans « ⚙️ Tarifs : TVA et pourcentages » en haut de l'onglet Stock.",
+        "Prix visibles uniquement par l'administrateur et les gestionnaires ayant le droit « Finances » ; redéployez le nouveau Code.gs."], go: "tab:stock", aud: "staff" } ] },
     { v: 88, title: "Mails corrigés, raisons des refus, vocabulaire « prêt »", aud: "all", items: [
       { icon: "✉️", t: "Le nom du matériel s'affiche dans les mails", steps: [
         "Les mails de prêt et de restitution indiquent maintenant le matériel concerné (plus de « item » à la place).",
