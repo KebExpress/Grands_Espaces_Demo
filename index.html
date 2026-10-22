@@ -1077,7 +1077,7 @@
       <div id="wizardStep1" class="space-y-3">
         <p id="wizardStep1Question" class="text-sm font-bold">Souhaitez-vous un essai ou un prêt longue durée ?</p>
         <button onclick="wizardChooseType('essai')" class="w-full text-left p-4 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
-          <span class="block font-bold text-sm">⏱️ Essai (3 heures)</span>
+          <span class="block font-bold text-sm">⏱️ Essai</span>
           <span class="block text-xs text-slate-500 mt-1">Un créneau court, sur un jour précis, pour tester le matériel.</span>
         </button>
         <button id="wizardLocationTypeBtn" onclick="wizardChooseType('location')" class="w-full text-left p-4 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
@@ -3682,7 +3682,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const keys = Object.keys(names).sort((a, b) => names[a].localeCompare(names[b], "fr"));
     const count = k => rows.filter(r => brandKey(getBrand(r)) === k).length;
     return searchChip(`${handlerName}('')`, "Toutes", rows.length, !selected) +
-      keys.map(k => searchChip(`${handlerName}('${esc(names[k]).replace(/'/g, "&#39;")}')`, esc(names[k]), count(k), brandKey(selected) === k)).join("");
+      keys.map(k => searchChip(`${handlerName}(${JSON.stringify(names[k]).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")})`, esc(names[k]), count(k), brandKey(selected) === k)).join("");
   }
 
   function stockAllowed() { return currentRole === "admin" || currentRole === "instructor" || (currentRole === "manager" && canUse("items")); }
@@ -6038,7 +6038,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("wizardContractText").textContent = getContractText();
     const dueLabel = new Date(wizard.end).toLocaleString("fr-FR");
     $("wizardSummary").innerHTML = `
-      <p><strong>Type :</strong> ${wizard.type === "essai" ? "Essai (3 heures)" : "Prêt longue durée"}</p>
+      <p><strong>Type :</strong> ${wizard.type === "essai" ? "Essai" : "Prêt longue durée"}</p>
       <p><strong>Créneau :</strong> du ${esc(new Date(wizard.start).toLocaleString("fr-FR"))} au ${esc(dueLabel)}</p>
       <p><strong>Matériel :</strong></p>
       <ul>${ids.map(id => `<li>• ${esc(itemLabel(appData.items[id]))}</li>`).join("")}</ul>`;
@@ -6095,7 +6095,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
     sendTransactionalMail("booking", {
       name: wizard.name, email: wizard.email,
-      type: wizard.type === "essai" ? "Essai (3 heures)" : "Prêt longue durée",
+      type: wizard.type === "essai" ? "Essai" : "Prêt longue durée",
       items: wizard.selectedIds.map(id => "- " + itemLabel(appData.items[id])).join("\n"),
       start: new Date(wizard.start).toLocaleString("fr-FR"),
       end: new Date(wizard.end).toLocaleString("fr-FR"),
@@ -6997,7 +6997,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-22.90";
+  const APP_VERSION = "2026-10-22.92";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -7008,6 +7008,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 92, title: "Réservation : libellé « Essai » simplifié", aud: "all", items: [
+      { icon: "⏱️", t: "« Essai (3 heures) » devient « Essai »", steps: ["Dans l'assistant de réservation, le bouton et le récapitulatif affichent simplement « Essai »."] },
+    ] },
+    { v: 91, title: "Filtre par marque : apostrophes corrigées", aud: "staff", items: [
+      { icon: "🏷️", t: "Les marques avec une apostrophe (Sup'air…) sont de nouveau cliquables", steps: [
+        "Dans le stock et le matériel de prêt, la pastille de la marque filtre maintenant correctement."
+      ] },
+    ] },
     { v: 90, title: "Prix du stock réservés aux droits « Finances »", aud: "staff", items: [
       { icon: "🔒", t: "Aperçu des prix masqué sans le droit Finances", steps: [
         "Les champs de prix, l'aperçu des prix employé / moniteur / moniteur extérieur et le bloc « Tarifs » ne s'affichent plus pour un gestionnaire sans le droit « Finances », même juste après sa connexion."] } ] },
