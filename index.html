@@ -901,6 +901,14 @@
           <input type="text" id="thirdPartyName" class="w-full p-2 border border-slate-300 rounded" placeholder="Nom du bénéficiaire *">
           <input type="email" id="thirdPartyEmail" class="w-full p-2 border border-slate-300 rounded" placeholder="Email">
           <input type="tel" id="thirdPartyPhone" class="w-full p-2 border border-slate-300 rounded" placeholder="Téléphone">
+          <div id="thirdPartyPaymentBox">
+            <label class="block font-bold text-slate-600">Paiement</label>
+            <select id="thirdPartyPayment" class="w-full p-2 border border-slate-300 rounded bg-white">
+              <option value="Gratuit">Gratuit</option>
+              <option value="À payer">À payer</option>
+              <option value="Payé">Payé</option>
+            </select>
+          </div>
           <button onclick="confirmThirdPartyBorrow()" class="w-full px-4 py-2 bg-green-700 text-white font-bold rounded text-xs">Confirmer le prêt</button>
         </div>
       </details>
@@ -1260,7 +1268,7 @@
   // Ces listes sont l'ordre de colonnes attendu ; si le tableur diffère,
   // l'ordre réel relevé à la lecture fait foi (voir buildRows).
   const SHEET_FIELDS = {
-    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours"],
+    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment"],
     users:   ["id", "name", "username", "password", "role", "email", "blocked"],
     clients: ["id", "name", "email", "phone", "address", "postalCode", "city", "country", "createdAt", "blocked"],
     history: ["id", "date", "action", "itemId", "itemLabel", "person", "email", "note"],
@@ -1282,7 +1290,7 @@
   // dans le tableur. Sur un onglet vide, doGet ne renvoie aucun en-tête ;
   // écrire une colonne de trop ferait sortir doPost de la plage de la feuille.
   const OPTIONAL_COLUMNS = {
-    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours"],
+    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment"],
     users: ["blocked"],
     clients: ["address", "postalCode", "city", "country", "blocked"],
     stock: ["priceHT", "priceTTC", "pricePublic"]
@@ -1440,6 +1448,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       // informatif pour l'administrateur/le gestionnaire, jamais affiché côté client.
       pretConstructeur: (raw.pretConstructeur === true || String(raw.pretConstructeur || "").trim().toLowerCase() === "true"),
       loanKind: raw.loanKind || "",
+      // Paiement du prêt, renseigné par le personnel : « Payé », « À payer », « Gratuit » (vide = non précisé).
+      payment: ["Payé", "À payer", "Gratuit"].includes(String(raw.payment || "").trim()) ? String(raw.payment).trim() : "",
       // Champs admin uniquement (jamais affichés côté client) : cycle de vie / prix.
       dateMiseEnService: String(raw.dateMiseEnService || "").trim(),
       couleur: String(raw.couleur || "").trim(),
@@ -1708,6 +1718,31 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   // Vocabulaire du contrat : « prêt » et non « location ». Appliqué aussi au texte
   // déjà enregistré dans les réglages, pour que l'ancien libellé ne réapparaisse pas.
+  const PAYMENT_STATES = ["Gratuit", "À payer", "Payé"];
+  function paymentBadge(it) {
+    const v = it && it.payment;
+    if (!v) return "";
+    const cls = v === "À payer" ? "bg-rose-100 text-rose-700" : v === "Payé" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600";
+    return `<span class="px-1.5 py-0.5 rounded-full font-bold text-[10px] ${cls}">💶 ${esc(v)}</span>`;
+  }
+  // Admin / gestionnaire peuvent corriger le paiement d'un prêt en cours (ex. « À payer » devenu « Payé »).
+  function paymentControl(it) {
+    if (currentRole !== "admin" && currentRole !== "manager") return paymentBadge(it);
+    return `<select onchange="setLoanPayment('${esc(String(it.id)).replace(/'/g, "&#39;")}', this.value)" class="ml-1 p-0.5 border border-slate-300 rounded text-[10px] bg-white">
+      <option value=""${it.payment ? "" : " selected"}>💶 non précisé</option>
+      ${PAYMENT_STATES.map(v => `<option value="${v}"${it.payment === v ? " selected" : ""}>💶 ${v}</option>`).join("")}
+    </select>`;
+  }
+  async function setLoanPayment(id, value) {
+    if (currentRole !== "admin" && currentRole !== "manager") return;
+    const it = appData.items[id];
+    if (!it || it.status !== "Loué") return;
+    it.payment = PAYMENT_STATES.includes(value) ? value : "";
+    addHistory("Paiement", it, it.borrowerName, it.borrowerEmail, `Paiement : ${it.payment || "non précisé"}`);
+    const ok = await persist(["items", "history"]);
+    toast(ok ? "Paiement mis à jour." : "Modification enregistrée localement (hors ligne).");
+    renderAll();
+  }
   function toPret(text) {
     return String(text)
       .replace(/(^|\s)à la location\b/g, "$1au prêt").replace(/(^|\s)À la location\b/g, "$1Au prêt").replace(/\bde la location\b/g, "du prêt").replace(/\bDe la location\b/g, "Du prêt")
@@ -3397,6 +3432,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       it.borrowerEmail = email;
       it.borrowedAt = stamp;
       it.loanKind = "";
+      it.payment = "";
       addHistory("Prêt", it, name, email, "");
 
       // Bloque ce matériel dans le système de planning pendant la durée du
@@ -3475,7 +3511,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       if (!it) return "";
       const k = esc(id);
       return `<div class="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50" data-ret="${k}">
-        <p class="text-xs font-bold">${esc(itemLabel(it))} <span class="font-normal text-slate-500">— ${esc(it.borrowerName || "emprunteur inconnu")}</span></p>
+        <p class="text-xs font-bold">${esc(itemLabel(it))} <span class="font-normal text-slate-500">— ${esc(it.borrowerName || "emprunteur inconnu")}</span> ${paymentBadge(it)}</p>
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div><label class="block font-bold text-slate-600">Vols effectués</label>
             <input type="number" min="0" value="0" data-f class="w-full p-2 border border-slate-300 rounded"></div>
@@ -3517,6 +3553,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     it.borrowedAt = "";
     it.overdueAlerted = false;
     it.loanKind = "";
+    it.payment = "";
     addHistory("Restitution", it, borrower, borrowerEmail, note);
     // Libère le créneau de planning de l'emprunt immédiat correspondant.
     closePlanningForReturnedItem(id);
@@ -3586,6 +3623,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     // Marque cet emprunt comme « moniteur » pour l'exempter des alertes de
     // retard : un moniteur n'a pas de durée limite d'emprunt du matériel.
     it.loanKind = "moniteur";
+    it.payment = "Gratuit";
     addHistory("Emprunt moniteur", it, name, email, currentRole === "instructor" ? "Emprunt libre par un moniteur" : `Emprunt personnel (${roleLabel(currentRole)})`);
 
     const rowId = `PLAN-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -3620,6 +3658,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     it.borrowedAt = "";
     it.overdueAlerted = false;
     it.loanKind = "";
+    it.payment = "";
     addHistory("Restitution", it, borrower, borrowerEmail, "Restitution moniteur");
 
     closePlanningForReturnedItem(id);
@@ -4051,6 +4090,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("thirdPartyName").value = "";
     $("thirdPartyEmail").value = "";
     $("thirdPartyPhone").value = "";
+    // Paiement : choix réservé à l'administrateur et au gestionnaire ; un moniteur prête toujours gratuitement.
+    if ($("thirdPartyPayment")) $("thirdPartyPayment").value = "Gratuit";
+    if ($("thirdPartyPaymentBox")) $("thirdPartyPaymentBox").classList.toggle("hidden", currentRole === "instructor");
     // Le QR code du produit s'affiche tout de suite : la personne le scanne avec son téléphone
     // et remplit elle-même le formulaire de prêt. La saisie à sa place reste possible (repliée).
     drawQr($("thirdPartyQrTarget"), itemQrUrl(id), 190);
@@ -4079,7 +4121,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     it.borrowerEmail = email;
     it.borrowedAt = stamp;
     it.loanKind = "moniteur";
-    addHistory("Emprunt moniteur", it, name, email, `Prêt pour un tiers, effectué par ${currentUser ? currentUser.name : roleLabel(currentRole)}`);
+    // Un moniteur prête toujours gratuitement ; administrateur et gestionnaire choisissent.
+    it.payment = currentRole === "instructor" ? "Gratuit" : (["Payé", "À payer", "Gratuit"].includes($("thirdPartyPayment") && $("thirdPartyPayment").value) ? $("thirdPartyPayment").value : "Gratuit");
+    addHistory("Emprunt moniteur", it, name, email, `Prêt pour un tiers, effectué par ${currentUser ? currentUser.name : roleLabel(currentRole)} · Paiement : ${it.payment}`);
 
     const rowId = `PLAN-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     appData.planning[rowId] = {
@@ -4302,7 +4346,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           </div>
         </div>
         <ul class="space-y-0.5 text-slate-600">
-          ${list.map(i => `<li>• ${esc(itemLabel(i))} <span class="text-slate-400">(${esc(i.sn || "sans S/N")})</span></li>`).join("")}
+          ${list.map(i => `<li>• ${esc(itemLabel(i))} <span class="text-slate-400">(${esc(i.sn || "sans S/N")})</span> ${paymentControl(i)}</li>`).join("")}
         </ul>
         ${isStaffViewer() ? reminderBlock(list) : ""}
         <button onclick="openReturnModal(${esc(JSON.stringify(ids))})" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 rounded">Enregistrer la restitution</button>
@@ -6228,6 +6272,21 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     renderAllPlanningCalendars();
   }
 
+  // Paiement d'un prêt en cours (renseigné sur le matériel prêté) : colore le point du calendrier.
+  //  vert = Payé, rouge = À payer, bleu = Gratuit. Sans paiement précisé, la couleur d'état habituelle s'applique.
+  const PAYMENT_DOT = {
+    "Payé":    { color: "bg-green-500", text: "text-green-600" },
+    "À payer": { color: "bg-red-600",   text: "text-red-600" },
+    "Gratuit": { color: "bg-blue-500",  text: "text-blue-600" }
+  };
+  function planningPayment(p) {
+    const it = appData.items[p.itemId];
+    if (!it || it.status !== "Loué" || !it.payment || !PAYMENT_DOT[it.payment]) return "";
+    const s0 = new Date(p.start).getTime();
+    if (!isNaN(s0) && s0 > Date.now()) return "";      // réservation à venir : pas encore de paiement
+    return it.payment;
+  }
+
   function ymd(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
@@ -6235,7 +6294,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function planningLegendHtml() {
     const keys = Object.values(PLANNING_STATE_DEFS).map(d =>
       `<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full ${d.color} inline-block"></span> ${esc(d.label)}</span>`).join("");
+    const payKeys = Object.keys(PAYMENT_DOT).map(k =>
+      `<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full ${PAYMENT_DOT[k].color} inline-block"></span> ${esc(k)}</span>`).join("");
     return `<div class="flex flex-wrap gap-3 mt-2 text-[10px] text-slate-600 font-bold">${keys}</div>
+    <div class="flex flex-wrap gap-3 mt-1 text-[10px] text-slate-600 font-bold"><span class="font-normal text-slate-400">Prêt en cours, paiement :</span>${payKeys}</div>
     <div class="flex flex-wrap gap-3 mt-1 text-[10px] text-slate-600">
       ${PLANNING_TYPE_DEFS.map(([type, color, label]) => `
         <label class="flex items-center gap-1 cursor-pointer">
@@ -6283,7 +6345,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       return `<div class="bg-slate-50 border border-slate-200 rounded p-2">
         <p class="font-bold truncate">${esc(p.itemLabel)}</p>
         <p class="text-slate-500">${planningTypeLabel(p)} · ${period}</p>
-        <p class="text-slate-400">${esc(p.clientName || "")} <span class="${PLANNING_STATE_DEFS[planningDotState(p, now)].text} font-bold">· ${esc(PLANNING_STATE_DEFS[planningDotState(p, now)].label.toLowerCase())}</span></p>
+        <p class="text-slate-400">${esc(p.clientName || "")} <span class="${PLANNING_STATE_DEFS[planningDotState(p, now)].text} font-bold">· ${esc(PLANNING_STATE_DEFS[planningDotState(p, now)].label.toLowerCase())}</span>${planningPayment(p) ? ` <span class="${PAYMENT_DOT[planningPayment(p)].text} font-bold">· 💶 ${esc(planningPayment(p))}</span>` : ""}</p>
       </div>`;
     }).join("");
   }
@@ -6369,7 +6431,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
       const dots = bookingsToday.slice(0, 4).map(p => {
         const st = PLANNING_STATE_DEFS[planningDotState(p, nowMs)];
-        return `<span class="w-1.5 h-1.5 rounded-full ${st.color} inline-block" title="${esc(st.label)} — ${esc(p.itemLabel || "")}"></span>`;
+        const pay = planningPayment(p);
+        const col = pay ? PAYMENT_DOT[pay].color : st.color;
+        return `<span class="w-1.5 h-1.5 rounded-full ${col} inline-block" title="${esc(st.label)}${pay ? " · " + esc(pay) : ""} — ${esc(p.itemLabel || "")}"></span>`;
       }).join("");
       const extra = bookingsToday.length > 4 ? `<span class="text-slate-400">+${bookingsToday.length - 4}</span>` : "";
 
@@ -6997,7 +7061,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-22.92";
+  const APP_VERSION = "2026-10-22.93";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -7008,6 +7072,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 93, title: "Paiement du prêt : Gratuit / À payer / Payé", aud: "staff", items: [
+      { icon: "💶", t: "Choisir le paiement quand on prête du matériel", steps: ["Dans « Prêter à quelqu'un », l'administrateur et le gestionnaire choisissent Gratuit, À payer ou Payé. Pour un moniteur, c'est toujours Gratuit.", "Dans la liste des prêts en cours, l'administrateur et le gestionnaire peuvent changer l'état (par ex. À payer → Payé) ; l'état s'affiche aussi à la restitution."] },
+    ] },
     { v: 92, title: "Réservation : libellé « Essai » simplifié", aud: "all", items: [
       { icon: "⏱️", t: "« Essai (3 heures) » devient « Essai »", steps: ["Dans l'assistant de réservation, le bouton et le récapitulatif affichent simplement « Essai »."] },
     ] },
