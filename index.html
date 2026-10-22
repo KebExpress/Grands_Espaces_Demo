@@ -115,7 +115,7 @@
     <!-- INTERFACE CLIENT / MONITEUR -->
     <section id="viewUser" class="space-y-6">
       <button onclick="openReservationWizard()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-xl text-sm shadow flex items-center justify-center gap-2">
-        📅 <span id="reservationWizardBtnLabel">Réserver un créneau (essai ou location)</span>
+        📅 <span id="reservationWizardBtnLabel">Réserver un créneau (essai ou prêt longue durée)</span>
       </button>
       <p class="text-center text-xs text-slate-500 -mt-4">Pour un emprunt immédiat au comptoir, utilisez la sélection ci-dessous.</p>
 
@@ -218,7 +218,7 @@
               <span class="text-rose-600">*</span>
             </span>
           </label>
-          <button onclick="openBorrowConfirmationModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow">✅ Valider la location</button>
+          <button onclick="openBorrowConfirmationModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow">✅ Valider le prêt</button>
         </div>
 
         <div id="formReturn" hidden class="space-y-3 pt-2">
@@ -522,7 +522,7 @@
           <h4 class="font-bold text-sm">Réservations client</h4>
           <label class="flex items-start gap-2 text-xs">
             <input type="checkbox" id="settingsLongTermRentalEnabled" onchange="saveLongTermRentalSetting()" class="mt-0.5">
-            <span>Autoriser la « Location longue durée » dans l'assistant de réservation côté client. Si décochée, seul l'essai (3 heures) reste proposable ; les réservations longue durée déjà enregistrées ne sont pas affectées.</span>
+            <span>Autoriser le « Prêt longue durée » dans l'assistant de réservation côté client. Si décochée, seul l'essai (3 heures) reste proposable ; les réservations longue durée déjà enregistrées ne sont pas affectées.</span>
           </label>
           <p id="longTermRentalSettingStatus" class="text-[10px] text-slate-400"></p>
           <button onclick="saveLongTermRentalSetting()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer</button>
@@ -546,7 +546,7 @@
 
         <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">Contrat de prêt</h4>
-          <p class="text-[10px] text-slate-500">Ce texte est celui affiché aux clients avant validation d'une location.</p>
+          <p class="text-[10px] text-slate-500">Ce texte est celui affiché aux clients avant validation d'un prêt.</p>
           <textarea id="settingsContractText" rows="10" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
           <button onclick="saveContractSettings()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer le contrat</button>
         </div>
@@ -699,11 +699,11 @@
     </div>
   </div>
 
-  <!-- MODAL : confirmation de location -->
+  <!-- MODAL : confirmation de prêt -->
   <div id="borrowConfirmModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'borrowConfirmModal')">
     <div class="bg-white w-full max-w-md rounded-xl p-5 space-y-4 shadow-xl">
-      <h3 class="font-bold text-lg">Confirmer la location</h3>
-      <p class="text-xs">Location au nom de <span id="modalConfirmName" class="font-bold"></span>.</p>
+      <h3 class="font-bold text-lg">Confirmer le prêt</h3>
+      <p class="text-xs">Prêt au nom de <span id="modalConfirmName" class="font-bold"></span>.</p>
       <ul id="modalConfirmItems" class="text-xs space-y-1 bg-slate-50 border border-slate-200 rounded p-3"></ul>
       <div>
         <p class="text-xs font-bold text-slate-600 mb-1">Contrat de prêt</p>
@@ -715,7 +715,7 @@
       </label>
       <div class="flex justify-end gap-2">
         <button onclick="closeModal('borrowConfirmModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
-        <button id="btnConfirmBorrow" onclick="confirmAndSubmitBorrow()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded text-xs">Valider la location</button>
+        <button id="btnConfirmBorrow" onclick="confirmAndSubmitBorrow()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded text-xs">Valider le prêt</button>
       </div>
     </div>
   </div>
@@ -786,7 +786,7 @@
           <p id="editItemComputedInfo" class="col-span-2 text-[11px] text-slate-600 bg-slate-50 rounded p-2"></p>
         </div>
       </div>
-      <p class="text-[10px] text-slate-500">Le statut (disponible/loué) se change uniquement via une location ou une restitution.</p>
+      <p class="text-[10px] text-slate-500">Le statut (disponible/loué) se change uniquement via un prêt ou une restitution.</p>
       <div class="flex justify-end gap-2">
         <button onclick="closeModal('editItemModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
         <button onclick="saveEditedItem()" class="px-4 py-2 bg-green-700 text-white font-bold rounded text-xs">Enregistrer</button>
@@ -919,6 +919,15 @@
     </div>
   </div>
 
+  <!-- MODAL : message d'information (raison d'un refus : matériel inexistant, réservé, indisponible) -->
+  <div id="noticeModal" hidden class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onclick="backdropClose(event, 'noticeModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl" role="alertdialog" aria-labelledby="noticeTitle">
+      <h3 id="noticeTitle" class="font-bold text-lg"></h3>
+      <p id="noticeText" class="text-sm text-slate-700"></p>
+      <button onclick="closeModal('noticeModal')" class="w-full px-4 py-2 bg-slate-800 text-white font-bold rounded text-xs">J'ai compris</button>
+    </div>
+  </div>
+
   <!-- MODAL : mouvement de stock (entrée, sortie, retour, perte, inventaire, modification) -->
   <div id="stockModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'stockModal')">
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -1039,13 +1048,13 @@
 
       <!-- Étape 1 : type -->
       <div id="wizardStep1" class="space-y-3">
-        <p id="wizardStep1Question" class="text-sm font-bold">Souhaitez-vous un essai ou une location ?</p>
+        <p id="wizardStep1Question" class="text-sm font-bold">Souhaitez-vous un essai ou un prêt longue durée ?</p>
         <button onclick="wizardChooseType('essai')" class="w-full text-left p-4 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
           <span class="block font-bold text-sm">⏱️ Essai (3 heures)</span>
           <span class="block text-xs text-slate-500 mt-1">Un créneau court, sur un jour précis, pour tester le matériel.</span>
         </button>
         <button id="wizardLocationTypeBtn" onclick="wizardChooseType('location')" class="w-full text-left p-4 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
-          <span class="block font-bold text-sm">📅 Location longue durée</span>
+          <span class="block font-bold text-sm">📅 Prêt longue durée</span>
           <span class="block text-xs text-slate-500 mt-1">Du matériel réservé sur plusieurs jours.</span>
         </button>
       </div>
@@ -1292,8 +1301,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   const DEFAULT_MAIL_SETTINGS = {
     adminAlertEmail: "",
     thresholdHours: 3,
-    pickupSubject: "Confirmation de location",
-    pickupBody: "Bonjour {name},\n\nVotre location est enregistrée.\n\nMatériel emprunté :\n{items}\n\nEmprunté le : {start}\nÀ restituer au plus tard le : {end}\n\n--- Contrat de prêt ---\n{contract}",
+    pickupSubject: "Confirmation de prêt",
+    pickupBody: "Bonjour {name},\n\nVotre prêt est enregistré.\n\nMatériel emprunté :\n{items}\n\nEmprunté le : {start}\nÀ restituer au plus tard le : {end}\n\n--- Contrat de prêt ---\n{contract}",
     reminderSubject: "Rappel : matériel à restituer",
     reminderBody: "Bonjour {name},\n\nNous vous rappelons que le matériel suivant, emprunté le {borrowedAt}, n'a pas encore été restitué :\n{items}\n\nMerci de le rapporter dès que possible, ou de nous contacter si besoin.\n\nCordialement,\n{sender}",
     returnSubject: "Restitution enregistrée - {item}",
@@ -1646,7 +1655,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (!item) return "";
     if (item.borrowedAt) return item.borrowedAt;
     const entries = Object.values(appData.history)
-      .filter(h => h.itemId === item.id && h.action === "Location")
+      .filter(h => h.itemId === item.id && isBorrowAction(h.action))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)));
     return entries.length ? entries[0].date : "";
   }
@@ -1684,6 +1693,13 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return toPret(getSetting("contract", DEFAULT_CONTRACT));
   }
 
+  // Anciennes lignes d'historique : l'action « Location » s'affiche et se compte comme « Prêt ».
+  function isBorrowAction(a) { return a === "Prêt" || a === "Location"; }
+  function actionLabel(a) { return a === "Location" ? "Prêt" : a; }
+  // Vocabulaire des mails : le mot « location » n'est jamais utilisé (y compris dans d'anciens modèles enregistrés).
+  function mailWording(t) {
+    return toPret(String(t || "")).replace(/prêt (est|a été) enregistrée/g, "prêt $1 enregistré").replace(/Contrat de prêt de prêt/g, "Contrat de prêt");
+  }
   function getMailSettings() {
     const out = {};
     Object.keys(DEFAULT_MAIL_SETTINGS).forEach(k => { out[k] = getSetting(k, DEFAULT_MAIL_SETTINGS[k]); });
@@ -1793,7 +1809,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   // Remplace {name}, {item}, {threshold}… dans un gabarit de mail.
   function fillTemplate(template, vars) {
-    return String(template || "").replace(/\{(\w+)\}/g, (m, key) => (vars[key] !== undefined ? vars[key] : m));
+    // Une variable inconnue n'est jamais laissée entre accolades dans un mail : elle est retirée.
+    return String(template || "").replace(/\{(\w+)\}/g, (m, key) => (vars[key] !== undefined && vars[key] !== null ? vars[key] : ""));
   }
 
   function setBusy(state) {
@@ -2830,8 +2847,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const since = daysSince(loanStartedAt(items[0]));
       const r = $("returnBorrower");
       if (r) r.textContent = borrower
-        ? `En location par ${borrower}${since !== null ? ` depuis ${since} jour${since > 1 ? "s" : ""}` : ""}.`
-        : "Matériel actuellement en location.";
+        ? `En prêt chez ${borrower}${since !== null ? ` depuis ${since} jour${since > 1 ? "s" : ""}` : ""}.`
+        : "Matériel actuellement prêté.";
     }
 
     if (!allFree && !allRented) {
@@ -2904,7 +2921,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const day = today();
     const typeMatch = /^\[(.+?)\]/;
     return Object.values(appData.history).filter(h => {
-      if (h.action !== "Location") return false;
+      if (!isBorrowAction(h.action)) return false;
       if (String(h.email || "").toLowerCase() !== email.toLowerCase()) return false;
       if (String(h.date || "").slice(0, 10) !== day) return false;
       const m = typeMatch.exec(String(h.itemLabel || ""));
@@ -3352,7 +3369,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       it.borrowerEmail = email;
       it.borrowedAt = stamp;
       it.loanKind = "";
-      addHistory("Location", it, name, email, "");
+      addHistory("Prêt", it, name, email, "");
 
       // Bloque ce matériel dans le système de planning pendant la durée du
       // test/emprunt immédiat, afin que l'assistant de réservation le
@@ -3404,7 +3421,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("acceptContract").checked = false;
     show("addressCheckStatus", false);
 
-    toast(ok ? "Location enregistrée." : "Location enregistrée localement (hors ligne).");
+    toast(ok ? "Prêt enregistré." : "Prêt enregistré localement (hors ligne).");
     renderAll();
   }
 
@@ -3415,7 +3432,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function openReturnModal(forcedIds) {
     const ids = forcedIds && forcedIds.length ? forcedIds : getSelectedIds();
     const rented = ids.filter(id => appData.items[id] && appData.items[id].status === "Loué");
-    if (!rented.length) { toast("Aucun matériel en location dans cette sélection.", "error"); return; }
+    if (!rented.length) { toast("Aucun matériel prêté dans cette sélection.", "error"); return; }
     pendingReturnIds = rented;
     renderReturnCards();
     show("returnError", false);
@@ -3920,8 +3937,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function openThirdPartyBorrowModal(id) {
     if (!(currentRole === "instructor" || currentRole === "admin" || currentRole === "manager")) { toast("Action non autorisée.", "error"); return; }
     const item = appData.items[id];
-    if (!item || item.status !== "Disponible") { toast("Ce matériel n'est plus disponible.", "error"); return; }
-    if (restrictedIdsBlocked([id]).length) { toast("Cette voile est réservée aux personnes habilitées.", "error"); return; }
+    if (!item) { showNotice("Matériel introuvable", itemProblemMessage(id)); return; }
+    if (restrictedIdsBlocked([id]).length) { showNotice("Matériel non disponible", itemProblemMessage(id)); return; }
+    if (item.status !== "Disponible") { showNotice("Matériel non disponible", itemProblemMessage(id) || "Ce matériel n'est plus disponible : il est déjà prêté."); return; }
     thirdPartyBorrowItemId = id;
     $("thirdPartyBorrowLabel").textContent = itemLabel(item);
     $("thirdPartyName").value = "";
@@ -4496,16 +4514,16 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       : (all.length > LIMIT ? `${LIMIT} dernières opérations affichées sur ${all.length} — utilisez la recherche pour retrouver n'importe quelle information.` : "");
     if (!rows.length) {
       box.innerHTML = `<div class="bg-white border border-slate-200 rounded-xl p-6 text-center text-slate-500">
-        ${all.length ? "Aucune opération ne correspond à cette recherche." : "L'historique se remplira à la première location."}</div>`;
+        ${all.length ? "Aucune opération ne correspond à cette recherche." : "L'historique se remplira au premier prêt."}</div>`;
       return;
     }
     box.innerHTML = rows.map(h => {
       const d = new Date(h.date);
       const when = isNaN(d) ? h.date : d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
-      const isBorrow = h.action === "Location";
+      const isBorrow = isBorrowAction(h.action);
       return `<div class="bg-white p-3 rounded-lg border border-slate-200 flex justify-between gap-2">
         <div class="min-w-0">
-          <p class="font-bold truncate"><span class="${isBorrow ? "text-rose-600" : "text-emerald-600"}">${esc(h.action)}</span> · ${esc(h.itemLabel)}</p>
+          <p class="font-bold truncate"><span class="${isBorrow ? "text-rose-600" : "text-emerald-600"}">${esc(actionLabel(h.action))}</span> · ${esc(h.itemLabel)}</p>
           <p class="text-slate-500 truncate">${esc(h.person || "")}${h.note ? ` — ${esc(h.note)}` : ""}</p>
         </div>
         <span class="text-slate-400 shrink-0">${esc(when)}</span>
@@ -4596,7 +4614,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (!canUse("items")) { toast("Action non autorisée.", "error"); return; }
     const item = appData.items[id];
     if (!item) return;
-    if (item.status === "Loué") { toast("Impossible de supprimer un équipement en location.", "error"); return; }
+    if (item.status === "Loué") { toast("Impossible de supprimer un équipement prêté.", "error"); return; }
     if (!confirm(`Supprimer définitivement ${itemLabel(item)} ?`)) return;
 
     delete appData.items[id];
@@ -5220,7 +5238,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const email = String(client.email || "").toLowerCase();
 
     const activeLoan = email && Object.values(appData.items).some(i => i.status === "Loué" && String(i.borrowerEmail || "").toLowerCase() === email);
-    if (activeLoan) { toast("Impossible de supprimer : ce client a du matériel actuellement en location.", "error"); return; }
+    if (activeLoan) { toast("Impossible de supprimer : ce client a du matériel actuellement prêté.", "error"); return; }
 
     const activeBooking = email && Object.values(appData.planning).some(p => p.status === "Réservé" && String(p.clientEmail || "").toLowerCase() === email);
     if (activeBooking) { toast("Impossible de supprimer : ce client a une réservation en cours.", "error"); return; }
@@ -5274,10 +5292,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const historyHtml = pastEvents.slice(0, 100).map(h => {
       const d = new Date(h.date);
       const when = isNaN(d) ? h.date : d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
-      const isBorrow = h.action === "Location";
+      const isBorrow = isBorrowAction(h.action);
       return `<div class="bg-white border border-slate-200 rounded-lg p-2 text-xs flex justify-between gap-2">
         <div class="min-w-0">
-          <p class="font-bold truncate"><span class="${isBorrow ? "text-rose-600" : "text-emerald-600"}">${esc(h.action)}</span> · ${esc(h.itemLabel)}</p>
+          <p class="font-bold truncate"><span class="${isBorrow ? "text-rose-600" : "text-emerald-600"}">${esc(actionLabel(h.action))}</span> · ${esc(h.itemLabel)}</p>
           ${h.note ? `<p class="text-slate-500 truncate">${esc(h.note)}</p>` : ""}
         </div>
         <span class="text-slate-400 shrink-0">${esc(when)}</span>
@@ -5285,7 +5303,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     }).join("");
 
     const body = [
-      section("En cours de location", loansHtml),
+      section("Prêts en cours", loansHtml),
       section("Réservations actives", bookingsHtml),
       section("Historique", historyHtml)
     ].filter(Boolean).join("");
@@ -5519,9 +5537,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function updateReservationWizardLabels() {
     const enabled = isLongTermRentalEnabled();
     const btnLabel = $("reservationWizardBtnLabel");
-    if (btnLabel) btnLabel.textContent = enabled ? "Réserver un créneau (essai ou location)" : "Réserver un créneau (essai)";
+    if (btnLabel) btnLabel.textContent = enabled ? "Réserver un créneau (essai ou prêt longue durée)" : "Réserver un créneau (essai)";
     const question = $("wizardStep1Question");
-    if (question) question.textContent = enabled ? "Souhaitez-vous un essai ou une location ?" : "Souhaitez-vous faire un essai ?";
+    if (question) question.textContent = enabled ? "Souhaitez-vous un essai ou un prêt longue durée ?" : "Souhaitez-vous faire un essai ?";
   }
 
   async function saveLongTermRentalSetting() {
@@ -5543,7 +5561,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     toast(ok ? "Réglage enregistré." : "Réglage enregistré localement (hors ligne).");
     if (statusEl) {
       statusEl.textContent = ok
-        ? `✅ Enregistré dans la base de données — ${enabled ? "location longue durée autorisée" : "location longue durée verrouillée"}.`
+        ? `✅ Enregistré dans la base de données — ${enabled ? "prêt longue durée autorisé" : "prêt longue durée verrouillé"}.`
         : `⚠️ Hors ligne : ce changement n'est pour l'instant que sur cet appareil, il n'a pas atteint le tableur. Rechargez la page une fois reconnecté pour vérifier.`;
     }
   }
@@ -5607,14 +5625,21 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     else if (kind === "newAccount") { subject = m.newAccountSubject; body = m.newAccountBody; }
     else return;
 
+    // Variables toujours renseignées : {item} (nom du matériel) et {items} (liste), quel que soit l'appelant,
+    // pour que les modèles personnalisés des réglages n'affichent jamais « {item} » tel quel.
+    vars = { ...vars };
+    const lines = String(vars.items || "").split("\n").map(x => x.replace(/^\s*-\s*/, "").trim()).filter(Boolean);
+    if (!vars.item) vars.item = lines.join(", ") || "le matériel";
+    if (!vars.items) vars.items = "- " + vars.item;
+
     const payload = {
       action: "sendMail",
       token: API_TOKEN,
       sid: currentSid(),
       kind,
       to: vars.to || vars.email || "",   // vide (prêt à un tiers sans e-mail) : le serveur n'envoie que la copie de trace
-      subject: fillTemplate(subject, vars),
-      body: fillTemplate(body, { threshold: m.thresholdHours, ...vars }).replace(/Contrat de location/g, "Contrat de prêt").replace(/^Bonjour ,/, "Bonjour,")
+      subject: mailWording(fillTemplate(subject, { threshold: m.thresholdHours, ...vars })),
+      body: mailWording(fillTemplate(body, { threshold: m.thresholdHours, ...vars })).replace(/^Bonjour ,/, "Bonjour,")
     };
     try {
       const res = await fetch(SCRIPT_URL, {
@@ -5775,7 +5800,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   function wizardChooseType(type) {
     if (type === "location" && !isLongTermRentalEnabled()) {
-      toast("La location longue durée n'est pas disponible actuellement.", "error");
+      toast("Le prêt longue durée n'est pas disponible actuellement.", "error");
       return;
     }
     wizard.type = type;
@@ -5907,7 +5932,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("wizardContractText").textContent = getContractText();
     const dueLabel = new Date(wizard.end).toLocaleString("fr-FR");
     $("wizardSummary").innerHTML = `
-      <p><strong>Type :</strong> ${wizard.type === "essai" ? "Essai (3 heures)" : "Location longue durée"}</p>
+      <p><strong>Type :</strong> ${wizard.type === "essai" ? "Essai (3 heures)" : "Prêt longue durée"}</p>
       <p><strong>Créneau :</strong> du ${esc(new Date(wizard.start).toLocaleString("fr-FR"))} au ${esc(dueLabel)}</p>
       <p><strong>Matériel :</strong></p>
       <ul>${ids.map(id => `<li>• ${esc(itemLabel(appData.items[id]))}</li>`).join("")}</ul>`;
@@ -5942,7 +5967,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       // Trace la réservation dans l'historique, afin que le suivi des
       // locations et des plannings soit centralisé dans la même feuille.
       addHistory("Réservation", appData.items[itemId], wizard.name, wizard.email,
-        `${wizard.type === "essai" ? "Essai" : "Location"} du ${new Date(wizard.start).toLocaleString("fr-FR")} au ${new Date(wizard.end).toLocaleString("fr-FR")}`);
+        `${wizard.type === "essai" ? "Essai" : "Prêt longue durée"} du ${new Date(wizard.start).toLocaleString("fr-FR")} au ${new Date(wizard.end).toLocaleString("fr-FR")}`);
     });
 
     let client = findClientByEmail(wizard.email);
@@ -5964,7 +5989,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
     sendTransactionalMail("booking", {
       name: wizard.name, email: wizard.email,
-      type: wizard.type === "essai" ? "Essai (3 heures)" : "Location longue durée",
+      type: wizard.type === "essai" ? "Essai (3 heures)" : "Prêt longue durée",
       items: wizard.selectedIds.map(id => "- " + itemLabel(appData.items[id])).join("\n"),
       start: new Date(wizard.start).toLocaleString("fr-FR"),
       end: new Date(wizard.end).toLocaleString("fr-FR"),
@@ -6045,7 +6070,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return p.type === "essai" ? "⏱️ Essai"
       : p.type === "immediat" ? "🏃 Emprunt immédiat"
       : p.type === "moniteur" ? "🪂 Emprunt moniteur"
-      : "📅 Location";
+      : "📅 Prêt longue durée";
   }
 
   // État d'une réservation / d'un emprunt, pour la couleur des points du planning visuel :
@@ -6069,7 +6094,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     ["essai", "bg-sky-500", "Essai"],
     ["immediat", "bg-amber-500", "Emprunt immédiat"],
     ["moniteur", "bg-purple-500", "Emprunt moniteur"],
-    ["location", "bg-green-600", "Location"]
+    ["location", "bg-green-600", "Prêt longue durée"]
   ];
 
   // Types affichés dans le planning visuel : décocher un type le masque sur
@@ -6864,7 +6889,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-18.87";
+  const APP_VERSION = "2026-10-22.88";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -6875,6 +6900,15 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 88, title: "Mails corrigés, raisons des refus, vocabulaire « prêt »", aud: "all", items: [
+      { icon: "✉️", t: "Le nom du matériel s'affiche dans les mails", steps: [
+        "Les mails de prêt et de restitution indiquent maintenant le matériel concerné (plus de « item » à la place).",
+        "Les modèles personnalisés des réglages qui utilisent {item} ou {items} fonctionnent pour tous les mails."] },
+      { icon: "📷", t: "QR code : la raison du refus est expliquée", steps: [
+        "Si le QR code correspond à un matériel supprimé, à une voile réservée aux personnes habilitées (Speed, Acro, Parakite) ou à un matériel indisponible, une fenêtre en explique la raison au lieu de revenir silencieusement au formulaire."] },
+      { icon: "🏷️", t: "Un seul vocabulaire : le prêt", steps: [
+        "Partout dans l'application et dans les mails, on parle uniquement de « prêt » (Prêt longue durée, Valider le prêt, Prêts en cours…).",
+        "L'historique déjà enregistré s'affiche aussi avec « Prêt »."] } ] },
     { v: 87, title: "Même moteur de recherche pour le prêt et le stock", aud: "staff", items: [
       { icon: "🔎", t: "Type, marque et disponibilité en pastilles, partout", steps: [
         "Matériel de prêt et Stock ont maintenant la même recherche : texte libre + pastilles Type (avec pictogrammes 🪂 🪑 🛟 📟 🎒), pastilles Marque et pastilles Disponibilité.",
@@ -7147,7 +7181,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function handleScanResult(text) {
     const id = itemIdFromScan(text);
     if (!id) { $("scanStatus").textContent = "QR code non reconnu : réessayez."; return false; }
-    if (!appData.items[id]) { $("scanStatus").textContent = "Équipement introuvable dans la base."; toast("Équipement introuvable.", "error"); return false; }
+    if (!appData.items[id]) { $("scanStatus").textContent = "Équipement introuvable dans la base."; closeScanner(); showNotice("Matériel introuvable", itemProblemMessage(id)); return false; }
     closeScanner();
     openItemFromLink(id, true);
     return true;
@@ -7235,12 +7269,29 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     } catch (e) { $("scanStatus").textContent = "Photo illisible."; }
   }
 
+  // Raison pour laquelle un matériel désigné par un QR code / un lien ne peut pas être emprunté ("" = rien à signaler).
+  function itemProblemMessage(id) {
+    const it = appData.items[id];
+    if (!it) return "Ce matériel n'existe plus dans la base : le QR code est périmé (matériel retiré ou supprimé). Adressez-vous au personnel.";
+    if (it.status === "Loué") return "";   // le QR code mène alors à la restitution
+    if (isRestrictedWing(it) && !canBookRestrictedWings()) {
+      return `Cette voile est classée « ${String(it.en).trim()} » : elle est réservée aux personnes habilitées et ne peut pas être empruntée directement. Demandez à un moniteur ou au responsable.`;
+    }
+    if (it.status === "Indisponible") return "Ce matériel est momentanément indisponible (contrôle, réparation…). Choisissez-en un autre ou demandez au personnel.";
+    return "";
+  }
+  function showNotice(title, text) {
+    $("noticeTitle").textContent = title; $("noticeText").textContent = text;
+    show("noticeModal", true);
+  }
+
   // Ouverture directe sur un équipement via ?item=ITEM-123 (QR code).
   let deepLinkDone = false;
   function applyDeepLink() {
     if (deepLinkDone) return;
     const id = new URLSearchParams(location.search).get("item");
-    if (!id || !appData.items[id]) return;
+    if (!id) return;
+    if (!appData.items[id] && !isSynced()) return;   // base pas encore lue : on ne conclut pas à tort que le matériel n'existe pas
     deepLinkDone = true;
     openItemFromLink(id, false);
   }
@@ -7248,7 +7299,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // Ouvre un équipement (lien ?item= ou scan). Depuis le scanner d'un compte connecté (keepStaff),
   // on reste dans la vue du personnel : voile louée -> restitution ; disponible -> prêt (QR à faire scanner).
   function openItemFromLink(id, keepStaff) {
+    const problem = itemProblemMessage(id);
     if (keepStaff && isStaffViewer()) {
+      if (problem) { showNotice("Matériel non disponible", problem); return; }
       if (appData.items[id].status === "Loué") openReturnModal([id]);
       else openThirdPartyBorrowModal(id);
       return;
@@ -7260,6 +7313,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       sel.value = id;
       refreshTargetCard();
     }
+    if (problem) { showNotice("Matériel non disponible", problem); return; }
     // Matériel déjà prêté : le QR code mène directement à sa restitution.
     if (appData.items[id].status === "Loué") openReturnModal([id]);
   }
