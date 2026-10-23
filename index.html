@@ -5039,8 +5039,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return `
         <div class="bg-white p-3 rounded-lg border border-slate-200 flex justify-between gap-2">
           <div class="min-w-0">
-            <p class="font-bold truncate">[${esc(r.type)}] ${esc(r.brand)} ${esc(r.model)}${(r.type === "Voile" && r.en) ? ` (${esc(r.en)})` : ""}${(r.type === "Voile" && r.couleur) ? ` — ${esc(r.couleur)}` : ""}</p>
-            <p class="text-slate-500 truncate">S/N ${esc(r.sn || "—")} · ${r.hours || 0} h · ${r.flights || 0} vols${r.taille ? ` · taille ${esc(r.taille)}` : ""}</p>
+            <p class="font-bold truncate">[${esc(r.type)}] ${esc(r.brand)} ${esc(r.model)}${(r.type === "Voile" && r.en) ? ` (${esc(r.en)})` : ""}${((r.type === "Voile" || r.destination) && r.couleur) ? ` — ${esc(r.couleur)}` : ""}${(r.destination && r.taille) ? ` — taille ${esc(r.taille)}` : ""}</p>
+            <p class="text-slate-500 truncate">${r.destination ? `${r.sn ? `S/N ${esc(r.sn)} · ` : ""}Sorti du stock` : `S/N ${esc(r.sn || "—")} · ${r.hours || 0} h · ${r.flights || 0} vols${r.taille ? ` · taille ${esc(r.taille)}` : ""}`}</p>
             <p class="text-slate-500 truncate">${r.destination ? `📦 ${esc(r.destination)}${r.saleClientName ? ` · 👤 ${esc(r.saleClientName)}` : ""}` : `👤 Vendu à ${esc(r.saleClientName || "—")}`}${r.saleNote ? ` — ${esc(r.saleNote)}` : ""}</p>
           </div>
           <div class="text-right shrink-0 space-y-1">
@@ -7153,8 +7153,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-23.97";
-  { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
+  const APP_VERSION = "2026-10-23.99";
+  // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
+  function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
+  { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
 
   /* ------------------------------------------------------------------ */
   /*  NOUVEAUTÉS : un mini-tutoriel par mise à jour                       */
@@ -7164,6 +7166,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 99, title: "Numérotation des versions", aud: "all", items: [
+      { icon: "🔢", t: "La prochaine version s'appellera V1.00", steps: ["À partir de la version 100, le numéro s'affiche V1.00, puis V1.01, V1.02…"] },
+    ] },
+    { v: 98, title: "Archives : désignation complète des sorties de stock", aud: "staff", items: [
+      { icon: "🗄️", t: "Catégorie, marque, modèle, taille et couleur affichés pour chaque sortie de stock", steps: ["Dans l'onglet Archives, une sortie du stock indique maintenant sa désignation complète, par exemple « [Casque] Charly Air — Noir — taille M »."] },
+    ] },
     { v: 97, title: "Moins de requêtes, plus de rapidité", aud: "staff", items: [
       { icon: "⚡", t: "Vérification des changements toutes les 30 s", steps: ["Chaque appareil ne fait plus qu'une requête légère toutes les 30 s (2 min sans activité) et ne relit la base que si quelque chose a changé.", "Un changement fait par une autre personne apparaît en moins de 30 s ; le bouton ↻ force la mise à jour tout de suite."] },
     ] },
@@ -7346,9 +7354,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const list = whatsNewEntries(!!all);
     if (!list.length) { if (all) toast("Aucune nouveauté à afficher."); return false; }
     $("whatsNewTitle").textContent = list.length > 1 ? `🆕 ${list.length} mises à jour à découvrir` : "🆕 Nouveautés";
-    $("whatsNewSub").textContent = all ? `Historique des nouveautés — version actuelle : V${CURRENT_V}` : `Vous aviez ${whatsNewSeen() ? "V" + whatsNewSeen() : "une ancienne version"} · version actuelle : V${CURRENT_V}`;
+    $("whatsNewSub").textContent = all ? `Historique des nouveautés — version actuelle : ${vLabel(CURRENT_V)}` : `Vous aviez ${whatsNewSeen() ? vLabel(whatsNewSeen()) : "une ancienne version"} · version actuelle : ${vLabel(CURRENT_V)}`;
     $("whatsNewBody").innerHTML = list.map((e, idx) => `<details ${idx === 0 || list.length <= 2 ? "open" : ""} class="border border-slate-200 rounded-lg">
-      <summary class="cursor-pointer px-3 py-2 font-bold text-sm bg-slate-50 rounded-lg">V${e.v} · ${esc(e.title)}</summary>
+      <summary class="cursor-pointer px-3 py-2 font-bold text-sm bg-slate-50 rounded-lg">${vLabel(e.v)} · ${esc(e.title)}</summary>
       <div class="p-3 space-y-3">${e.items.map(i => `<div class="space-y-1">
         <p class="font-bold">${i.icon} ${esc(i.t)}${(i.aud || e.aud) === "staff" ? ' <span class="text-[9px] font-normal text-slate-400">(personnel)</span>' : ""}</p>
         <ol class="list-decimal pl-5 space-y-0.5 text-slate-600">${i.steps.map(st => `<li>${esc(st)}</li>`).join("")}</ol>
