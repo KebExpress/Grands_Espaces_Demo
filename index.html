@@ -1737,7 +1737,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function paymentBadge(it) {
     const v = it && it.payment;
     if (!v) return "";
-    const cls = v === "À payer" ? "bg-red-100 text-red-700" : v === "Payé" ? "bg-pink-100 text-pink-700" : "bg-yellow-100 text-yellow-800";
+    const cls = v === "À payer" ? "bg-red-100 text-red-700" : v === "Payé" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-800";
     return `<span class="px-1.5 py-0.5 rounded-full font-bold text-[10px] ${cls}">💶 ${esc(v)}</span>`;
   }
   // Admin / gestionnaire peuvent corriger le paiement d'un prêt en cours (ex. « À payer » devenu « Payé »).
@@ -6304,7 +6304,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   const PLANNING_STATE_DEFS = {
     avenir:  { color: "bg-blue-500",   text: "text-blue-600",   label: "À venir" },
     encours: { color: "bg-orange-500", text: "text-orange-600", label: "En cours" },
-    depasse: { color: "bg-red-600",    text: "text-red-600",    label: "Dépassé" }
+    depasse: { color: "bg-pink-500",   text: "text-pink-600",   label: "Dépassé" }
   };
 
   const PLANNING_TYPE_DEFS = [
@@ -6342,7 +6342,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // Paiement d'un prêt en cours (renseigné sur le matériel prêté) : colore le point du calendrier.
   //  vert = Payé, rouge = À payer, bleu = Gratuit. Sans paiement précisé, la couleur d'état habituelle s'applique.
   const PAYMENT_DOT = {
-    "Payé":    { color: "bg-pink-400",  text: "text-pink-600" },
+    "Payé":    { color: "bg-green-500", text: "text-green-600" },
     "À payer": { color: "bg-red-600",   text: "text-red-600" },
     "Gratuit": { color: "bg-yellow-400", text: "text-yellow-600" }
   };
@@ -7128,7 +7128,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-23.94";
+  const APP_VERSION = "2026-10-23.95";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -7139,6 +7139,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 95, title: "Couleurs du planning", aud: "staff", items: [
+      { icon: "🎨", t: "Paiement : Payé en vert, À payer en rouge, Gratuit en jaune ; état Dépassé en rose", steps: ["Le calendrier du planning utilise ces couleurs ; la légende les rappelle."] },
+    ] },
     { v: 94, title: "Sortie du stock : destination, prix et archives", aud: "staff", items: [
       { icon: "📦", t: "Sortir un produit du stock (vente, école, démo)", steps: ["Dans le stock, bouton « 📦 Départ » : choisissez où part le produit (site Internet, magasin, école ou démo) et le prix.", "L'unité quitte le stock et part dans l'onglet Archives, avec un tableau par destination pour les statistiques annuelles. Pour la démo, les informations de l'article (n° de série…) sont demandées comme avant."] },
       { icon: "🎨", t: "Couleurs du paiement dans le planning", steps: ["Payé en rose, À payer en rouge, Gratuit en jaune."] },
