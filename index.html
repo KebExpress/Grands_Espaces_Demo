@@ -970,6 +970,20 @@
           <select id="stockPersonSel" hidden class="w-full p-2 border border-slate-300 rounded"></select></div>
         <div id="stockNoteRow"><label for="stockNote" class="block font-bold text-slate-600">Remarque (facultatif)</label>
           <input type="text" id="stockNote" class="w-full p-2 border border-slate-300 rounded"></div>
+        <div id="stockDepartRow" hidden class="space-y-2">
+          <div><label for="stockDepartDest" class="block font-bold text-slate-600">Où part-il ? *</label>
+            <select id="stockDepartDest" onchange="departDestChanged()" class="w-full p-2 border border-slate-300 rounded bg-white">
+              <option value="">— Choisir —</option>
+              <option value="site">🛒 Vendu — site Internet</option>
+              <option value="magasin">🏬 Vendu — magasin</option>
+              <option value="ecole">🎓 Sorti pour l'école</option>
+              <option value="demo">🪂 Sorti pour la démo</option>
+            </select></div>
+          <div><label for="stockDepartPrice" class="block font-bold text-slate-600">Prix de vente (€ par unité) *</label>
+            <input type="number" id="stockDepartPrice" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="Prix auquel il part">
+            <p class="text-[10px] text-slate-400 mt-0.5">Demandé dans tous les cas (même école / démo) : l'article part dans les Archives pour les statistiques annuelles.</p></div>
+          <input type="text" id="stockDepartBuyer" class="w-full p-2 border border-slate-300 rounded" placeholder="Acheteur (facultatif)">
+        </div>
         <div id="stockEditRow" hidden class="grid grid-cols-2 gap-2">
           <div class="col-span-2"><label for="stockEditCat" class="block font-bold text-slate-600">Catégorie</label>
             <select id="stockEditCat" class="w-full p-2 border border-slate-300 rounded"></select></div>
@@ -1276,7 +1290,7 @@
     planning: ["id", "bookingId", "itemId", "itemLabel", "type", "start", "end", "clientName", "clientEmail", "clientPhone", "status", "createdAt"],
     // Matériel vendu, archivé année par année (voir onglet Archives, admin/gestionnaire).
     // "year" est l'année de la vente (calculée depuis saleDate), utilisée pour le regroupement.
-    archives: ["id", "year", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "dateMiseEnService", "couleur", "taille", "prixAchat", "salePrice", "saleDate", "saleClientName", "saleNote"],
+    archives: ["id", "year", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "dateMiseEnService", "couleur", "taille", "prixAchat", "salePrice", "saleDate", "saleClientName", "saleNote", "destination"],
     // Packs prédéfinis créés par l'administrateur/le gestionnaire (remplace l'ancienne
     // constante PACKS codée en dur). Chaque pack est une association d'articles PRÉCIS
     // choisis dans le listing (id de la voile / sellette / secours, "" si absent du pack) ;
@@ -1293,7 +1307,8 @@
     items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment"],
     users: ["blocked"],
     clients: ["address", "postalCode", "city", "country", "blocked"],
-    stock: ["priceHT", "priceTTC", "pricePublic"]
+    stock: ["priceHT", "priceTTC", "pricePublic"],
+    archives: ["destination"]
   };
 
   // Catégories de certification des voiles.
@@ -1722,7 +1737,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function paymentBadge(it) {
     const v = it && it.payment;
     if (!v) return "";
-    const cls = v === "À payer" ? "bg-rose-100 text-rose-700" : v === "Payé" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600";
+    const cls = v === "À payer" ? "bg-red-100 text-red-700" : v === "Payé" ? "bg-pink-100 text-pink-700" : "bg-yellow-100 text-yellow-800";
     return `<span class="px-1.5 py-0.5 rounded-full font-bold text-[10px] ${cls}">💶 ${esc(v)}</span>`;
   }
   // Admin / gestionnaire peuvent corriger le paiement d'un prêt en cours (ex. « À payer » devenu « Payé »).
@@ -3687,8 +3702,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     perte:      { title: "⚠️ Perte / casse / réforme", qty: "Quantité retirée du stock", hist: "Stock retrait" },
     inventaire: { title: "🧮 Inventaire", qty: "Quantité réellement comptée en rayon", hist: "Stock inventaire" },
     modifier:   { title: "✏️ Modifier la référence", hist: "Stock modification" },
-    demo:       { title: "🪂 Passer en démo", hist: "Stock passage en démo" }
+    demo:       { title: "🪂 Passer en démo", hist: "Stock passage en démo" },
+    depart:     { title: "📦 Sortie du stock (vente / école / démo)", qty: "Quantité sortie", hist: "Stock départ" }
   };
+  const DEPART_DEST = { site: "Site Internet", magasin: "Magasin", ecole: "École", demo: "Démo" };
   let stockActionState = null;
   let stockBrandFilter = "";    // "" = toutes les marques
   let stockTypeFilter = "";     // "" = tous les types
@@ -3860,7 +3877,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         ${canSeeFinances() ? stockPriceHtml(r) : ""}
         ${loanTxt ? `<p class="text-slate-600">📤 ${loanTxt}</p>` : ""}
         ${r.note ? `<p class="text-slate-500 italic">${esc(r.note)}</p>` : ""}
-        <div class="flex flex-wrap gap-1">${btn("entree", "➕ Entrée")}${btn("sortie", "📤 Sortie")}${btn("retour", "📥 Retour")}${btn("perte", "⚠️ Perte")}${btn("inventaire", "🧮 Inventaire")}${canEdit ? btn("demo", "🪂 Démo", "border-sky-300 text-sky-700 hover:bg-sky-50") : ""}${canEdit ? btn("modifier", "✏️") : ""}${canEdit ? `<button onclick="deleteStockRef('${k}')" class="px-2 py-1 rounded border border-rose-300 text-rose-600">🗑</button>` : ""}</div>
+        <div class="flex flex-wrap gap-1">${btn("entree", "➕ Entrée")}${btn("sortie", "📤 Sortie")}${btn("retour", "📥 Retour")}${btn("perte", "⚠️ Perte")}${btn("inventaire", "🧮 Inventaire")}${canEdit && canUse("archives") ? btn("depart", "📦 Départ", "border-sky-300 text-sky-700 hover:bg-sky-50") : ""}${canEdit ? btn("modifier", "✏️") : ""}${canEdit ? `<button onclick="deleteStockRef('${k}')" class="px-2 py-1 rounded border border-rose-300 text-rose-600">🗑</button>` : ""}</div>
       </div>`;
     }).join("");
   }
@@ -3904,18 +3921,32 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const prix = $("stockDemoPrix"); prix.hidden = !lc || !canSeeFinances();
   }
 
+  // Affiche les champs de la destination choisie : la démo demande en plus les infos d'un article suivi (n° de série…).
+  function departDestChanged() {
+    const dest = $("stockDepartDest").value, id = stockActionState && stockActionState.id, r = id ? appData.stock[id] : null;
+    show("stockDemoRow", dest === "demo");
+    show("stockQtyRow", dest !== "demo");
+    if (dest === "demo") $("stockQty").value = "1";
+    const price = $("stockDepartPrice");
+    if (r && dest && price.value === "" && canSeeFinances() && r.pricePublic !== undefined && r.pricePublic !== "") price.value = String(r.pricePublic);
+  }
+
   function openStockAction(id, kind) {
     if (!stockAllowed()) { toast("Action non autorisée.", "error"); return; }
+    let preDest = "";
+    if (kind === "demo") { kind = "depart"; preDest = "demo"; }
     const r = appData.stock[id], def = STOCK_ACTIONS[kind];
     if (!r || !def) return;
-    if ((kind === "modifier" || kind === "demo") && currentRole === "instructor") { toast("Action non autorisée.", "error"); return; }
-    if (kind === "demo" && stockQty(r) < 1) { toast("Aucune unité en rayon : impossible de passer en démo.", "error"); return; }
+    if ((kind === "modifier" || kind === "depart") && currentRole === "instructor") { toast("Action non autorisée.", "error"); return; }
+    if (kind === "depart" && !(currentRole === "admin" || currentRole === "manager") ) { toast("Action non autorisée.", "error"); return; }
+    if (kind === "depart" && !canUse("archives")) { toast("Il faut le droit « Archives » pour sortir du matériel du stock.", "error"); return; }
+    if (kind === "depart" && stockQty(r) < 1) { toast("Aucune unité en rayon : impossible de la sortir.", "error"); return; }
     stockActionState = { id, kind };
     $("stockModalTitle").textContent = def.title;
     $("stockModalLabel").textContent = stockLabel(r);
     $("stockModalInfo").textContent = `En rayon : ${stockQty(r)} · prêtés : ${stockOut(r)}`;
-    show("stockQtyRow", kind !== "modifier" && kind !== "demo"); show("stockNoteRow", kind !== "modifier" && kind !== "demo"); show("stockEditRow", kind === "modifier");
-    show("stockDemoRow", kind === "demo");
+    show("stockQtyRow", kind !== "modifier"); show("stockNoteRow", kind !== "modifier"); show("stockEditRow", kind === "modifier");
+    show("stockDemoRow", false); show("stockDepartRow", kind === "depart");
     show("stockModalError", false);
     $("stockQtyLabel").textContent = def.qty || "";
     $("stockQty").value = kind === "inventaire" ? stockQty(r) : "1";
@@ -3943,12 +3974,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       $("stockEditPublic").value = r.pricePublic === undefined || r.pricePublic === "" ? "" : String(r.pricePublic);
       stockPricePreview("stockEdit");
     }
-    if (kind === "demo") {
+    if (kind === "depart") {
+      $("stockDepartDest").value = preDest; $("stockDepartPrice").value = ""; $("stockDepartBuyer").value = "";
       $("stockDemoType").value = r.category === "Sellette" ? "Sellette" : r.category === "Secours" ? "Secours" : r.category === "Vario" ? "Vario" : "Accessoire";
       setBrandSelect("stockDemoBrand", r.brand); $("stockDemoModel").value = r.model || ""; $("stockDemoSN").value = "";
       $("stockDemoSize").value = r.size || ""; $("stockDemoShelf").value = r.shelf || ""; $("stockDemoColor").value = r.color || "";
       $("stockDemoDate").value = ""; $("stockDemoPrix").value = "";
       toggleDemoFields();
+      departDestChanged();
     }
     openModal("stockModal");
   }
@@ -3963,40 +3996,65 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const who = currentUser ? currentUser.name : roleLabel(currentRole);
     let note = $("stockNote").value.trim(), person = "";
 
-    if (kind === "demo") {
-      if (!(currentRole === "admin" || currentRole === "manager")) { err("Action non autorisée."); return; }
-      if (stockQty(r) < 1) { err("Aucune unité en rayon."); return; }
-      const type = $("stockDemoType").value;
-      const brand = canonicalBrand($("stockDemoBrand").value), model = $("stockDemoModel").value.trim();
-      const sn = $("stockDemoSN").value.trim(), taille = $("stockDemoSize").value.trim(), couleur = $("stockDemoColor").value.trim();
-      const shelf = $("stockDemoShelf").value.trim(), dateMES = $("stockDemoDate").value, prix = $("stockDemoPrix").value;
-      if (missingSheets.includes("stock")) { err("L'onglet « stock » est absent de la base : redéployez le nouveau Code.gs, puis réessayez."); return; }
-      const lc = LIFECYCLE_TYPES.includes(type);
-      const missing = [];
-      if (!brand) missing.push("marque"); if (!model) missing.push("modèle"); if (!sn) missing.push("numéro de série");
-      if (lc) {
-        if (!taille) missing.push("taille"); if (!couleur) missing.push("couleur"); if (!dateMES) missing.push("date d'achat");
-        if (canSeeFinances() && prix === "") missing.push("prix d'achat");
+    if (kind === "depart") {
+      if (!(currentRole === "admin" || currentRole === "manager") || !canUse("archives")) { err("Action non autorisée."); return; }
+      if (missingSheets.includes("archives")) { err("L'onglet « archives » est absent de la base : redéployez le nouveau Code.gs, puis réessayez."); return; }
+      const dest = $("stockDepartDest").value, isDemo = dest === "demo";
+      if (!DEPART_DEST[dest]) { err("Choisissez où part le produit."); return; }
+      const priceStr = $("stockDepartPrice").value;
+      if (priceStr === "" || isNaN(Number(priceStr)) || Number(priceStr) < 0) { err("Indiquez le prix auquel il part (0 si aucun)."); return; }
+      const n = isDemo ? 1 : Number($("stockQty").value);
+      if (!Number.isInteger(n) || n < 1) { err("Indiquez une quantité entière valide."); return; }
+      if (n > stockQty(r)) { err(`Seulement ${stockQty(r)} unité(s) en rayon.`); return; }
+      const buyer = $("stockDepartBuyer").value.trim();
+      let sn = "", brandAdded = false, newItem = null;
+      if (isDemo) {
+        const type = $("stockDemoType").value;
+        const brand = canonicalBrand($("stockDemoBrand").value), model = $("stockDemoModel").value.trim();
+        sn = $("stockDemoSN").value.trim();
+        const taille = $("stockDemoSize").value.trim(), couleur = $("stockDemoColor").value.trim();
+        const shelf = $("stockDemoShelf").value.trim(), dateMES = $("stockDemoDate").value, prix = $("stockDemoPrix").value;
+        if (missingSheets.includes("stock")) { err("L'onglet « stock » est absent de la base : redéployez le nouveau Code.gs, puis réessayez."); return; }
+        const lc = LIFECYCLE_TYPES.includes(type);
+        const missing = [];
+        if (!brand) missing.push("marque"); if (!model) missing.push("modèle"); if (!sn) missing.push("numéro de série");
+        if (lc) {
+          if (!taille) missing.push("taille"); if (!couleur) missing.push("couleur"); if (!dateMES) missing.push("date d'achat");
+          if (canSeeFinances() && prix === "") missing.push("prix d'achat");
+        }
+        if (missing.length) { err("Champs obligatoires manquants : " + missing.join(", ") + "."); return; }
+        if (Object.values(appData.items).some(i => i.sn && i.sn.toLowerCase() === sn.toLowerCase())) { err("Ce numéro de série existe déjà."); return; }
+        const itemId = `ITEM-${Date.now()}`;
+        newItem = normalizeItem({
+          id: itemId, shelf, type, brand, model, sn, en: "", categorie: "", ptvMin: "", ptvMax: "",
+          hours: 0, flights: 0, status: "Disponible", borrowerName: "", borrowerEmail: "",
+          dateMiseEnService: lc ? dateMES : "", couleur, prixAchat: lc && canSeeFinances() ? prix : "", prixHeureVol: "", taille, coefVente: "1.4",
+          pretConstructeur: false, salePriceManual: "", pairedSecoursId: "", revisionMonths: "", revisionHours: ""
+        });
+        appData.items[itemId] = newItem;
+        brandAdded = rememberBrand(brand);
       }
-      if (missing.length) { err("Champs obligatoires manquants : " + missing.join(", ") + "."); return; }
-      if (Object.values(appData.items).some(i => i.sn && i.sn.toLowerCase() === sn.toLowerCase())) { err("Ce numéro de série existe déjà."); return; }
-      const itemId = `ITEM-${Date.now()}`;
-      appData.items[itemId] = normalizeItem({
-        id: itemId, shelf, type, brand, model, sn, en: "", categorie: "", ptvMin: "", ptvMax: "",
-        hours: 0, flights: 0, status: "Disponible", borrowerName: "", borrowerEmail: "",
-        dateMiseEnService: lc ? dateMES : "", couleur, prixAchat: lc && canSeeFinances() ? prix : "", prixHeureVol: "", taille, coefVente: "1.4",
-        pretConstructeur: false, salePriceManual: "", pairedSecoursId: "", revisionMonths: "", revisionHours: ""
-      });
-      r.qty = stockQty(r) - 1;
-      stockHistory(def.hist, r, who, `×1 · devient article de démo ${type} n° de série ${sn}`);
+      // Une ligne d'archive par unité sortie : les statistiques annuelles comptent chaque article.
+      const saleDate = today(), year = saleDate.slice(0, 4);
+      const ach = canSeeFinances() && r.priceTTC !== undefined && r.priceTTC !== "" && !isNaN(Number(r.priceTTC)) ? Number(r.priceTTC) : "";
+      for (let i = 0; i < n; i++) {
+        const archiveId = `ARCH-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 5)}`;
+        appData.archives[archiveId] = {
+          id: archiveId, year, type: r.category, brand: r.brand, model: r.model, sn: isDemo ? sn : "",
+          en: "", ptvMin: "", ptvMax: "", hours: 0, flights: 0, dateMiseEnService: "", couleur: r.color || "", taille: r.size || "",
+          prixAchat: ach, salePrice: Number(priceStr), saleDate, saleClientName: buyer, saleNote: note, destination: DEPART_DEST[dest]
+        };
+      }
+      r.qty = stockQty(r) - n;
+      stockHistory(def.hist, r, who, `×${n} · ${DEPART_DEST[dest]} · ${Number(priceStr).toFixed(2)} € l'unité` + (isDemo ? ` · devient article de démo n° de série ${sn}` : "") + (buyer ? ` · ${buyer}` : "") + (note ? " · " + note : ""));
       closeModal("stockModal");
-      const brandAdded = rememberBrand(brand);
-      const okD = await persist(brandAdded ? ["stock", "items", "history", "settings"] : ["stock", "items", "history"]);
+      const sheets = ["stock", "history", "archives"]; if (newItem) sheets.push("items"); if (brandAdded) sheets.push("settings");
+      const okD = await persist(sheets);
       stockActionState = null;
-      if (okD && !lastPersistFailed.length) toast("Article passé en démo (retiré du stock).");
+      if (okD && !lastPersistFailed.length) toast(isDemo ? "Article passé en démo (retiré du stock, archivé)." : `Sortie enregistrée (${DEPART_DEST[dest]}) et archivée.`);
       else {
-        const bad = lastPersistFailed.length ? lastPersistFailed.join(", ") : "items";
-        toast(`⚠️ Passage en démo NON enregistré dans la base (onglet : ${bad}). Vérifiez la connexion / le Code.gs, la synchronisation va recharger la base.`, "error");
+        const bad = lastPersistFailed.length ? lastPersistFailed.join(", ") : "stock";
+        toast(`⚠️ Sortie NON enregistrée dans la base (onglet : ${bad}). Vérifiez la connexion / le Code.gs, la synchronisation va recharger la base.`, "error");
         silentFresh = true; try { await fetchCloudData(true); } catch (e) { /* état mis à jour par fetchCloudData */ } finally { silentFresh = false; }
       }
       renderAll();
@@ -4906,7 +4964,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (!a) { closeModal("editArchiveModal"); editingArchiveId = null; return; }
 
     const clientName = $("editArchiveClientName").value.trim();
-    if (!clientName) { toast("Le nom du client acheteur est obligatoire.", "error"); return; }
+    if (!clientName && !a.destination) { toast("Le nom du client acheteur est obligatoire.", "error"); return; }
     const priceStr = $("editArchiveSalePrice").value;
     if (priceStr === "" || isNaN(Number(priceStr)) || Number(priceStr) < 0) {
       toast("Indiquez un prix de vente valide.", "error"); return;
@@ -4974,7 +5032,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           <div class="min-w-0">
             <p class="font-bold truncate">[${esc(r.type)}] ${esc(r.brand)} ${esc(r.model)}${(r.type === "Voile" && r.en) ? ` (${esc(r.en)})` : ""}${(r.type === "Voile" && r.couleur) ? ` — ${esc(r.couleur)}` : ""}</p>
             <p class="text-slate-500 truncate">S/N ${esc(r.sn || "—")} · ${r.hours || 0} h · ${r.flights || 0} vols${r.taille ? ` · taille ${esc(r.taille)}` : ""}</p>
-            <p class="text-slate-500 truncate">👤 Vendu à ${esc(r.saleClientName || "—")}${r.saleNote ? ` — ${esc(r.saleNote)}` : ""}</p>
+            <p class="text-slate-500 truncate">${r.destination ? `📦 ${esc(r.destination)}${r.saleClientName ? ` · 👤 ${esc(r.saleClientName)}` : ""}` : `👤 Vendu à ${esc(r.saleClientName || "—")}`}${r.saleNote ? ` — ${esc(r.saleNote)}` : ""}</p>
           </div>
           <div class="text-right shrink-0 space-y-1">
             <p class="font-bold text-emerald-700">${Number(r.salePrice || 0).toFixed(2)} €</p>
@@ -5033,6 +5091,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         return arr.length ? archiveStatsRow(label, arr) : "";
       }).join("");
 
+      const destRows = Object.values(DEPART_DEST).map(d => {
+        const arr = list.filter(r => r.destination === d);
+        return arr.length ? `<tr><td class="p-1.5 text-left">${esc(d)}</td><td class="p-1.5 text-center">${arr.length}</td><td class="p-1.5 text-center">${arr.reduce((t, x) => t + (Number(x.salePrice) || 0), 0).toFixed(2)} €</td></tr>` : "";
+      }).join("");
+      const destTable = destRows ? `<div class="space-y-1">
+            <h4 class="font-bold text-sm text-slate-700">📦 Sorties du stock en ${esc(year)}, par destination</h4>
+            <table class="w-full border border-slate-200 rounded-lg overflow-hidden bg-white"><thead class="bg-slate-100 text-[10px] uppercase text-slate-500"><tr><th class="p-1.5 text-left">Destination</th><th class="p-1.5">Nb</th><th class="p-1.5">Total</th></tr></thead><tbody>${destRows}</tbody></table>
+          </div>` : "";
       const isOpen = words.length ? true : (archiveYearOpen[year] !== undefined ? archiveYearOpen[year] : idx === 0);
       return `<details id="archive-year-${esc(year)}" ${isOpen ? "open" : ""} ontoggle="archiveToggleYear('${esc(year)}', this.open)" class="bg-slate-50 border border-slate-200 rounded-xl">
         <summary class="cursor-pointer p-3 font-bold text-base flex flex-wrap items-baseline gap-x-3">
@@ -5040,6 +5106,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           <span class="text-xs font-normal text-slate-500">${voiles.length} voile(s) vendue(s) · ${voilesTotal.toFixed(2)} €${autres.length ? ` · ${autres.length} autre(s) matériel(s)` : ""} · total ${totalSale.toFixed(2)} €</span>
         </summary>
         <div class="p-3 pt-0 space-y-4">
+          ${destTable}
           ${voiles.length ? `<div class="space-y-3">
             <h4 class="font-bold text-sm text-slate-700">🪂 Voiles vendues en ${esc(year)}</h4>
             ${enRows ? `<table class="w-full border border-slate-200 rounded-lg overflow-hidden bg-white">${theadRow}<tbody>${enRows}</tbody></table>` : ""}
@@ -6275,9 +6342,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // Paiement d'un prêt en cours (renseigné sur le matériel prêté) : colore le point du calendrier.
   //  vert = Payé, rouge = À payer, bleu = Gratuit. Sans paiement précisé, la couleur d'état habituelle s'applique.
   const PAYMENT_DOT = {
-    "Payé":    { color: "bg-green-500", text: "text-green-600" },
+    "Payé":    { color: "bg-pink-400",  text: "text-pink-600" },
     "À payer": { color: "bg-red-600",   text: "text-red-600" },
-    "Gratuit": { color: "bg-blue-500",  text: "text-blue-600" }
+    "Gratuit": { color: "bg-yellow-400", text: "text-yellow-600" }
   };
   function planningPayment(p) {
     const it = appData.items[p.itemId];
@@ -7061,7 +7128,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-22.93";
+  const APP_VERSION = "2026-10-23.94";
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = "V" + APP_VERSION.split(".").pop(); }
 
   /* ------------------------------------------------------------------ */
@@ -7072,6 +7139,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 94, title: "Sortie du stock : destination, prix et archives", aud: "staff", items: [
+      { icon: "📦", t: "Sortir un produit du stock (vente, école, démo)", steps: ["Dans le stock, bouton « 📦 Départ » : choisissez où part le produit (site Internet, magasin, école ou démo) et le prix.", "L'unité quitte le stock et part dans l'onglet Archives, avec un tableau par destination pour les statistiques annuelles. Pour la démo, les informations de l'article (n° de série…) sont demandées comme avant."] },
+      { icon: "🎨", t: "Couleurs du paiement dans le planning", steps: ["Payé en rose, À payer en rouge, Gratuit en jaune."] },
+    ] },
     { v: 93, title: "Paiement du prêt : Gratuit / À payer / Payé", aud: "staff", items: [
       { icon: "💶", t: "Choisir le paiement quand on prête du matériel", steps: ["Dans « Prêter à quelqu'un », l'administrateur et le gestionnaire choisissent Gratuit, À payer ou Payé. Pour un moniteur, c'est toujours Gratuit.", "Dans la liste des prêts en cours, l'administrateur et le gestionnaire peuvent changer l'état (par ex. À payer → Payé) ; l'état s'affiche aussi à la restitution."] },
     ] },
