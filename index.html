@@ -728,6 +728,18 @@
   </div>
 
   <!-- MODAL : confirmation de prêt -->
+  <!-- PAGE DE CONFIRMATION : affichée en plein écran une fois le prêt validé par le client -->
+  <div id="borrowDoneView" hidden class="fixed inset-0 z-[70] bg-green-50 overflow-y-auto" style="padding-top: env(safe-area-inset-top, 0px);">
+    <div class="max-w-md mx-auto p-6 min-h-full flex flex-col justify-center gap-4 text-center">
+      <div id="borrowDoneIcon" class="text-6xl">✅</div>
+      <h2 id="borrowDoneTitle" class="text-2xl font-bold text-green-800">Prêt enregistré</h2>
+      <p id="borrowDoneText" class="text-sm text-slate-600"></p>
+      <div id="borrowDoneItems" class="bg-white border border-green-200 rounded-xl p-4 text-left text-sm space-y-1"></div>
+      <p id="borrowDoneMail" class="text-xs text-slate-500"></p>
+      <button onclick="closeBorrowDone()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-xl">Terminer</button>
+    </div>
+  </div>
+
   <div id="borrowConfirmModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'borrowConfirmModal')">
     <div class="bg-white w-full max-w-md rounded-xl p-5 space-y-4 shadow-xl">
       <h3 class="font-bold text-lg">Confirmer le prêt</h3>
@@ -3441,6 +3453,23 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   function closeBorrowConfirmationModal() { closeModal("borrowConfirmModal"); }
 
+  // Page de confirmation plein écran : le client voit que son prêt est bien enregistré (ou, hors ligne, seulement sur cet appareil).
+  function showBorrowDone({ ok, name, email, ids, dueAt }) {
+    const first = String(name || "").trim().split(/\s+/)[0] || "";
+    $("borrowDoneIcon").textContent = ok ? "✅" : "⚠️";
+    $("borrowDoneTitle").textContent = ok ? "Prêt enregistré" : "Prêt enregistré sur cet appareil";
+    $("borrowDoneText").textContent = ok
+      ? `Merci${first ? " " + first : ""}, votre prêt a bien été pris en compte. Vous pouvez récupérer le matériel.`
+      : "La connexion au serveur a échoué : le prêt est noté sur cet appareil, mais pas encore dans la base. Prévenez le personnel.";
+    $("borrowDoneItems").innerHTML = `<p class="font-bold text-slate-700">Matériel prêté</p>` +
+      (ids || []).map(id => appData.items[id] ? `<p>• ${esc(itemLabel(appData.items[id]))}</p>` : "").join("") +
+      `<p class="pt-2 text-slate-600">À restituer au plus tard le <b>${esc(new Date(dueAt).toLocaleString("fr-FR"))}</b></p>`;
+    $("borrowDoneMail").textContent = email ? `Un e-mail de confirmation est envoyé à ${email}.` : "";
+    show("borrowDoneView", true);
+    try { window.scrollTo(0, 0); } catch (e) { /* sans importance */ }
+  }
+  function closeBorrowDone() { show("borrowDoneView", false); }
+
   async function confirmAndSubmitBorrow() {
     if (busy) return;
     if (!pendingBorrowDetails) { closeModal("borrowConfirmModal"); return; }
@@ -3519,6 +3548,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     });
 
     pendingBorrowDetails = null;
+    showBorrowDone({ ok, name, email, ids, dueAt });
     $("uInputName").value = "";
     $("uInputEmail").value = "";
     $("uInputPhone").value = "";
@@ -7235,7 +7265,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-26.100";
+  const APP_VERSION = "2026-10-26.101";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -7248,6 +7278,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 101, title: "Page de confirmation du prêt", aud: "all", items: [
+      { icon: "✅", t: "Le client voit que son prêt est bien enregistré", steps: ["Après validation du prêt, une page plein écran confirme le matériel prêté, l'heure de retour et l'envoi du mail de confirmation."] },
+    ] },
     { v: 100, title: "Connectés, mobile, prêt moniteur 24 h, mail de restitution, départ du stock", aud: "staff", items: [
       { icon: "👥", t: "Nombre d'utilisateurs connectés", steps: ["Un compteur 👥 en haut, à côté de l'état de synchronisation, indique combien d'appareils sont connectés en ce moment (survol : dont personnel)."] },
       { icon: "📱", t: "Mobile en portrait", steps: ["Dans la liste du matériel, le nom de la voile s'affiche en entier sur sa propre ligne, les boutons passent dessous."] },
