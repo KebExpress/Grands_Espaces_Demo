@@ -308,6 +308,10 @@
             <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">📦 Disponibilité</p>
             <div id="stockAvailChips" class="flex flex-wrap gap-1"></div>
           </div>
+          <div id="stockSubtypeBox">
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">🏔️ Type particulier</p>
+            <div id="stockSubtypeChips" class="flex flex-wrap gap-1"></div>
+          </div>
           <p id="stockResultInfo" class="text-[11px] text-slate-500"></p>
         </div>
         <div id="stockList" class="space-y-3"></div>
@@ -387,6 +391,7 @@
           <div><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">🧭 Type</p><div id="itemTypeChips" class="flex flex-wrap gap-1 text-xs"></div></div>
           <div><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">🏷️ Marque</p><div id="itemBrandChips" class="flex flex-wrap gap-1 text-xs max-h-24 overflow-y-auto"></div></div>
           <div><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">📦 Disponibilité</p><div id="itemStatusChips" class="flex flex-wrap gap-1 text-xs"></div></div>
+          <div id="itemSubtypeBox" class="space-y-1"><p class="text-[10px] font-bold text-slate-400 uppercase mb-1">🏔️ Type particulier</p><div id="itemSubtypeChips" class="flex flex-wrap gap-1 text-xs"></div></div>
           <p id="itemResultInfo" class="text-[11px] text-slate-500"></p>
         </div>
         <button onclick="openQrPrintModal()" class="w-full py-2 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700">🖨️ Imprimer les QR codes (feuille A4 : 4 × 6)</button>
@@ -692,6 +697,14 @@
   </div>
 
   <!-- MODAL : lien de réinitialisation généré par l'administrateur -->
+  <div id="onlineUsersModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'onlineUsersModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
+      <h3 class="font-bold text-lg">👥 Personnel connecté</h3>
+      <div id="onlineUsersList" class="space-y-1 text-xs max-h-72 overflow-y-auto"></div>
+      <p class="text-[11px] text-slate-400">Un compte ouvert sur plusieurs appareils n'apparaît qu'une fois (nombre d'appareils indiqué). Les clients (non connectés à un compte) ne sont pas nommés, seulement comptés dans le total.</p>
+      <button onclick="closeModal('onlineUsersModal')" class="w-full py-2 border border-slate-300 rounded font-bold text-xs">Fermer</button>
+    </div>
+  </div>
   <div id="resetLinkModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'resetLinkModal')">
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
       <h3 class="font-bold text-lg">Lien de réinitialisation</h3>
@@ -1480,13 +1493,40 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   }
 
   // Nombre d'utilisateurs connectés en même temps (renvoyé par le serveur à chaque contrôle de version).
-  function showOnline(total, staff) {
+  // Pour l'administrateur, le serveur renvoie en plus la liste nominative du personnel connecté (onlineList) :
+  // la pastille devient cliquable et ouvre le détail (voir openOnlineUsersModal).
+  let onlineUsersList = [];
+  function showOnline(total, staff, list) {
     const el = $("onlineCount"); if (!el) return;
     total = Number(total) || 0;
     if (total < 1) { el.hidden = true; return; }
     el.hidden = false;
     el.textContent = `👥 ${total}`;
     el.title = `${total} appareil(s) connecté(s) en ce moment` + (staff !== undefined ? ` (dont ${Number(staff) || 0} du personnel)` : "");
+    if (currentRole === "admin" && Array.isArray(list)) {
+      onlineUsersList = list;
+      el.onclick = openOnlineUsersModal;
+      el.style.cursor = "pointer";
+      el.title += " — cliquer pour voir qui.";
+    } else {
+      el.onclick = null;
+      el.style.cursor = "";
+    }
+  }
+  // Détail (admin uniquement) : qui, parmi le personnel, est connecté en ce moment.
+  function openOnlineUsersModal() {
+    if (currentRole !== "admin") return;
+    const box = $("onlineUsersList");
+    if (box) {
+      box.innerHTML = onlineUsersList.length
+        ? onlineUsersList.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), "fr")).map(u =>
+            `<div class="bg-white border border-slate-200 rounded-lg p-2 flex justify-between items-center">
+              <span class="font-bold">${esc(u.name)}</span>
+              <span class="text-slate-500 text-[11px]">${esc(roleLabel(u.role) || "")}${u.devices > 1 ? ` · ${u.devices} appareils` : ""}</span>
+            </div>`).join("")
+        : `<p class="text-slate-400 text-center">Aucun membre du personnel connecté en ce moment (en dehors de vous, si votre appareil n'a pas encore été comptabilisé).</p>`;
+    }
+    openModal("onlineUsersModal");
   }
   function deviceId() {
     let id = "";
@@ -3868,6 +3908,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   let stockBrandFilter = "";    // "" = toutes les marques
   let stockTypeFilter = "";     // "" = tous les types
   let stockAvailFilter = "";    // "" | dispo | bas | rupture | prete
+  let stockSubtypeFilter = "";  // "" = tous les types particuliers
   const STOCK_AVAIL = [
     ["", "Tous"], ["dispo", "✅ Disponible"], ["bas", "🟠 Stock bas"], ["rupture", "🔴 Rupture"], ["prete", "📤 Avec prêts en cours"]
   ];
@@ -3880,8 +3921,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return true;
   }
   function setStockBrand(v) { setStockFilter("brand", v); }
+  function setStockSubtype(v) { setStockFilter("subtype", v); }
   function setStockFilter(kind, value) {
-    if (kind === "type") stockTypeFilter = value; else if (kind === "brand") stockBrandFilter = value; else stockAvailFilter = value;
+    if (kind === "type") stockTypeFilter = value; else if (kind === "brand") stockBrandFilter = value; else if (kind === "subtype") stockSubtypeFilter = value; else stockAvailFilter = value;
     renderStock();
   }
 
@@ -3999,15 +4041,21 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       : recordMatchesWords(r, [w], [Object.keys(stockLoans(r)).join(" ")]));
     // Pastilles de filtre avec compteurs (moteur commun, voir searchChip).
     const brandOk = r => !stockBrandFilter || brandKey(r.brand) === brandKey(stockBrandFilter);
+    const subtypeOk = r => !stockSubtypeFilter || colorList(r.subtype || "").some(s => colorKey(s) === colorKey(stockSubtypeFilter));
     const chip = (kind, val, label, count, active) => searchChip(`setStockFilter('${kind}','${val}')`, label, count, active);
-    const baseForType = all.filter(r => brandOk(r) && stockAvailMatch(r, stockAvailFilter) && matchWords(r));
-    const baseForBrand = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && stockAvailMatch(r, stockAvailFilter) && matchWords(r));
-    const baseForAvail = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && brandOk(r) && matchWords(r));
-    const typeBox = $("stockTypeChips"), brandBox = $("stockBrandChips"), availBox = $("stockAvailChips");
+    const baseForType = all.filter(r => brandOk(r) && subtypeOk(r) && stockAvailMatch(r, stockAvailFilter) && matchWords(r));
+    const baseForBrand = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && subtypeOk(r) && stockAvailMatch(r, stockAvailFilter) && matchWords(r));
+    const baseForAvail = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && brandOk(r) && subtypeOk(r) && matchWords(r));
+    const baseForSubtype = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && brandOk(r) && stockAvailMatch(r, stockAvailFilter) && matchWords(r));
+    const typeBox = $("stockTypeChips"), brandBox = $("stockBrandChips"), availBox = $("stockAvailChips"), subtypeBox = $("stockSubtypeChips");
     if (typeBox) typeBox.innerHTML = chip("type", "", "Tous", baseForType.length, !stockTypeFilter) + STOCK_CATS.map(c => chip("type", c, `${STOCK_ICON[c]} ${c}`, baseForType.filter(r => r.category === c).length, stockTypeFilter === c)).join("");
     if (brandBox) brandBox.innerHTML = brandChipsHtml("setStockBrand", baseForBrand, stockBrandFilter, r => r.brand);
     if (availBox) availBox.innerHTML = STOCK_AVAIL.map(([v, l]) => chip("avail", v, l, baseForAvail.filter(r => stockAvailMatch(r, v)).length, stockAvailFilter === v)).join("");
-    const list = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && brandOk(r) && stockAvailMatch(r, stockAvailFilter) && matchWords(r))
+    if (subtypeBox) {
+      subtypeBox.innerHTML = subtypeChipsHtml("setStockSubtype", baseForSubtype, stockSubtypeFilter, r => r.subtype);
+      show("stockSubtypeBox", subtypeBox.innerHTML.trim() !== "");
+    }
+    const list = all.filter(r => (!stockTypeFilter || r.category === stockTypeFilter) && brandOk(r) && subtypeOk(r) && stockAvailMatch(r, stockAvailFilter) && matchWords(r))
       .sort((a, b) => STOCK_CATS.indexOf(a.category) - STOCK_CATS.indexOf(b.category) || String(a.brand).localeCompare(String(b.brand), "fr") || String(a.model).localeCompare(String(b.model), "fr"));
     const info = $("stockResultInfo");
     if (info) info.textContent = `${list.length} référence(s) sur ${all.length} · ${list.reduce((a, r) => a + stockQty(r), 0)} unité(s) en rayon · ${list.reduce((a, r) => a + stockOut(r), 0)} prêtée(s)`;
@@ -4154,7 +4202,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       $("stockDemoType").value = r.category === "Sellette" ? "Sellette" : r.category === "Secours" ? "Secours" : r.category === "Vario" ? "Vario" : "Accessoire";
       setBrandSelect("stockDemoBrand", r.brand); $("stockDemoModel").value = r.model || ""; $("stockDemoSN").value = "";
       $("stockDemoSize").value = r.size || ""; $("stockDemoShelf").value = r.shelf || ""; $("stockDemoColor").value = r.color || "";
-      $("stockDemoDate").value = ""; $("stockDemoPrix").value = "";
+      $("stockDemoDate").value = "";
+      // Prix d'achat déjà connu dans le stock (TTC, sinon HT) : pas besoin de le ressaisir.
+      $("stockDemoPrix").value = r.priceTTC !== undefined && r.priceTTC !== "" ? String(r.priceTTC) : (r.priceHT !== undefined && r.priceHT !== "" ? String(r.priceHT) : "");
       toggleDemoFields();
       departDestChanged();
     }
@@ -4230,7 +4280,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       }
       // Une ligne d'archive par unité sortie : les statistiques annuelles comptent chaque article.
       const saleDate = today(), year = saleDate.slice(0, 4);
-      const ach = canSeeFinances() && r.priceTTC !== undefined && r.priceTTC !== "" && !isNaN(Number(r.priceTTC)) ? Number(r.priceTTC) : "";
+      const achSrc = (r.priceTTC !== undefined && r.priceTTC !== "" && !isNaN(Number(r.priceTTC))) ? r.priceTTC : (r.priceHT !== undefined && r.priceHT !== "" && !isNaN(Number(r.priceHT)) ? r.priceHT : "");
+      const ach = canSeeFinances() && achSrc !== "" ? Number(achSrc) : "";
       for (let i = 0; i < n; i++) {
         const archiveId = `ARCH-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 5)}`;
         appData.archives[archiveId] = {
@@ -4614,13 +4665,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     }).join("");
   }
 
-  let itemTypeFilterV = "", itemBrandFilterV = "", itemStatusFilterV = "";
+  let itemTypeFilterV = "", itemBrandFilterV = "", itemStatusFilterV = "", itemSubtypeFilterV = "";
   const ITEM_STATUS_CHIPS = [["", "Tous"], ["Disponible", "✅ Disponible"], ["Loué", "📤 Loué"], ["Indisponible", "⛔ Indisponible"]];
   function setItemFilter(kind, value) {
-    if (kind === "type") itemTypeFilterV = value; else if (kind === "brand") itemBrandFilterV = value; else itemStatusFilterV = value;
+    if (kind === "type") itemTypeFilterV = value; else if (kind === "brand") itemBrandFilterV = value; else if (kind === "subtype") itemSubtypeFilterV = value; else itemStatusFilterV = value;
     renderItems();
   }
   function setItemBrand(v) { setItemFilter("brand", v); }
+  function setItemSubtype(v) { setItemFilter("subtype", v); }
   function renderItems() {
     const ctn = $("itemsListByShelf");
     if (!ctn) return;
@@ -4641,7 +4693,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const brandOk = i => !itemBrandFilterV || brandKey(i.brand) === brandKey(itemBrandFilterV);
     const typeOk = i => !itemTypeFilterV || i.type === itemTypeFilterV;
     const statusOk = (i, f) => !f || i.status === f;
-    const base = i => textOk(i) && prefOk(i);
+    const subtypeOk = i => !itemSubtypeFilterV || colorList(i.subtype || "").some(s => colorKey(s) === colorKey(itemSubtypeFilterV));
+    const base = i => textOk(i) && prefOk(i) && subtypeOk(i);
     // Sellettes du stock : elles apparaissent aussi dans la recherche (prêt ou simple consultation), avec leur quantité en rayon.
     const stockRows = stockAllowed() ? Object.values(appData.stock).filter(r => r.category === "Sellette") : [];
     const stText = r => !query || queryWords.every(w => isSizeWord(w)
@@ -4653,22 +4706,29 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const stBrand = r => !itemBrandFilterV || brandKey(r.brand) === brandKey(itemBrandFilterV);
     const stType = () => !itemTypeFilterV || itemTypeFilterV === "Sellette";
     const stStatus = (r, f) => !f || (f === "Disponible" && stockQty(r) > 0) || (f === "Loué" && stockOut(r) > 0);
+    const stSubtypeOk = r => !itemSubtypeFilterV || colorList(r.subtype || "").some(s => colorKey(s) === colorKey(itemSubtypeFilterV));
     const chipI = (kind, val, label, count, active) => searchChip(`setItemFilter('${kind}','${val}')`, label, count, active);
-    const typeBox = $("itemTypeChips"), brandBox = $("itemBrandChips"), statusBox = $("itemStatusChips");
+    const typeBox = $("itemTypeChips"), brandBox = $("itemBrandChips"), statusBox = $("itemStatusChips"), subtypeBox = $("itemSubtypeChips");
     if (typeBox) {
       const pool = allItems.filter(i => base(i) && brandOk(i) && statusOk(i, itemStatusFilterV));
-      const stPool = stockRows.filter(r => stText(r) && stPrefOk(r) && stBrand(r) && stStatus(r, itemStatusFilterV));
+      const stPool = stockRows.filter(r => stText(r) && stPrefOk(r) && stSubtypeOk(r) && stBrand(r) && stStatus(r, itemStatusFilterV));
       typeBox.innerHTML = chipI("type", "", "Tous", pool.length + stPool.length, !itemTypeFilterV) +
         TYPES.filter(t => allItems.some(i => i.type === t) || (t === "Sellette" && stockRows.length)).map(t => chipI("type", t, `${TYPE_ICON[t] || ""} ${t}`, pool.filter(i => i.type === t).length + (t === "Sellette" ? stPool.length : 0), itemTypeFilterV === t)).join("");
     }
-    if (brandBox) brandBox.innerHTML = brandChipsHtml("setItemBrand", allItems.filter(i => base(i) && typeOk(i) && statusOk(i, itemStatusFilterV)).concat(stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stStatus(r, itemStatusFilterV)) : []), itemBrandFilterV, i => i.brand);
+    if (brandBox) brandBox.innerHTML = brandChipsHtml("setItemBrand", allItems.filter(i => base(i) && typeOk(i) && statusOk(i, itemStatusFilterV)).concat(stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stSubtypeOk(r) && stStatus(r, itemStatusFilterV)) : []), itemBrandFilterV, i => i.brand);
     if (statusBox) {
       const pool = allItems.filter(i => base(i) && typeOk(i) && brandOk(i));
-      const stPool2 = stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stBrand(r)) : [];
+      const stPool2 = stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stSubtypeOk(r) && stBrand(r)) : [];
       statusBox.innerHTML = ITEM_STATUS_CHIPS.map(([v, l]) => chipI("status", v, l, pool.filter(i => statusOk(i, v)).length + stPool2.filter(r => stStatus(r, v)).length, itemStatusFilterV === v)).join("");
     }
+    if (subtypeBox) {
+      const pool = allItems.filter(i => textOk(i) && prefOk(i) && typeOk(i) && brandOk(i) && statusOk(i, itemStatusFilterV));
+      const stPool3 = stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stBrand(r) && stStatus(r, itemStatusFilterV)) : [];
+      subtypeBox.innerHTML = subtypeChipsHtml("setItemSubtype", pool.concat(stPool3), itemSubtypeFilterV, i => i.subtype);
+      show("itemSubtypeBox", subtypeBox.innerHTML.trim() !== "");
+    }
     items = allItems.filter(i => base(i) && typeOk(i) && brandOk(i) && statusOk(i, itemStatusFilterV));
-    const stShown = stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stBrand(r) && stStatus(r, itemStatusFilterV)) : [];
+    const stShown = stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stSubtypeOk(r) && stBrand(r) && stStatus(r, itemStatusFilterV)) : [];
     const info = $("itemResultInfo");
     if (info) info.textContent = `${items.length + stShown.length} équipement(s) sur ${allItems.length + stockRows.length}`;
 
@@ -6216,7 +6276,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       if (data && data.error === "Session expirée") { handleSessionExpired(); return; }
       sessionStrikeAt = 0;
       pollFailCount = 0;
-      if (data && data.online !== undefined) showOnline(data.online, data.onlineStaff);
+      if (data && data.online !== undefined) showOnline(data.online, data.onlineStaff, data.onlineList);
       // Session glissante : le serveur renvoie un jeton neuf quand l'ancien approche de sa moitié de vie.
       if (data && typeof data.sid === "string" && currentUser && data.sid.length > 10) {
         currentUser.sid = data.sid;
@@ -7139,6 +7199,29 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     Voile: ["Montagne", "Light", "Cross"],
     Secours: ["Light", "Carré", "Rogallo"]
   };
+  // Pictogramme par type particulier, pour les pastilles de recherche rapide (items et stock).
+  const SUBTYPE_ICON = {
+    Montagne: "⛰️", Light: "🪶", String: "🧵", Cocon: "🛌", Planchette: "🪵", Hamac: "🏕️",
+    Speed: "⚡", "Réversible": "🔄", Patellettes: "🦵", Airbag: "🎈", "Blow-bag": "💨", "Mousse-bag": "🧽",
+    Cross: "✈️", "Carré": "⬜", Rogallo: "🪂"
+  };
+  // Pastilles de recherche par type particulier (pictogrammes) : mêmes mécaniques que les pastilles
+  // Marque (comptage parmi les lignes affichées, sélection unique), mais sur un champ multi-valeurs
+  // ("A / B", voir colorList/colorKey) — une ligne compte dans chaque type particulier qu'elle porte.
+  function subtypeChipsHtml(handlerName, rows, selected, getSubtype) {
+    const counts = {};
+    rows.forEach(r => colorList(getSubtype(r) || "").forEach(s => {
+      const k = colorKey(s);
+      counts[k] = counts[k] || { label: s, n: 0 };
+      counts[k].n++;
+    }));
+    const keys = Object.keys(counts).sort((a, b) => counts[a].label.localeCompare(counts[b].label, "fr"));
+    if (!keys.length) return "";
+    const total = rows.filter(r => colorList(getSubtype(r) || "").length).length;
+    const esc2 = s => JSON.stringify(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return searchChip(`${handlerName}('')`, "Tous les types", total, !selected) +
+      keys.map(k => searchChip(`${handlerName}(${esc2(counts[k].label)})`, `${SUBTYPE_ICON[counts[k].label] || "🏷️"} ${esc(counts[k].label)}`, counts[k].n, colorKey(selected) === k)).join("");
+  }
   function toggleSubtype(inputId, name) {
     const el = $(inputId); if (!el) return;
     const list = colorList(el.value), k = colorKey(name), i = list.findIndex(c => colorKey(c) === k);
@@ -7448,7 +7531,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-27.105";
+  const APP_VERSION = "2026-10-27.106";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -7461,6 +7544,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 106, title: "Prix repris du stock, pictogrammes de type particulier, qui est connecté", aud: "staff", items: [
+      { icon: "💶", t: "Prix d'achat repris automatiquement du stock", steps: ["En passant un article du stock en démo, le prix d'achat déjà connu dans la fiche de stock est prérempli : plus besoin de le ressaisir (modifiable si besoin)."], aud: "staff" },
+      { icon: "🏔️", t: "Pastilles « Type particulier » dans les recherches", steps: ["Comme pour Type / Marque / Disponibilité, de nouvelles pastilles cliquables permettent de filtrer directement par type particulier (Montagne, Light, Cocon…), dans la recherche du Matériel comme dans le Stock."], aud: "staff" },
+      { icon: "👥", t: "L'administrateur voit qui est connecté", steps: ["En cliquant sur le compteur 👥, l'administrateur voit la liste nominative du personnel connecté en ce moment (les clients restent anonymes, seulement comptés)."], aud: "staff" },
+    ] },
     { v: 105, title: "Types particuliers aussi dans le stock, recherche étendue", aud: "staff", items: [
       { icon: "🏷️", t: "Type(s) particulier(s) pour les sellettes/secours du stock", steps: ["Comme pour le matériel avec numéro de série, on peut cocher plusieurs types (Montagne, Light, String, Cocon…) sur une référence de stock."], aud: "staff" },
       { icon: "🔍", t: "Recherche par type particulier", steps: ["Taper un type particulier (ex. « Cocon », « Light ») dans la recherche remonte maintenant aussi bien le matériel avec S/N que les références de stock, dans l'onglet Matériel comme dans l'onglet Stock."], aud: "staff" },
