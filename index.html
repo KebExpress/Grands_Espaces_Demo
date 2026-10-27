@@ -998,11 +998,18 @@
         <p class="text-[10px] text-slate-500">Elle ouvre la fiche du produit sur son téléphone et remplit elle-même le formulaire de prêt (nom, coordonnées, contrat).</p>
       </div>
       <details id="thirdPartyManual" class="border border-slate-200 rounded-lg p-2">
-        <summary class="text-xs font-bold text-slate-600 cursor-pointer">✍️ Saisir à sa place (prêt moniteur, 24 h maximum)</summary>
+        <summary class="text-xs font-bold text-slate-600 cursor-pointer">✍️ Saisir à sa place (prêt moniteur, 24 h par défaut)</summary>
         <div class="space-y-2 text-xs mt-2">
           <input type="text" id="thirdPartyName" class="w-full p-2 border border-slate-300 rounded" placeholder="Nom du bénéficiaire *">
           <input type="email" id="thirdPartyEmail" class="w-full p-2 border border-slate-300 rounded" placeholder="Email">
           <input type="tel" id="thirdPartyPhone" class="w-full p-2 border border-slate-300 rounded" placeholder="Téléphone">
+          <div class="grid grid-cols-2 gap-2">
+            <label class="block text-[10px] font-bold text-slate-600">Date de début
+              <input type="datetime-local" id="thirdPartyStart" class="w-full p-2 border border-slate-300 rounded text-xs mt-0.5"></label>
+            <label class="block text-[10px] font-bold text-slate-600">Retour prévu le
+              <input type="datetime-local" id="thirdPartyEnd" class="w-full p-2 border border-slate-300 rounded text-xs mt-0.5"></label>
+          </div>
+          <p class="text-[10px] text-slate-400">Par défaut 24 h à partir de maintenant ; le moniteur, le gestionnaire ou l'administrateur peut dépasser ce délai en choisissant une autre date de fin (prêt sur plusieurs jours par exemple).</p>
           <div id="thirdPartyPaymentBox">
             <label class="block font-bold text-slate-600">Paiement</label>
             <select id="thirdPartyPayment" class="w-full p-2 border border-slate-300 rounded bg-white">
@@ -1390,7 +1397,7 @@
   // Ces listes sont l'ordre de colonnes attendu ; si le tableur diffère,
   // l'ordre réel relevé à la lecture fait foi (voir buildRows).
   const SHEET_FIELDS = {
-    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype"],
+    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt"],
     users:   ["id", "name", "username", "password", "role", "email", "blocked"],
     clients: ["id", "name", "email", "phone", "address", "postalCode", "city", "country", "createdAt", "blocked"],
     history: ["id", "date", "action", "itemId", "itemLabel", "person", "email", "note"],
@@ -1412,7 +1419,7 @@
   // dans le tableur. Sur un onglet vide, doGet ne renvoie aucun en-tête ;
   // écrire une colonne de trop ferait sortir doPost de la plage de la feuille.
   const OPTIONAL_COLUMNS = {
-    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype"],
+    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt"],
     users: ["blocked"],
     clients: ["address", "postalCode", "city", "country", "blocked"],
     stock: ["priceHT", "priceTTC", "pricePublic", "subtype"],
@@ -1844,11 +1851,25 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return Math.floor((Date.now() - d.getTime()) / 86400000);
   }
 
-  // Emprunt par le personnel (moniteur, gestionnaire, administrateur) : 24 h maximum, rappel de retard
-  // ensuite. Les clients gardent le délai des réglages.
-  const STAFF_LOAN_GRACE_HOURS = 24;     // prêt moniteur : 24 h maximum (le créneau suivant reste réservable)
+  // Emprunt par le personnel (moniteur, gestionnaire, administrateur) : 24 h par défaut, rappel de
+  // retard ensuite. Les clients gardent le délai des réglages. Le personnel peut toutefois dépasser
+  // ce délai par défaut en choisissant une date de fin personnalisée (it.dueAt) lors du prêt à un
+  // tiers : dans ce cas, c'est cette échéance précise qui fait foi pour détecter le retard.
+  const STAFF_LOAN_GRACE_HOURS = 24;     // prêt moniteur : 24 h par défaut (le créneau suivant reste réservable)
   function overdueThresholdHours(item) {
     return item && item.loanKind === "moniteur" ? STAFF_LOAN_GRACE_HOURS : getMailSettings().thresholdHours;
+  }
+  // Un prêt est en retard si sa date de retour prévue personnalisée est dépassée (it.dueAt, fixée
+  // par le personnel lors d'un prêt à un tiers), sinon selon le délai habituel (seuil + date de début).
+  function isLoanOverdue(item) {
+    if (!item) return false;
+    if (item.dueAt) return Date.now() > new Date(item.dueAt).getTime();
+    return (hoursSince(loanStartedAt(item)) || 0) >= overdueThresholdHours(item);
+  }
+  // Formate une Date en valeur acceptée par un <input type="datetime-local"> (heure locale, sans fuseau).
+  function toLocalInputValue(date) {
+    const pad = n => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
   function hoursSince(dateStr) {
@@ -3811,6 +3832,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       it.borrowedAt = stamp;
       it.loanKind = "";
       it.payment = "";
+      it.dueAt = "";
       addHistory("Prêt", it, name, email, "");
 
       // Bloque ce matériel dans le système de planning pendant la durée du
@@ -3951,6 +3973,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     it.overdueAlerted = false;
     it.loanKind = "";
     it.payment = "";
+    it.dueAt = "";
     addHistory("Restitution", it, borrower, borrowerEmail, note);
     // Libère le créneau de planning de l'emprunt immédiat correspondant.
     closePlanningForReturnedItem(id);
@@ -4021,6 +4044,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     // retard : un moniteur n'a pas de durée limite d'emprunt du matériel.
     it.loanKind = "moniteur";
     it.payment = "Gratuit";
+    it.dueAt = "";
     addHistory("Emprunt moniteur", it, name, email, currentRole === "instructor" ? "Emprunt libre par un moniteur" : `Emprunt personnel (${roleLabel(currentRole)})`);
 
     const rowId = `PLAN-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -4056,6 +4080,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     it.overdueAlerted = false;
     it.loanKind = "";
     it.payment = "";
+    it.dueAt = "";
     addHistory("Restitution", it, borrower, borrowerEmail, "Restitution moniteur");
 
     closePlanningForReturnedItem(id);
@@ -4577,6 +4602,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("thirdPartyName").value = "";
     $("thirdPartyEmail").value = "";
     $("thirdPartyPhone").value = "";
+    // Dates de prêt préremplies sur le délai par défaut (maintenant → +24 h), modifiables pour
+    // dépasser ce délai (prêt sur plusieurs jours, par exemple).
+    const nowD = new Date();
+    if ($("thirdPartyStart")) $("thirdPartyStart").value = toLocalInputValue(nowD);
+    if ($("thirdPartyEnd")) $("thirdPartyEnd").value = toLocalInputValue(new Date(nowD.getTime() + STAFF_LOAN_GRACE_HOURS * 3600000));
     // Paiement : choix réservé à l'administrateur et au gestionnaire ; un moniteur prête toujours gratuitement.
     if ($("thirdPartyPayment")) $("thirdPartyPayment").value = "Gratuit";
     if ($("thirdPartyPaymentBox")) $("thirdPartyPaymentBox").classList.toggle("hidden", currentRole === "instructor");
@@ -4600,13 +4630,25 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const email = $("thirdPartyEmail").value.trim();
     const phone = $("thirdPartyPhone").value.trim();
 
-    const stamp = new Date().toISOString();
-    const openEnd = new Date(new Date(stamp).getTime() + STAFF_LOAN_GRACE_HOURS * 3600000).toISOString();
+    // Dates de prêt : par défaut maintenant → +24 h, mais le personnel peut saisir une autre date
+    // de début et/ou de fin pour dépasser ce délai normal (prêt sur plusieurs jours, par exemple).
+    const now = new Date();
+    const startRaw = $("thirdPartyStart") ? $("thirdPartyStart").value : "";
+    const endRaw = $("thirdPartyEnd") ? $("thirdPartyEnd").value : "";
+    const startDate = startRaw && !isNaN(new Date(startRaw)) ? new Date(startRaw) : now;
+    const endDate = endRaw && !isNaN(new Date(endRaw)) ? new Date(endRaw) : new Date(startDate.getTime() + STAFF_LOAN_GRACE_HOURS * 3600000);
+    if (endDate.getTime() <= startDate.getTime()) { toast("La date de fin doit être après la date de début.", "error"); return; }
+    const stamp = startDate.toISOString();
+    const openEnd = endDate.toISOString();
+    // Échéance personnalisée mémorisée sur l'équipement : elle fait foi pour le retard dès qu'elle
+    // s'écarte du délai par défaut de 24 h (sinon la détection habituelle s'applique).
+    const isDefaultWindow = Math.abs(endDate.getTime() - (startDate.getTime() + STAFF_LOAN_GRACE_HOURS * 3600000)) < 60000;
 
     it.status = "Loué";
     it.borrowerName = name;
     it.borrowerEmail = email;
     it.borrowedAt = stamp;
+    it.dueAt = isDefaultWindow ? "" : openEnd;
     it.loanKind = "moniteur";
     // Un moniteur prête toujours gratuitement ; administrateur et gestionnaire choisissent.
     it.payment = currentRole === "instructor" ? "Gratuit" : (["Payé", "À payer", "Gratuit"].includes($("thirdPartyPayment") && $("thirdPartyPayment").value) ? $("thirdPartyPayment").value : "Gratuit");
@@ -4625,7 +4667,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     thirdPartyBorrowItemId = null;
     toast(ok ? "Matériel prêté." : "Prêt enregistré localement (hors ligne).");
     sendTransactionalMail("pickup", { name, email, items: "- " + itemLabel(it), start: new Date(stamp).toLocaleString("fr-FR"),
-      end: new Date(openEnd).toLocaleString("fr-FR") + " (24 h maximum)", contract: `Prêt effectué par ${currentUser ? currentUser.name : roleLabel(currentRole)} : aucun contrat client.` });
+      end: new Date(openEnd).toLocaleString("fr-FR") + (isDefaultWindow ? " (24 h par défaut)" : ""), contract: `Prêt effectué par ${currentUser ? currentUser.name : roleLabel(currentRole)} : aucun contrat client.` });
     renderAll();
   }
 
@@ -4821,9 +4863,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const isMoniteur = false;
       const limitHours = overdueThresholdHours(first);
       const since = daysSince(loanStartedAt(first));
-      const hours = hoursSince(loanStartedAt(first));
+      const overThreshold = isLoanOverdue(first);
       const late = !isMoniteur && since !== null && since > 7;
-      const overThreshold = hours !== null && hours >= limitHours;
       const ids = list.map(i => i.id);
       return `<div class="bg-white border ${late ? "border-rose-300" : "border-slate-200"} rounded-xl p-3 space-y-2">
         <div class="flex justify-between items-start gap-2">
@@ -4837,7 +4878,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
               : `<span class="px-2 py-1 rounded-full font-bold ${late ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"}">
               ${since === null ? "date inconnue" : `${since} j`}
             </span>`}
-            ${overThreshold ? `<span class="px-2 py-0.5 rounded-full font-bold bg-rose-600 text-white text-[10px]">⏰ +${limitHours}h dépassé</span>` : ""}
+            ${overThreshold ? `<span class="px-2 py-0.5 rounded-full font-bold bg-rose-600 text-white text-[10px]">⏰ ${first.dueAt ? "retour prévu dépassé" : `+${limitHours}h dépassé`}</span>` : ""}
           </div>
         </div>
         <ul class="space-y-0.5 text-slate-600">
@@ -6388,7 +6429,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const m = getMailSettings();
     const overdue = Object.values(appData.items).filter(i =>
       i.status === "Loué" &&
-      (hoursSince(loanStartedAt(i)) || 0) >= overdueThresholdHours(i) &&
+      isLoanOverdue(i) &&
       (Date.now() - lastOverdueAlertMs(i.overdueAlerted)) / 3600000 >= OVERDUE_REPEAT_HOURS - 0.1
     );
     if (!overdue.length) return;
@@ -7717,7 +7758,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-27.108";
+  const APP_VERSION = "2026-10-27.109";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -7730,6 +7771,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 109, title: "Prêt à un tiers : dates de début et de fin personnalisables", aud: "staff", items: [
+      { icon: "📅", t: "Prêter à une personne tierce › Saisir à sa place", steps: [
+        "Le prêt moniteur reste par défaut sur 24 h, mais vous pouvez maintenant choisir une autre date de début et une autre date de fin : pratique pour un prêt sur plusieurs jours.",
+        "Une fois une date de fin personnalisée choisie, c'est elle qui fait foi pour détecter le retard (plus la limite de 24 h)."] },
+    ] },
     { v: 108, title: "QR code pour installer l'application sur un nouveau téléphone", aud: "staff", items: [
       { icon: "🔗", t: "Bouton « QR appli »", steps: ["En haut de l'écran, le bouton « 🔗 QR appli » affiche un QR code en direct : faites-le scanner par un nouvel utilisateur, l'application s'ouvre aussitôt sur son téléphone et il peut l'installer sur son écran d'accueil."], aud: "staff" },
     ] },
