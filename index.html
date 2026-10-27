@@ -233,7 +233,9 @@
 
     <!-- INTERFACE ADMIN / MONITEUR -->
     <section id="viewAdmin" hidden class="space-y-6">
-      <div class="flex border-b border-slate-300 gap-2 overflow-x-auto">
+      <div class="flex items-stretch gap-1">
+        <button onclick="scrollAdminTabs(-1)" title="Défiler vers la gauche" class="hidden sm:flex items-center px-1 text-slate-400 hover:text-slate-700 border-b border-slate-300">◀</button>
+        <div id="adminTabScroll" class="flex border-b border-slate-300 gap-2 overflow-x-auto flex-1 scroll-smooth">
         <button onclick="switchAdminTab('alerts')" id="tabAlerts" class="py-2 px-3 font-bold text-sm tab-on">🚨 Prêts en cours</button>
         <button onclick="switchAdminTab('items')" id="tabItems" class="py-2 px-3 font-bold text-sm tab-off">📦 Matériel</button>
         <button onclick="switchAdminTab('stock')" id="tabStock" hidden class="py-2 px-3 font-bold text-sm tab-off">🧰 Stock</button>
@@ -244,9 +246,12 @@
         <button onclick="switchAdminTab('finances')" id="tabFinances" hidden class="py-2 px-3 font-bold text-sm tab-off">📊 Finances</button>
         <button onclick="switchAdminTab('archives')" id="tabArchives" hidden class="py-2 px-3 font-bold text-sm tab-off">🗄 Archives</button>
         <button onclick="switchAdminTab('settings')" id="tabSettings" hidden class="py-2 px-3 font-bold text-sm tab-off">⚙️ Réglages</button>
+        </div>
+        <button onclick="scrollAdminTabs(1)" title="Défiler vers la droite" class="hidden sm:flex items-center px-1 text-slate-400 hover:text-slate-700 border-b border-slate-300">▶</button>
       </div>
 
       <div id="adminAlertsPage" class="space-y-4">
+        <p id="itemsPaymentNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">La colonne « paiement » n'est pas encore dans l'onglet « articles » de la feuille Google : c'est pourquoi le statut Payé / À payer / Gratuit ne s'enregistre pas. Redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version), puis rechargez la page.</p>
         <div id="alertsList" class="space-y-3 text-xs"></div>
       </div>
 
@@ -391,7 +396,7 @@
         <div id="addItemCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">Ajouter du matériel</h4>
           <div class="grid grid-cols-2 gap-2 text-xs">
-            <select id="newItemType" onchange="toggleItemEN('newItemType', 'newItemENField'); toggleGliderLoanField('newItemType', 'newItemLoanField'); togglePTVFields('newItemType', 'newItemPTVField'); toggleLifecycleFields('newItemType', 'newItemLifecycleField', 'newItemHourlyField'); toggleSellettePairField('newItemType', 'newItemPairField', 'newItemPairedSecours')" class="p-2 border border-slate-300 rounded">
+            <select id="newItemType" onchange="toggleItemEN('newItemType', 'newItemENField'); toggleGliderLoanField('newItemType', 'newItemLoanField'); togglePTVFields('newItemType', 'newItemPTVField'); refreshSubtypeField('newItemType', 'newItemSubtype'); toggleLifecycleFields('newItemType', 'newItemLifecycleField', 'newItemHourlyField'); toggleSellettePairField('newItemType', 'newItemPairField', 'newItemPairedSecours')" class="p-2 border border-slate-300 rounded">
               <option value="Voile">Voile</option>
               <option value="Sellette">Sellette</option>
               <option value="Secours">Secours</option>
@@ -422,6 +427,7 @@
               <input data-fin="1" type="number" id="newItemPrixAchat" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€) *">
               <input data-fin="1" type="number" id="newItemCoefVente" min="0" step="0.01" value="1.4" class="p-2 border border-slate-300 rounded" placeholder="Coefficient (ex : 1,4)">
               <input type="text" id="newItemCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur *">
+              <input type="text" id="newItemSubtype" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Type(s) particulier(s) (facultatif)">
               <div id="newItemHourlyField" class="grid grid-cols-2 gap-2 col-span-2 contents">
                 <input data-fin="1" type="number" id="newItemPrixHeureVol" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Prix / heure de vol (€)">
               </div>
@@ -727,6 +733,41 @@
     </div>
   </div>
 
+  <!-- MODAL : scan par un moniteur/gestionnaire/administrateur — pour qui est ce prêt ? -->
+  <div id="scanBorrowChoiceModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'scanBorrowChoiceModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
+      <h3 class="font-bold text-lg">🪂 Prêt</h3>
+      <p id="scanBorrowChoiceLabel" class="text-xs text-slate-500 font-bold"></p>
+      <p class="text-xs text-slate-500">Pour qui est ce matériel ?</p>
+      <div class="space-y-2">
+        <button onclick="scanBorrowChoiceSelf()" class="w-full px-4 py-2 bg-green-700 text-white font-bold rounded text-xs">🪂 Pour moi</button>
+        <button onclick="scanBorrowChoiceThirdParty()" class="w-full px-4 py-2 border border-purple-300 text-purple-700 rounded text-xs">🎯 Pour une autre personne</button>
+      </div>
+      <button onclick="closeModal('scanBorrowChoiceModal')" class="w-full px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+    </div>
+  </div>
+
+  <!-- MODAL : ré-authentification (session « rester connecté » à renouveler sans perdre l'écran en cours) -->
+  <div id="reauthModal" hidden class="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
+      <h3 class="font-bold text-lg">🔒 Reconnexion</h3>
+      <p class="text-xs text-slate-500">Pour rester connecté(e), confirmez votre mot de passe. Rien n'est perdu : vous resterez sur cet écran.</p>
+      <div>
+        <label for="reauthUser" class="block text-xs font-bold text-slate-600">Identifiant</label>
+        <input type="text" id="reauthUser" disabled class="w-full p-2 border border-slate-300 rounded text-sm bg-slate-50">
+      </div>
+      <div>
+        <label for="reauthPwd" class="block text-xs font-bold text-slate-600">Mot de passe</label>
+        <input type="password" id="reauthPwd" autocomplete="current-password" onkeydown="if(event.key==='Enter') submitReauth()" class="w-full p-2 border border-slate-300 rounded text-sm">
+      </div>
+      <p id="reauthError" hidden class="text-xs text-rose-600 font-bold"></p>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('reauthModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Plus tard</button>
+        <button onclick="submitReauth()" class="px-4 py-2 bg-green-700 text-white font-bold rounded text-xs">Se reconnecter</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL : confirmation de prêt -->
   <!-- PAGE DE CONFIRMATION : affichée en plein écran une fois le prêt validé par le client -->
   <div id="borrowDoneView" hidden class="fixed inset-0 z-[70] bg-green-50 overflow-y-auto" style="padding-top: env(safe-area-inset-top, 0px);">
@@ -778,7 +819,7 @@
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
       <h3 class="font-bold text-lg">Modifier l'équipement</h3>
       <div class="grid grid-cols-2 gap-2 text-xs">
-        <select id="editItemType" onchange="toggleItemEN('editItemType', 'editItemENField'); toggleGliderLoanField('editItemType', 'editItemLoanField'); togglePTVFields('editItemType', 'editItemPTVField'); toggleLifecycleFields('editItemType', 'editItemLifecycleField', 'editItemHourlyField'); toggleSellettePairField('editItemType', 'editItemPairField', 'editItemPairedSecours', editingItemId); refreshEditItemComputed()" class="p-2 border border-slate-300 rounded">
+        <select id="editItemType" onchange="toggleItemEN('editItemType', 'editItemENField'); toggleGliderLoanField('editItemType', 'editItemLoanField'); togglePTVFields('editItemType', 'editItemPTVField'); refreshSubtypeField('editItemType', 'editItemSubtype'); toggleLifecycleFields('editItemType', 'editItemLifecycleField', 'editItemHourlyField'); toggleSellettePairField('editItemType', 'editItemPairField', 'editItemPairedSecours', editingItemId); refreshEditItemComputed()" class="p-2 border border-slate-300 rounded">
           <option value="Voile">Voile</option>
           <option value="Sellette">Sellette</option>
           <option value="Secours">Secours</option>
@@ -810,6 +851,7 @@
           <input data-fin="1" type="number" id="editItemPrixAchat" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€)">
           <input data-fin="1" type="number" id="editItemCoefVente" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Coefficient (ex : 1,4)">
           <input type="text" id="editItemCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur">
+          <input type="text" id="editItemSubtype" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Type(s) particulier(s) (facultatif)">
           <div id="editItemHourlyField" class="grid grid-cols-2 gap-2 col-span-2 contents">
             <input data-fin="1" type="number" id="editItemPrixHeureVol" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Prix / heure de vol (€)">
           </div>
@@ -1296,7 +1338,7 @@
   // Ces listes sont l'ordre de colonnes attendu ; si le tableur diffère,
   // l'ordre réel relevé à la lecture fait foi (voir buildRows).
   const SHEET_FIELDS = {
-    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment"],
+    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype"],
     users:   ["id", "name", "username", "password", "role", "email", "blocked"],
     clients: ["id", "name", "email", "phone", "address", "postalCode", "city", "country", "createdAt", "blocked"],
     history: ["id", "date", "action", "itemId", "itemLabel", "person", "email", "note"],
@@ -1318,7 +1360,7 @@
   // dans le tableur. Sur un onglet vide, doGet ne renvoie aucun en-tête ;
   // écrire une colonne de trop ferait sortir doPost de la plage de la feuille.
   const OPTIONAL_COLUMNS = {
-    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment"],
+    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype"],
     users: ["blocked"],
     clients: ["address", "postalCode", "city", "country", "blocked"],
     stock: ["priceHT", "priceTTC", "pricePublic"],
@@ -1500,6 +1542,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       // Champs admin uniquement (jamais affichés côté client) : cycle de vie / prix.
       dateMiseEnService: String(raw.dateMiseEnService || "").trim(),
       couleur: String(raw.couleur || "").trim(),
+      // Type(s) particulier(s) de l'équipement (Light, Montagne, Cross, Speed…) : un ou plusieurs,
+      // enregistrés sous la forme « A / B » (voir SUBTYPE_OPTIONS) ; vide = non précisé.
+      subtype: String(raw.subtype || "").trim(),
       prixAchat: (raw.prixAchat !== undefined && raw.prixAchat !== "") ? Number(raw.prixAchat) : "",
       prixHeureVol: (raw.prixHeureVol !== undefined && raw.prixHeureVol !== "") ? Number(raw.prixHeureVol) : "",
       taille: String(raw.taille || "").trim(),
@@ -2484,11 +2529,27 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     fetchCloudData();
   }
 
-  // Un « Session expirée » isolé peut être un raté ponctuel du serveur : on ne déconnecte qu'au deuxième
-  // refus (à au moins 4 s d'écart, donc au contrôle suivant) ; toute réponse valide remet le compteur à zéro.
+  // « Rester connecté » (session enregistrée sur l'appareil, voir saveSession) : une session qui expire
+  // ne déconnecte plus jamais toute seule. On demande seulement de confirmer le mot de passe, sans rien
+  // perdre de l'écran en cours ; tant que la personne n'a pas cliqué sur « Déconnexion », elle reste dans
+  // son espace (les écritures restent simplement bloquées, avec l'indicateur de synchronisation, jusqu'à
+  // la reconnexion). Sans « Rester connecté » (session non enregistrée), le comportement ne change pas.
   let sessionStrikeAt = 0;
+  let reauthPromptAt = 0;
+  function isRemembered() {
+    try { return !!localStorage.getItem(SESSION_STORAGE_KEY); } catch (e) { return false; }
+  }
   function handleSessionExpired() {
     if (!currentUser) return;
+    if (isRemembered()) {
+      // Pas de déconnexion : on (re)propose la reconnexion, au plus une fois toutes les 2 minutes,
+      // et seulement si la personne n'est pas en train de saisir quelque chose.
+      const now = Date.now();
+      if (now - reauthPromptAt > 120000 && !userIsInteracting()) { reauthPromptAt = now; openReauthModal(); }
+      syncLost = true;
+      setSync("🔒 Reconnexion nécessaire", "error");
+      return;
+    }
     const now = Date.now();
     if (!sessionStrikeAt || now - sessionStrikeAt > 300000 || now - sessionStrikeAt < 4000) {
       if (!sessionStrikeAt || now - sessionStrikeAt > 300000) sessionStrikeAt = now;
@@ -2500,6 +2561,43 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     switchRole("client");
     toast("Votre session a expiré, reconnectez-vous.", "error");
     purgePrivilegedData();
+  }
+
+  function openReauthModal() {
+    if (!currentUser) return;
+    $("reauthUser").value = currentUser.username || currentUser.name || "";
+    $("reauthPwd").value = "";
+    show("reauthError", false);
+    show("reauthModal", true);
+    setTimeout(() => { try { $("reauthPwd").focus(); } catch (e) { /* sans importance */ } }, 50);
+  }
+
+  async function submitReauth() {
+    if (!currentUser) { closeModal("reauthModal"); return; }
+    const err = $("reauthError"), password = $("reauthPwd").value;
+    show(err, false);
+    if (!password) { err.textContent = "Indiquez votre mot de passe."; show(err, true); return; }
+    setBusy(true);
+    let matched = null, serverError = null;
+    try {
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "login", token: API_TOKEN, username: currentUser.username, password })
+      });
+      const body = await res.json().catch(() => null);
+      if (body) { if (body.status === "success" && body.user) matched = Object.assign({}, body.user, { sid: body.sid || "" }); else if (body.error) serverError = body.error; }
+    } catch (netErr) { serverError = "Serveur injoignable."; }
+    setBusy(false);
+    if (!matched) { err.textContent = serverError === "Accès refusé" ? "Connexion au serveur refusée (jeton API_TOKEN)." : (serverError || "Mot de passe incorrect."); show(err, true); return; }
+    if (matched.blocked) { err.textContent = "Ce compte a été bloqué par un administrateur."; show(err, true); return; }
+    currentUser.sid = matched.sid || "";
+    saveSession(currentUser);
+    closeModal("reauthModal");
+    sessionStrikeAt = 0; reauthPromptAt = 0; syncLost = false;
+    toast("Reconnecté(e).");
+    silentFresh = true;
+    try { await fetchCloudData(true); } finally { silentFresh = false; }
   }
 
   function clearSession() {
@@ -3894,7 +3992,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (tab) tab.textContent = low ? `🧰 Stock · ⚠ ${low}` : "🧰 Stock";
     const words = searchWords($("stockSearch") ? $("stockSearch").value : "");
     // Recherche : tous les champs + le nom des emprunteurs (colonne « loans »).
-    const matchWords = r => !words.length || recordMatchesWords(r, words, [Object.keys(stockLoans(r)).join(" ")]);
+    const matchWords = r => !words.length || words.every(w => isSizeWord(w)
+      ? searchNormalize(String(r.size || "")) === w
+      : recordMatchesWords(r, [w], [Object.keys(stockLoans(r)).join(" ")]));
     // Pastilles de filtre avec compteurs (moteur commun, voir searchChip).
     const brandOk = r => !stockBrandFilter || brandKey(r.brand) === brandKey(stockBrandFilter);
     const chip = (kind, val, label, count, active) => searchChip(`setStockFilter('${kind}','${val}')`, label, count, active);
@@ -4293,6 +4393,13 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
 
   // Onglet réservé par une case à cocher : si le compte n'y a pas droit, on retombe sur « Alertes ».
+  // Défilement des onglets admin (surtout utile dans l'application installée sur ordinateur, où la
+  // barre peut être plus large que l'écran) : flèches ◀ ▶ de part et d'autre, en plus du glissé tactile.
+  function scrollAdminTabs(dir) {
+    const el = $("adminTabScroll");
+    if (el) el.scrollBy({ left: dir * 220, behavior: "smooth" });
+  }
+
   function adminTabAllowed(tab) {
     if (currentRole === "admin") return true;
     if (currentRole === "manager") {
@@ -4451,6 +4558,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function renderAlerts() {
     const box = $("alertsList");
     if (!box) return;
+    show("itemsPaymentNote", isStaffViewer() && !missingSheets.includes("items") && !!(sheetHeaders.items && sheetHeaders.items.length) && !sheetHeaders.items.includes("payment"));
     const rented = Object.values(appData.items).filter(i => i.status === "Loué");
 
     if (!rented.length) {
@@ -4520,7 +4628,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     let items = Object.values(appData.items);
     // Moteur de recherche commun avec le stock : pastilles Type (pictogrammes), Marque et Disponibilité.
     const allItems = items;
-    const textOk = i => !query || queryWords.every(w => norm([i.brand, i.model, i.sn, i.shelf, i.type, i.color, i.couleur, i.taille, i.categorie, i.en].join(" ")).includes(w));
+    const textOk = i => !query || queryWords.every(w => isSizeWord(w)
+      ? norm(i.taille) === w
+      : norm([i.brand, i.model, i.sn, i.shelf, i.type, i.color, i.couleur, i.taille, i.categorie, i.en, i.subtype].join(" ")).includes(w));
     const prefOk = i => currentRole === "client" || isCompatibleWithClientPrefs(i);
     const brandOk = i => !itemBrandFilterV || brandKey(i.brand) === brandKey(itemBrandFilterV);
     const typeOk = i => !itemTypeFilterV || i.type === itemTypeFilterV;
@@ -4528,7 +4638,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const base = i => textOk(i) && prefOk(i);
     // Sellettes du stock : elles apparaissent aussi dans la recherche (prêt ou simple consultation), avec leur quantité en rayon.
     const stockRows = stockAllowed() ? Object.values(appData.stock).filter(r => r.category === "Sellette") : [];
-    const stText = r => !query || queryWords.every(w => norm([r.brand, r.model, r.size, r.color, r.shelf, "sellette stock"].join(" ")).includes(w));
+    const stText = r => !query || queryWords.every(w => isSizeWord(w)
+      ? norm(r.size) === w
+      : norm([r.brand, r.model, r.size, r.color, r.shelf, "sellette stock"].join(" ")).includes(w));
     const stBrand = r => !itemBrandFilterV || brandKey(r.brand) === brandKey(itemBrandFilterV);
     const stType = () => !itemTypeFilterV || itemTypeFilterV === "Sellette";
     const stStatus = (r, f) => !f || (f === "Disponible" && stockQty(r) > 0) || (f === "Loué" && stockOut(r) > 0);
@@ -4603,6 +4715,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
             <div class="min-w-0 cursor-pointer" onclick="openItemTimelineModal('${esc(i.id)}')" title="Voir le planning de cet équipement">
               <p class="font-bold break-words sm:truncate">${esc(itemLabel(i))}</p>
               <p class="text-slate-500 break-words sm:truncate">S/N ${esc(i.sn || "—")} · ${i.flights} vols · ${i.hours} h${esc(ptvSuffix(i))}${i.borrowerName ? ` · ${esc(i.borrowerName)}` : ""}</p>
+              ${i.subtype ? `<p class="text-sky-700 break-words sm:truncate">🏷️ ${esc(i.subtype)}</p>` : ""}
               ${(LIFECYCLE_TYPES.includes(i.type) && canManageItems) ? `<p class="text-slate-400 break-words sm:truncate">${adminLifecycleSummary(i)}</p>` : ""}
               ${(LIFECYCLE_TYPES.includes(i.type) && currentRole === "instructor") ? `<p class="text-slate-400 break-words sm:truncate">${instructorPriceSummary(i)}</p>` : ""}
               ${(i.status === "Indisponible" && i.unavailableNote && canManageItems) ? `<p class="text-red-700 break-words sm:truncate">Motif : ${esc(i.unavailableNote)}</p>` : ""}
@@ -4809,6 +4922,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   }
   function searchWords(q) { return searchNormalize(q).split(/\s+/).filter(Boolean); }
+  // Un mot tapé qui ressemble à une taille (S, M, L, XL, XXL, XS, XXS, ou un nombre à 2-3 chiffres comme
+  // les tailles de voile 23/26/29…) filtre EXACTEMENT sur cette taille plutôt que par simple fragment :
+  // chercher « M » ne doit pas remonter tout ce qui contient la lettre M quelque part.
+  const SIZE_WORD_RE = /^(xxs|xxl|xs|xl|[sml])$|^\d{2,3}$/;
+  function isSizeWord(w) { return SIZE_WORD_RE.test(w); }
   function formatFrDate(v) {
     const d = new Date(v);
     return isNaN(d.getTime()) ? "" : d.toLocaleDateString("fr-FR");
@@ -4892,6 +5010,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const prixAchat = lifecycle ? $("newItemPrixAchat").value : "";
     const coefVente = lifecycle ? $("newItemCoefVente").value : "";
     const couleur = lifecycle ? $("newItemCouleur").value.trim() : "";
+    const subtype = lifecycle ? $("newItemSubtype").value.trim() : "";
     const prixHeureVol = hourly ? $("newItemPrixHeureVol").value : "";
     const salePriceManual = lifecycle ? $("newItemSalePriceManual").value : "";
     const revisionMonths = lifecycle ? $("newItemRevisionMonths").value : "";
@@ -4902,7 +5021,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     appData.items[id] = normalizeItem({
       id, shelf, type, brand, model, sn, en, categorie, ptvMin, ptvMax,
       hours: 0, flights: 0, status: "Disponible", borrowerName: "", borrowerEmail: "",
-      dateMiseEnService, couleur, prixAchat, prixHeureVol, taille, coefVente, pretConstructeur, salePriceManual, pairedSecoursId, revisionMonths, revisionHours
+      dateMiseEnService, couleur, subtype, prixAchat, prixHeureVol, taille, coefVente, pretConstructeur, salePriceManual, pairedSecoursId, revisionMonths, revisionHours
     });
 
     const brandAdded = rememberBrand(brand);   // constructeur inconnu : ajouté à la liste des réglages
@@ -4921,6 +5040,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("newItemPrixAchat").value = "";
     $("newItemCoefVente").value = "1.4";
     $("newItemCouleur").value = "";
+    $("newItemSubtype").value = ""; refreshSubtypeField("newItemType", "newItemSubtype");
     $("newItemPrixHeureVol").value = "";
     $("newItemSalePriceManual").value = "";
     $("newItemRevisionMonths").value = "";
@@ -5391,6 +5511,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("editItemPrixAchat").value = item.prixAchat === "" ? "" : item.prixAchat;
     $("editItemCoefVente").value = saleCoef(item);
     $("editItemCouleur").value = item.couleur || "";
+    $("editItemSubtype").value = item.subtype || ""; refreshSubtypeField("editItemType", "editItemSubtype");
     $("editItemPrixHeureVol").value = item.prixHeureVol === "" ? "" : item.prixHeureVol;
     $("editItemSalePriceManual").value = item.salePriceManual === "" ? "" : item.salePriceManual;
     $("editItemRevisionMonths").value = item.revisionMonths === "" || item.revisionMonths === undefined ? "" : item.revisionMonths;
@@ -5473,6 +5594,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const coefVenteVal = lifecycle ? $("editItemCoefVente").value : "";
     item.coefVente = (coefVenteVal !== "" && !isNaN(Number(coefVenteVal))) ? Number(coefVenteVal) : 1.4;
     item.couleur = lifecycle ? $("editItemCouleur").value.trim() : "";
+    item.subtype = lifecycle ? $("editItemSubtype").value.trim() : "";
     const prixHeureVolVal = hourly ? $("editItemPrixHeureVol").value : "";
     item.prixHeureVol = prixHeureVolVal === "" ? "" : Number(prixHeureVolVal);
     const salePriceManualVal = lifecycle ? $("editItemSalePriceManual").value : "";
@@ -6997,6 +7119,57 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     });
     syncColorPickers();
   }
+  /* ------------------------------------------------------------------ */
+  /*  TYPE(S) PARTICULIER(S) — plusieurs en même temps (voiles, sellettes, secours)  */
+  /* ------------------------------------------------------------------ */
+  // Mêmes pastilles à cocher que les couleurs (voir colorList/colorKey), mais la liste proposée
+  // dépend du type de l'équipement : une sellette n'a pas les mêmes « sous-types » qu'une voile.
+  const SUBTYPE_OPTIONS = {
+    Sellette: ["Montagne", "Light", "String", "Cocon", "Planchette", "Hamac", "Speed", "Réversible", "Patellettes", "Airbag", "Blow-bag", "Mousse-bag"],
+    Voile: ["Montagne", "Light", "Cross"],
+    Secours: ["Light", "Carré", "Rogallo"]
+  };
+  function toggleSubtype(inputId, name) {
+    const el = $(inputId); if (!el) return;
+    const list = colorList(el.value), k = colorKey(name), i = list.findIndex(c => colorKey(c) === k);
+    if (i >= 0) list.splice(i, 1); else list.push(name);
+    el.value = list.join(" / ");
+    syncSubtypePicker(inputId);
+  }
+  function syncSubtypePicker(inputId) {
+    const box = document.querySelector(`[data-subtypepicker="${inputId}"]`), el = $(inputId);
+    if (!box || !el) return;
+    const on = new Set(colorList(el.value).map(colorKey));
+    box.querySelectorAll("button[data-st]").forEach(b => {
+      const sel = on.has(colorKey(b.dataset.st));
+      b.setAttribute("aria-pressed", sel ? "true" : "false");
+      b.className = "inline-flex items-center px-2 py-1 rounded-full border text-[11px] " + (sel ? "bg-green-700 border-green-700 text-white font-bold" : "bg-white border-slate-300 text-slate-600");
+    });
+  }
+  // Rebâtit les pastilles pour le type actuellement sélectionné (appelé au changement de type, et à
+  // l'ouverture de la fiche) ; le champ et ses pastilles sont masqués pour Accessoire/Vario, qui n'ont pas de sous-type.
+  function refreshSubtypeField(typeSelectId, inputId) {
+    const typeSel = $(typeSelectId), el = $(inputId);
+    if (!typeSel || !el) return;
+    const opts = SUBTYPE_OPTIONS[typeSel.value] || [];
+    let box = document.querySelector(`[data-subtypepicker="${inputId}"]`);
+    if (!box) {
+      box = document.createElement("div");
+      box.setAttribute("data-subtypepicker", inputId);
+      box.className = "col-span-2 flex flex-wrap gap-1 -mt-1";
+      el.insertAdjacentElement("afterend", box);
+    }
+    if (!opts.length) {
+      el.value = ""; el.hidden = true; box.hidden = true; box.innerHTML = "";
+      return;
+    }
+    el.hidden = false; box.hidden = false;
+    // Une valeur déjà saisie qui ne correspond plus au type (changement de type) est conservée telle
+    // quelle dans le champ texte ; seules les pastilles reconnues pour ce type sont cochables.
+    box.innerHTML = opts.map(n => `<button type="button" data-st="${esc(n)}" onclick="toggleSubtype('${inputId}','${esc(n).replace(/'/g, "&#39;")}')">${esc(n)}</button>`).join("");
+    syncSubtypePicker(inputId);
+  }
+
   function closeModal(id) { show(id, false); }
   function backdropClose(event, id) { if (event.target === $(id)) closeModal(id); }
 
@@ -7265,7 +7438,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-26.101";
+  const APP_VERSION = "2026-10-27.103";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -7278,6 +7451,16 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 103, title: "Alerte si le paiement d'un prêt ne s'enregistre pas", aud: "staff", items: [
+      { icon: "⚠️", t: "Message explicite si la colonne « paiement » manque", steps: ["Si le statut Payé / À payer / Gratuit ne s'enregistre pas, un message apparaît désormais en haut des prêts en cours pour l'expliquer : il faut redéployer le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version)."], aud: "staff" },
+    ] },
+    { v: 102, title: "Session persistante, scan moniteur, recherche par taille, sous-types, défilement des onglets", aud: "all", items: [
+      { icon: "🔒", t: "« Rester connecté » : plus jamais déconnecté automatiquement", steps: ["Si vous avez coché « Rester connecté », l'application ne vous déconnecte plus toute seule : elle redemande seulement le mot de passe, sans rien perdre de l'écran en cours."], aud: "staff" },
+      { icon: "◀▶", t: "Onglets défilables (ordinateur)", steps: ["Dans la version installée sur ordinateur, des flèches de part et d'autre des onglets permettent de les faire défiler."], aud: "staff" },
+      { icon: "🪂", t: "QR code scanné par le personnel : pour vous par défaut", steps: ["Un choix simple demande si le prêt est pour vous ou pour une autre personne."], aud: "staff" },
+      { icon: "📏", t: "Recherche par taille plus précise", steps: ["Taper une taille (ex. M, 26) n'affiche plus que les équipements de cette taille exacte, y compris les sellettes du stock."] },
+      { icon: "🏷️", t: "Types particuliers (voiles, sellettes, secours)", steps: ["Plusieurs types à la fois sont possibles (Light, Montagne, Cross, Speed, Cocon…), selon le type d'équipement."], aud: "staff" },
+    ] },
     { v: 101, title: "Page de confirmation du prêt", aud: "all", items: [
       { icon: "✅", t: "Le client voit que son prêt est bien enregistré", steps: ["Après validation du prêt, une page plein écran confirme le matériel prêté, l'heure de retour et l'envoi du mail de confirmation."] },
     ] },
@@ -7725,12 +7908,17 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
   // Ouvre un équipement (lien ?item= ou scan). Depuis le scanner d'un compte connecté (keepStaff),
   // on reste dans la vue du personnel : voile louée -> restitution ; disponible -> prêt (QR à faire scanner).
+  let scanBorrowChoiceId = null;
+  // Depuis le scanner, on part du principe que le moniteur/gestionnaire/administrateur emprunte pour
+  // lui-même (comme avec le bouton « 🪂 Emprunter ») ; un choix explicite permet de prêter à un tiers.
   function openItemFromLink(id, keepStaff) {
     const problem = itemProblemMessage(id);
     if (keepStaff && isStaffViewer()) {
       if (problem) { showNotice("Matériel non disponible", problem); return; }
-      if (appData.items[id].status === "Loué") openReturnModal([id]);
-      else openThirdPartyBorrowModal(id);
+      if (appData.items[id].status === "Loué") { openReturnModal([id]); return; }
+      scanBorrowChoiceId = id;
+      $("scanBorrowChoiceLabel").textContent = itemLabel(appData.items[id]);
+      openModal("scanBorrowChoiceModal");
       return;
     }
     switchRole("client");
@@ -7745,6 +7933,17 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (appData.items[id].status === "Loué") openReturnModal([id]);
   }
 
+  function scanBorrowChoiceSelf() {
+    const id = scanBorrowChoiceId; scanBorrowChoiceId = null;
+    closeModal("scanBorrowChoiceModal");
+    if (id) instructorBorrowItem(id);
+  }
+  function scanBorrowChoiceThirdParty() {
+    const id = scanBorrowChoiceId; scanBorrowChoiceId = null;
+    closeModal("scanBorrowChoiceModal");
+    if (id) openThirdPartyBorrowModal(id);
+  }
+
   initColorPickers();
   fillENOptions("newItemENField");
   fillCategorieOptions("newItemCategorie");
@@ -7755,6 +7954,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   toggleItemEN("newItemType", "newItemENField");
   toggleGliderLoanField("newItemType", "newItemLoanField");
   togglePTVFields("newItemType", "newItemPTVField");
+  refreshSubtypeField("newItemType", "newItemSubtype");
   switchUserMode("item");
   restoreSession();
   fetchCloudData();
