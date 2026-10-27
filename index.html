@@ -275,10 +275,11 @@
           <h4 class="font-bold text-sm">Ajouter une référence en stock</h4>
           <p class="text-[10px] text-slate-500">Pour le matériel suivi en quantité, sans numéro de série.</p>
           <div class="grid grid-cols-2 gap-2">
-            <select id="stockNewCat" class="p-2 border border-slate-300 rounded col-span-2"></select>
+            <select id="stockNewCat" onchange="refreshSubtypeField('stockNewCat','stockNewSubtype')" class="p-2 border border-slate-300 rounded col-span-2"></select>
             <select id="stockNewBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
             <input type="text" id="stockNewModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
             <input type="text" id="stockNewSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
+            <input type="text" id="stockNewSubtype" placeholder="Type(s) particulier(s)" class="p-2 border border-slate-300 rounded col-span-2">
             <input type="text" id="stockNewColor" placeholder="Couleur" class="p-2 border border-slate-300 rounded">
             <input type="text" id="stockNewShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
             <input type="number" id="stockNewQty" min="0" step="1" placeholder="Quantité en stock *" class="p-2 border border-slate-300 rounded">
@@ -1042,10 +1043,11 @@
         </div>
         <div id="stockEditRow" hidden class="grid grid-cols-2 gap-2">
           <div class="col-span-2"><label for="stockEditCat" class="block font-bold text-slate-600">Catégorie</label>
-            <select id="stockEditCat" class="w-full p-2 border border-slate-300 rounded"></select></div>
+            <select id="stockEditCat" onchange="refreshSubtypeField('stockEditCat','stockEditSubtype')" class="w-full p-2 border border-slate-300 rounded"></select></div>
           <select id="stockEditBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
           <input type="text" id="stockEditModel" placeholder="Modèle" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
+          <input type="text" id="stockEditSubtype" placeholder="Type(s) particulier(s)" class="p-2 border border-slate-300 rounded col-span-2">
           <input type="text" id="stockEditColor" placeholder="Couleur" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
           <input type="number" id="stockEditMin" min="0" step="1" placeholder="Seuil d'alerte" class="p-2 border border-slate-300 rounded">
@@ -1353,7 +1355,7 @@
     // l'accessoire reste toujours au libre choix du client, quel que soit le pack, donc
     // jamais fixé ici.
     packs: ["id", "name", "description", "voileId", "selletteId", "secoursId", "createdAt"],
-    stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic"]
+    stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic", "subtype"]
   };
 
   // Colonnes facultatives : écrites seulement si elles existent réellement
@@ -1363,7 +1365,7 @@
     items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype"],
     users: ["blocked"],
     clients: ["address", "postalCode", "city", "country", "blocked"],
-    stock: ["priceHT", "priceTTC", "pricePublic"],
+    stock: ["priceHT", "priceTTC", "pricePublic", "subtype"],
     archives: ["destination"]
   };
 
@@ -3981,7 +3983,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function renderStock() {
     const box = $("stockList"); if (!box) return;
     const cats = $("stockNewCat");
-    if (cats && !cats.options.length) cats.innerHTML = STOCK_CATS.map(c => `<option value="${c}">${STOCK_ICON[c]} ${c}</option>`).join("");
+    if (cats && !cats.options.length) { cats.innerHTML = STOCK_CATS.map(c => `<option value="${c}">${STOCK_ICON[c]} ${c}</option>`).join(""); refreshSubtypeField("stockNewCat", "stockNewSubtype"); }
     show("stockMissingNote", missingSheets.includes("stock"));
     show("stockPriceNote", canSeeFinances() && !missingSheets.includes("stock") && !!(sheetHeaders.stock && sheetHeaders.stock.length) && !sheetHeaders.stock.includes("priceTTC"));
     renderStockPriceSettings();
@@ -4024,6 +4026,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       return head + `<div class="bg-white border ${stockIsLow(r) ? "border-orange-300" : "border-slate-200"} rounded-xl p-3 space-y-2">
         <div class="flex justify-between gap-2 items-start">
           <div class="min-w-0"><p class="font-bold text-sm break-words sm:truncate">${esc([r.brand, r.model].filter(Boolean).join(" "))}</p>
+            ${r.subtype ? `<p class="text-sky-700 break-words">🏷️ ${esc(r.subtype)}</p>` : ""}
             <p class="text-slate-500">${[r.size ? "Taille " + esc(r.size) : "", r.color ? esc(r.color) : "", r.shelf ? "Étagère " + esc(r.shelf) : ""].filter(Boolean).join(" · ") || "&nbsp;"}</p></div>
           <div class="flex flex-col items-end gap-1 shrink-0">${lowBadge}</div>
         </div>
@@ -4047,6 +4050,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const category = $("stockNewCat").value;
     const brand = canonicalBrand($("stockNewBrand").value), model = $("stockNewModel").value.trim();
     const size = $("stockNewSize").value.trim(), color = $("stockNewColor").value.trim(), shelf = $("stockNewShelf").value.trim();
+    const subtype = $("stockNewSubtype") ? $("stockNewSubtype").value.trim() : "";
     const qtyStr = $("stockNewQty").value, minStr = $("stockNewMin").value;
     if (!STOCK_CATS.includes(category)) { toast("Choisissez une catégorie.", "error"); return; }
     if (!brand || !model) { toast("Marque et modèle sont obligatoires.", "error"); return; }
@@ -4059,12 +4063,13 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const pr = canSeeFinances() ? readStockPrices("stockNew") : { ht: "", ttc: "", pub: "" };
     if (pr.error) { toast(pr.error, "error"); return; }
     const id = `STK-${Date.now()}`;
-    const rec = { id, category, brand, model, size, color, shelf, qty: Number(qtyStr), loans: "{}", min: minStr === "" ? 0 : Number(minStr), note: "", createdAt: new Date().toISOString(), priceHT: pr.ht, priceTTC: pr.ttc, pricePublic: pr.pub };
+    const rec = { id, category, brand, model, size, color, shelf, subtype, qty: Number(qtyStr), loans: "{}", min: minStr === "" ? 0 : Number(minStr), note: "", createdAt: new Date().toISOString(), priceHT: pr.ht, priceTTC: pr.ttc, pricePublic: pr.pub };
     appData.stock[id] = rec;
     if (Number(qtyStr) > 0) stockHistory(STOCK_ACTIONS.entree.hist, rec, currentUser ? currentUser.name : "", `×${qtyStr} · création de la référence`);
     const brandAdded = rememberBrand(brand);
     const ok = await persist(brandAdded ? ["stock", "history", "settings"] : ["stock", "history"]);
-    if (ok) ["stockNewBrand", "stockNewModel", "stockNewSize", "stockNewColor", "stockNewShelf", "stockNewQty", "stockNewMin", "stockNewHT", "stockNewTTC", "stockNewPublic"].forEach(i => { $(i).value = ""; }); stockPricePreview("stockNew");
+    if (ok) { ["stockNewBrand", "stockNewModel", "stockNewSize", "stockNewColor", "stockNewShelf", "stockNewSubtype", "stockNewQty", "stockNewMin", "stockNewHT", "stockNewTTC", "stockNewPublic"].forEach(i => { $(i).value = ""; }); refreshSubtypeField("stockNewCat", "stockNewSubtype"); }
+    stockPricePreview("stockNew");
     toast(ok ? "Référence ajoutée au stock." : "Ajout non enregistré.", ok ? undefined : "error");
     renderAll();
   }
@@ -4137,6 +4142,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       cs.innerHTML = cats.map(c => `<option value="${esc(c)}">${STOCK_ICON[c] || ""} ${esc(c)}</option>`).join("");
       cs.value = r.category || cats[0];
       setBrandSelect("stockEditBrand", r.brand); $("stockEditModel").value = r.model || ""; $("stockEditSize").value = r.size || "";
+      $("stockEditSubtype").value = r.subtype || ""; refreshSubtypeField("stockEditCat", "stockEditSubtype");
       $("stockEditColor").value = r.color || ""; $("stockEditShelf").value = r.shelf || ""; $("stockEditMin").value = stockMin(r) || ""; $("stockEditNote").value = r.note || "";
       $("stockEditHT").value = r.priceHT === undefined || r.priceHT === "" ? "" : String(r.priceHT);
       $("stockEditTTC").value = r.priceTTC === undefined || r.priceTTC === "" ? "" : String(r.priceTTC);
@@ -4259,7 +4265,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const oldCat = r.category;
       const pr = canSeeFinances() ? readStockPrices("stockEdit") : null;
       if (pr && pr.error) { err(pr.error); return; }
-      Object.assign(r, { category, brand, model, size, color, shelf: $("stockEditShelf").value.trim(), min: Math.max(0, Math.floor(Number($("stockEditMin").value) || 0)), note: $("stockEditNote").value.trim() });
+      Object.assign(r, { category, brand, model, size, color, subtype: $("stockEditSubtype") ? $("stockEditSubtype").value.trim() : "", shelf: $("stockEditShelf").value.trim(), min: Math.max(0, Math.floor(Number($("stockEditMin").value) || 0)), note: $("stockEditNote").value.trim() });
       if (pr) { r.priceHT = pr.ht; r.priceTTC = pr.ttc; r.pricePublic = pr.pub; }
       stockHistory(def.hist, r, who, category !== oldCat ? `Catégorie : ${oldCat} → ${category}` : "");
     } else {
@@ -4640,7 +4646,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const stockRows = stockAllowed() ? Object.values(appData.stock).filter(r => r.category === "Sellette") : [];
     const stText = r => !query || queryWords.every(w => isSizeWord(w)
       ? norm(r.size) === w
-      : norm([r.brand, r.model, r.size, r.color, r.shelf, "sellette stock"].join(" ")).includes(w));
+      : norm([r.brand, r.model, r.size, r.color, r.shelf, r.subtype, "sellette stock"].join(" ")).includes(w));
+    // Préférence « Recherche rapide » (taille moniteur/client) : s'applique aussi aux sellettes du stock,
+    // comme elle s'applique déjà aux sellettes avec numéro de série via isCompatibleWithClientPrefs.
+    const stPrefOk = r => currentRole === "client" || clientPrefs.taille === "" || !r.size || String(r.size).trim().toLowerCase() === String(clientPrefs.taille).trim().toLowerCase();
     const stBrand = r => !itemBrandFilterV || brandKey(r.brand) === brandKey(itemBrandFilterV);
     const stType = () => !itemTypeFilterV || itemTypeFilterV === "Sellette";
     const stStatus = (r, f) => !f || (f === "Disponible" && stockQty(r) > 0) || (f === "Loué" && stockOut(r) > 0);
@@ -4648,18 +4657,18 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const typeBox = $("itemTypeChips"), brandBox = $("itemBrandChips"), statusBox = $("itemStatusChips");
     if (typeBox) {
       const pool = allItems.filter(i => base(i) && brandOk(i) && statusOk(i, itemStatusFilterV));
-      const stPool = stockRows.filter(r => stText(r) && stBrand(r) && stStatus(r, itemStatusFilterV));
+      const stPool = stockRows.filter(r => stText(r) && stPrefOk(r) && stBrand(r) && stStatus(r, itemStatusFilterV));
       typeBox.innerHTML = chipI("type", "", "Tous", pool.length + stPool.length, !itemTypeFilterV) +
         TYPES.filter(t => allItems.some(i => i.type === t) || (t === "Sellette" && stockRows.length)).map(t => chipI("type", t, `${TYPE_ICON[t] || ""} ${t}`, pool.filter(i => i.type === t).length + (t === "Sellette" ? stPool.length : 0), itemTypeFilterV === t)).join("");
     }
-    if (brandBox) brandBox.innerHTML = brandChipsHtml("setItemBrand", allItems.filter(i => base(i) && typeOk(i) && statusOk(i, itemStatusFilterV)).concat(stType() ? stockRows.filter(r => stText(r) && stStatus(r, itemStatusFilterV)) : []), itemBrandFilterV, i => i.brand);
+    if (brandBox) brandBox.innerHTML = brandChipsHtml("setItemBrand", allItems.filter(i => base(i) && typeOk(i) && statusOk(i, itemStatusFilterV)).concat(stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stStatus(r, itemStatusFilterV)) : []), itemBrandFilterV, i => i.brand);
     if (statusBox) {
       const pool = allItems.filter(i => base(i) && typeOk(i) && brandOk(i));
-      const stPool2 = stType() ? stockRows.filter(r => stText(r) && stBrand(r)) : [];
+      const stPool2 = stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stBrand(r)) : [];
       statusBox.innerHTML = ITEM_STATUS_CHIPS.map(([v, l]) => chipI("status", v, l, pool.filter(i => statusOk(i, v)).length + stPool2.filter(r => stStatus(r, v)).length, itemStatusFilterV === v)).join("");
     }
     items = allItems.filter(i => base(i) && typeOk(i) && brandOk(i) && statusOk(i, itemStatusFilterV));
-    const stShown = stType() ? stockRows.filter(r => stText(r) && stBrand(r) && stStatus(r, itemStatusFilterV)) : [];
+    const stShown = stType() ? stockRows.filter(r => stText(r) && stPrefOk(r) && stBrand(r) && stStatus(r, itemStatusFilterV)) : [];
     const info = $("itemResultInfo");
     if (info) info.textContent = `${items.length + stShown.length} équipement(s) sur ${allItems.length + stockRows.length}`;
 
@@ -4689,6 +4698,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           return `<div class="bg-white border border-slate-200 p-3 rounded-lg flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <div class="min-w-0">
               <p class="font-bold break-words">${esc([r.brand, r.model].filter(Boolean).join(" "))}${r.size ? ` — taille ${esc(r.size)}` : ""}${r.color ? ` — ${esc(r.color)}` : ""}</p>
+              ${r.subtype ? `<p class="text-sky-700 break-words">🏷️ ${esc(r.subtype)}</p>` : ""}
               <p class="text-slate-500 break-words">En stock : ${q} en rayon · ${o} prêtée(s)${r.shelf ? ` · étagère ${esc(r.shelf)}` : ""}</p>
             </div>
             <div class="flex flex-wrap items-center gap-1 sm:shrink-0">
@@ -7438,7 +7448,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-27.103";
+  const APP_VERSION = "2026-10-27.105";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -7451,6 +7461,13 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 105, title: "Types particuliers aussi dans le stock, recherche étendue", aud: "staff", items: [
+      { icon: "🏷️", t: "Type(s) particulier(s) pour les sellettes/secours du stock", steps: ["Comme pour le matériel avec numéro de série, on peut cocher plusieurs types (Montagne, Light, String, Cocon…) sur une référence de stock."], aud: "staff" },
+      { icon: "🔍", t: "Recherche par type particulier", steps: ["Taper un type particulier (ex. « Cocon », « Light ») dans la recherche remonte maintenant aussi bien le matériel avec S/N que les références de stock, dans l'onglet Matériel comme dans l'onglet Stock."], aud: "staff" },
+    ] },
+    { v: 104, title: "Taille exacte aussi dans la recherche rapide", aud: "staff", items: [
+      { icon: "📏", t: "Recherche rapide (PTV/taille) appliquée aux sellettes du stock", steps: ["La taille saisie dans « Recherche rapide » ne gardait que les sellettes avec numéro de série : elle s'applique désormais aussi aux sellettes du stock (par quantité)."], aud: "staff" },
+    ] },
     { v: 103, title: "Alerte si le paiement d'un prêt ne s'enregistre pas", aud: "staff", items: [
       { icon: "⚠️", t: "Message explicite si la colonne « paiement » manque", steps: ["Si le statut Payé / À payer / Gratuit ne s'enregistre pas, un message apparaît désormais en haut des prêts en cours pour l'expliquer : il faut redéployer le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version)."], aud: "staff" },
     ] },
