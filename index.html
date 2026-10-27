@@ -83,6 +83,7 @@
         <span id="syncStatus" class="text-[10px] bg-emerald-700 px-2 py-1 rounded text-white">🔄 En attente…</span>
         <button id="btnScan" onclick="openScanner()" title="Scanner un QR code" class="text-[10px] bg-yellow-400 text-green-950 font-bold px-2 py-1 rounded">📷 Scanner</button>
         <button id="btnInstall" onclick="installApp()" hidden title="Installer l'application sur votre téléphone" class="text-[10px] bg-yellow-400 text-green-950 font-bold px-2 py-1 rounded">📲 Installer</button>
+        <button id="btnInstallQr" onclick="openInstallQr()" hidden title="Afficher un QR code pour qu'un nouvel utilisateur installe l'application" class="text-[10px] bg-yellow-400 text-green-950 font-bold px-2 py-1 rounded">🔗 QR appli</button>
         <button onclick="fetchCloudData()" title="Recharger les données" class="text-[10px] bg-green-950 px-2 py-1 rounded hover:bg-green-900">↻</button>
         <div class="flex gap-1 bg-green-950 p-1 rounded-lg text-xs font-semibold">
           <button onclick="requestRoleAccess('client')" id="btnRoleClient" class="px-3 py-1.5 rounded-md transition bg-green-700">👤 Client</button>
@@ -1308,6 +1309,17 @@
       <p class="text-[10px] text-slate-500">Scannez pour ouvrir la fiche de cet équipement.</p>
       <button onclick="printSingleQr()" class="px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-xs w-full">🖨️ Imprimer ce QR code</button>
       <button onclick="closeModal('qrModal')" class="px-4 py-2 border border-slate-300 rounded text-xs w-full">Fermer</button>
+    </div>
+  </div>
+
+  <!-- MODAL : QR code d'installation de l'application (pour un nouvel utilisateur) -->
+  <div id="installQrModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'installQrModal')">
+    <div class="bg-white w-full max-w-xs rounded-xl p-5 space-y-3 shadow-xl text-center">
+      <h3 class="font-bold text-sm">📲 Installer l'application</h3>
+      <div id="installQrTarget" class="flex justify-center"></div>
+      <p class="text-[10px] text-slate-500">Faites scanner ce QR code par le nouvel utilisateur : la page s'ouvre directement sur son téléphone, il peut ensuite l'installer sur son écran d'accueil.</p>
+      <p id="installQrUrl" class="text-[10px] text-slate-400 break-all"></p>
+      <button onclick="closeModal('installQrModal')" class="px-4 py-2 border border-slate-300 rounded text-xs w-full">Fermer</button>
     </div>
   </div>
 
@@ -2841,6 +2853,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
     show("viewUser", !isStaff);
     show("viewAdmin", isStaff);
+    show("btnInstallQr", isStaff);
     show("addItemCard", canManage && canUse("items"));
     show("itemsSubTabs", canManage && canUse("items"));
     switchItemsSubTab("search");
@@ -3876,13 +3889,20 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const it = appData.items[id];
       if (!it) return "";
       const k = esc(id);
+      const isWing = it.type === "Voile";
       return `<div class="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50" data-ret="${k}">
         <p class="text-xs font-bold">${esc(itemLabel(it))} <span class="font-normal text-slate-500">— ${esc(it.borrowerName || "emprunteur inconnu")}</span> ${paymentBadge(it)}</p>
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div><label class="block font-bold text-slate-600">Vols effectués</label>
             <input type="number" min="0" value="0" data-f class="w-full p-2 border border-slate-300 rounded"></div>
-          <div><label class="block font-bold text-slate-600">Heures de vol</label>
-            <input type="number" min="0" step="0.5" value="0" data-h class="w-full p-2 border border-slate-300 rounded"></div>
+          ${isWing
+            ? `<div><label class="block font-bold text-slate-600">Heures de vol</label>
+            <div class="flex gap-1">
+              <input type="number" min="0" step="1" value="0" data-hh title="Heures" class="w-full p-2 border border-slate-300 rounded" placeholder="h">
+              <input type="number" min="0" max="59" step="1" value="0" data-mm title="Minutes" class="w-full p-2 border border-slate-300 rounded" placeholder="min">
+            </div></div>`
+            : `<div><label class="block font-bold text-slate-600">Heures de vol</label>
+            <input type="number" min="0" step="0.5" value="0" data-h class="w-full p-2 border border-slate-300 rounded"></div>`}
         </div>
         <label class="flex items-start gap-2 text-xs"><input type="checkbox" data-c1 class="mt-0.5"><span>Matériel vérifié, sec et sans dommage apparent.</span></label>
         <label class="flex items-start gap-2 text-xs"><input type="checkbox" data-c2 class="mt-0.5"><span>Matériel complet restitué (accessoires inclus).</span></label>
@@ -3906,14 +3926,25 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const it = appData.items[id];
     if (!it || it.status !== "Loué") { pendingReturnIds = pendingReturnIds.filter(x => x !== id); renderReturnCards(); return; }
     const flights = Math.max(0, Number(card.querySelector("[data-f]").value) || 0);
-    const hours = Math.max(0, Number(card.querySelector("[data-h]").value) || 0);
+    // Pour une voile, la saisie se fait précisément en heures + minutes (comme un chrono de vol) ;
+    // pour le reste du matériel, on garde la saisie décimale habituelle (par pas de 0.5 h).
+    const hhEl = card.querySelector("[data-hh]"), mmEl = card.querySelector("[data-mm]");
+    const hours = hhEl
+      ? Math.max(0, Number(hhEl.value) || 0) + Math.max(0, Math.min(59, Number(mmEl.value) || 0)) / 60
+      : Math.max(0, Number(card.querySelector("[data-h]").value) || 0);
     const note = card.querySelector("[data-n]").value.trim();
 
     const borrower = it.borrowerName;
     const borrowerEmail = it.borrowerEmail;
     it.status = "Disponible";
     it.flights = (Number(it.flights) || 0) + flights;
-    it.hours = Math.round(((Number(it.hours) || 0) + hours) * 10) / 10;
+    if (hhEl) {
+      // Précision à la minute : on arrondit le cumul à la minute la plus proche plutôt qu'au dixième d'heure.
+      const totalMinutes = Math.round(((Number(it.hours) || 0) + hours) * 60);
+      it.hours = Math.round((totalMinutes / 60) * 100) / 100;
+    } else {
+      it.hours = Math.round(((Number(it.hours) || 0) + hours) * 10) / 10;
+    }
     it.borrowerName = "";
     it.borrowerEmail = "";
     it.borrowedAt = "";
@@ -3929,8 +3960,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const ok = await persist(["items", "history", "planning"]);
     toast(ok ? `Restitution enregistrée : ${itemLabel(it)}.` : "Restitution enregistrée localement (hors ligne).");
     // Trace écrite : mail à la personne + copie à l'adresse de référence (meilleur effort).
+    const hoursLabel = hhEl ? `${Math.max(0, Number(hhEl.value) || 0)}h${String(Math.max(0, Math.min(59, Number(mmEl.value) || 0))).padStart(2, "0")}` : String(hours);
     sendTransactionalMail("return", { name: borrower, email: borrowerEmail, item: itemLabel(it), items: "- " + itemLabel(it), returnedAt: new Date().toLocaleString("fr-FR"),
-      flights: String(flights), hours: String(hours), note: note || "—" });
+      flights: String(flights), hours: hoursLabel, note: note || "—" });
     renderAll();
   }
 
@@ -7685,7 +7717,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-27.107";
+  const APP_VERSION = "2026-10-27.108";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -7698,6 +7730,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 108, title: "QR code pour installer l'application sur un nouveau téléphone", aud: "staff", items: [
+      { icon: "🔗", t: "Bouton « QR appli »", steps: ["En haut de l'écran, le bouton « 🔗 QR appli » affiche un QR code en direct : faites-le scanner par un nouvel utilisateur, l'application s'ouvre aussitôt sur son téléphone et il peut l'installer sur son écran d'accueil."], aud: "staff" },
+    ] },
     { v: 107, title: "Types de voile et types particuliers modifiables dans les réglages", aud: "staff", items: [
       { icon: "⚙️", t: "Réglages › Types de voile", steps: ["Light et Montagne restent toujours proposés ; vous pouvez en ajouter d'autres (ex. Cross, Compétition…) et retirer ceux que vous avez ajoutés s'ils ne sont pas utilisés."], aud: "staff" },
       { icon: "⚙️", t: "Réglages › Types particuliers (sous-types)", steps: ["Les types de base (Montagne, Light, Cocon…) restent toujours proposés pour chaque équipement (sellette, voile, secours) ; vous pouvez en ajouter d'autres par équipement."], aud: "staff" },
@@ -8006,6 +8041,15 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     }
   }
   refreshInstallUi();
+
+  // QR code d'installation : à montrer à un nouvel utilisateur pour qu'il ouvre
+  // l'application sur son propre téléphone en la scannant (puis l'installe s'il le souhaite).
+  function openInstallQr() {
+    const url = location.origin + location.pathname;
+    drawQr($("installQrTarget"), url, 220);
+    const u = $("installQrUrl"); if (u) u.textContent = url;
+    openModal("installQrModal");
+  }
 
   // --- Mise à jour automatique des applications déjà installées -------------
   // Au lancement, à chaque retour au premier plan et toutes les 10 minutes, l'application
