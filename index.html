@@ -571,6 +571,31 @@
           <div id="settingsBrandList" class="flex flex-wrap gap-2 text-xs"></div>
         </div>
 
+        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+          <h4 class="font-bold text-sm">Types de voile (classification Light / Montagne)</h4>
+          <p class="text-[10px] text-slate-500">Light et Montagne sont toujours proposés. Ajoutez-en d'autres si besoin (ex. Cross, Compétition…).</p>
+          <div class="flex gap-2">
+            <input type="text" id="settingsNewCategorie" maxlength="40" placeholder="Nouveau type de voile" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategorieFromSettings();}" class="flex-1 min-w-0 p-2 border border-slate-300 rounded text-sm">
+            <button onclick="addCategorieFromSettings()" class="px-4 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-xs">Ajouter</button>
+          </div>
+          <div id="settingsCategorieList" class="flex flex-wrap gap-2 text-xs"></div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+          <h4 class="font-bold text-sm">Types particuliers (sous-types)</h4>
+          <p class="text-[10px] text-slate-500">Les types de base (Montagne, Light, Cocon, Cross…) sont toujours proposés pour chaque équipement. Ajoutez-en d'autres par type d'équipement si besoin.</p>
+          <select id="settingsSubtypeTypeSel" onchange="renderSubtypeSettings()" class="w-full p-2 border border-slate-300 rounded text-sm">
+            <option value="Sellette">🪑 Sellette</option>
+            <option value="Voile">🪂 Voile</option>
+            <option value="Secours">🛟 Secours</option>
+          </select>
+          <div class="flex gap-2">
+            <input type="text" id="settingsNewSubtype" maxlength="40" placeholder="Nouveau type particulier" onkeydown="if(event.key==='Enter'){event.preventDefault();addSubtypeFromSettings();}" class="flex-1 min-w-0 p-2 border border-slate-300 rounded text-sm">
+            <button onclick="addSubtypeFromSettings()" class="px-4 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-xs">Ajouter</button>
+          </div>
+          <div id="settingsSubtypeList" class="flex flex-wrap gap-2 text-xs"></div>
+        </div>
+
         <div id="managerPermissionsCard" hidden class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">Permissions des comptes gestionnaire et moniteur</h4>
           <p class="text-[10px] text-slate-500">Réservé à l'administrateur. Réglable compte par compte : décochez ce qu'un gestionnaire donné ne doit pas pouvoir faire — l'administrateur garde toujours tous les droits, quel que soit ce réglage. La case « voiles Acro / Speed / Parakite » est décochée par défaut (pour un gestionnaire comme pour un moniteur) : cochez-la pour habiliter un compte à les réserver.</p>
@@ -3390,6 +3415,133 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     fillBrandSelects();
   }
 
+  // ---- Types de voile (classification Light / Montagne) : même mécanique que les constructeurs ----
+  // CATEGORIES_VOILE reste la base toujours proposée (jamais retirable) ; le réglage « voileCategories »
+  // permet à l'administrateur/gestionnaire d'en ajouter d'autres (ex. « Cross », « Compétition »…).
+  function categorieKey(c) { return searchNormalize(String(c || "")).replace(/[^a-z0-9]+/g, ""); }
+  function savedCategories() {
+    try { const a = JSON.parse(String(getSetting("voileCategories", "[]"))); return Array.isArray(a) ? a.map(x => String(x).trim()).filter(Boolean) : []; }
+    catch (e) { return []; }
+  }
+  function categorieUsage() {
+    const use = {};
+    Object.values(appData.items).concat(Object.values(appData.archives || {})).forEach(i => {
+      const c = String(i.categorie || "").trim(); if (!c) return;
+      const k = categorieKey(c); if (!k) return;
+      use[k] = use[k] || { name: c, count: 0 }; use[k].count++;
+    });
+    return use;
+  }
+  function getCategorieList() {
+    const map = {};
+    CATEGORIES_VOILE.forEach(c => { map[categorieKey(c)] = c; });
+    savedCategories().forEach(c => { if (!map[categorieKey(c)]) map[categorieKey(c)] = c; });
+    Object.entries(categorieUsage()).forEach(([k, v]) => { if (!map[k]) map[k] = v.name; });
+    return Object.values(map).sort((a, b) => a.localeCompare(b, "fr"));
+  }
+  function refreshCategorieSelects() {
+    fillCategorieOptions("newItemCategorie");
+    fillCategorieOptions("editItemCategorie", $("editItemCategorie") ? $("editItemCategorie").value : "");
+    fillCategorieOptions("clientPrefCategorie", clientPrefs.categorie, "Tous les types de voile");
+    fillCategorieOptions("instructorPrefCategorie", clientPrefs.categorie, "Tous les types de voile");
+  }
+  function renderCategorieSettings() {
+    const el = $("settingsCategorieList"); if (!el) return;
+    const use = categorieUsage(), saved = savedCategories().map(categorieKey), seeds = CATEGORIES_VOILE.map(categorieKey);
+    const list = getCategorieList();
+    el.innerHTML = list.length ? list.map(c => {
+      const k = categorieKey(c), n = use[k] ? use[k].count : 0;
+      const removable = n === 0 && saved.includes(k) && !seeds.includes(k);
+      return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 border border-slate-200">${esc(c)}${n ? ` <span class="text-slate-400">· ${n}</span>` : ""}${removable ? ` <button onclick="removeCategorieFromSettings('${esc(c).replace(/'/g, "&#39;")}')" class="text-rose-600 font-bold" title="Retirer">×</button>` : ""}</span>`;
+    }).join("") : '<span class="text-slate-400">Aucun type de voile.</span>';
+  }
+  async function addCategorieFromSettings() {
+    if (busy) return;
+    if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
+    const inp = $("settingsNewCategorie"); const name = String(inp.value || "").trim().replace(/\s+/g, " ");
+    if (name.length < 2) { toast("Saisissez le type de voile.", "error"); return; }
+    if (getCategorieList().some(c => categorieKey(c) === categorieKey(name))) { toast("Ce type de voile existe déjà.", "error"); return; }
+    if (!isSynced()) { await ensureSynced(); return; }
+    setSetting("voileCategories", JSON.stringify(savedCategories().concat(name).sort((a, b) => a.localeCompare(b, "fr"))));
+    const ok = await persist(["settings"]);
+    if (ok) inp.value = "";
+    toast(ok ? "Type de voile ajouté." : "Ajout non enregistré.", ok ? undefined : "error");
+    renderCategorieSettings(); refreshCategorieSelects();
+  }
+  async function removeCategorieFromSettings(name) {
+    if (busy || !canUse("settings")) return;
+    const k = categorieKey(name);
+    if (categorieUsage()[k]) { toast("Ce type de voile est utilisé par du matériel.", "error"); return; }
+    if (CATEGORIES_VOILE.map(categorieKey).includes(k)) { toast("Ce type de base ne peut pas être retiré.", "error"); return; }
+    setSetting("voileCategories", JSON.stringify(savedCategories().filter(c => categorieKey(c) !== k)));
+    const ok = await persist(["settings"]);
+    toast(ok ? "Type de voile retiré." : "Modification non enregistrée.", ok ? undefined : "error");
+    renderCategorieSettings(); refreshCategorieSelects();
+  }
+
+  // ---- Types particuliers (sous-types) par équipement : SUBTYPE_OPTIONS reste la base toujours
+  // proposée (jamais retirable) ; le réglage « subtypeOptions » (JSON par type) permet d'en ajouter d'autres.
+  function savedSubtypes() {
+    try { const o = JSON.parse(String(getSetting("subtypeOptions", "{}"))); return (o && typeof o === "object" && !Array.isArray(o)) ? o : {}; }
+    catch (e) { return {}; }
+  }
+  function subtypeUsage(type) {
+    const use = {};
+    const addFrom = v => colorList(v || "").forEach(s => { const k = colorKey(s); use[k] = use[k] || { name: s, count: 0 }; use[k].count++; });
+    Object.values(appData.items).concat(Object.values(appData.archives || {})).filter(i => i.type === type).forEach(i => addFrom(i.subtype));
+    Object.values(appData.stock || {}).filter(r => r.category === type).forEach(r => addFrom(r.subtype));
+    return use;
+  }
+  function getSubtypeList(type) {
+    const map = {};
+    (SUBTYPE_OPTIONS[type] || []).forEach(s => { map[colorKey(s)] = s; });
+    (savedSubtypes()[type] || []).forEach(s => { if (!map[colorKey(s)]) map[colorKey(s)] = s; });
+    Object.entries(subtypeUsage(type)).forEach(([k, v]) => { if (!map[k]) map[k] = v.name; });
+    return Object.values(map);
+  }
+  function renderSubtypeSettings() {
+    const el = $("settingsSubtypeList"); if (!el) return;
+    const sel = $("settingsSubtypeTypeSel"), type = sel ? sel.value : "Sellette";
+    const use = subtypeUsage(type), saved = (savedSubtypes()[type] || []).map(colorKey), seeds = (SUBTYPE_OPTIONS[type] || []).map(colorKey);
+    const list = getSubtypeList(type);
+    el.innerHTML = list.length ? list.map(s => {
+      const k = colorKey(s), n = use[k] ? use[k].count : 0;
+      const removable = n === 0 && saved.includes(k) && !seeds.includes(k);
+      return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 border border-slate-200">${SUBTYPE_ICON[s] || "🏷️"} ${esc(s)}${n ? ` <span class="text-slate-400">· ${n}</span>` : ""}${removable ? ` <button onclick="removeSubtypeFromSettings('${esc(s).replace(/'/g, "&#39;")}')" class="text-rose-600 font-bold" title="Retirer">×</button>` : ""}</span>`;
+    }).join("") : '<span class="text-slate-400">Aucun type particulier pour cet équipement.</span>';
+  }
+  function refreshSubtypePickers() {
+    [["newItemType", "newItemSubtype"], ["editItemType", "editItemSubtype"], ["stockNewCat", "stockNewSubtype"], ["stockEditCat", "stockEditSubtype"]]
+      .forEach(([typeId, inputId]) => { if ($(typeId) && $(inputId)) refreshSubtypeField(typeId, inputId); });
+  }
+  async function addSubtypeFromSettings() {
+    if (busy) return;
+    if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
+    const sel = $("settingsSubtypeTypeSel"), type = sel ? sel.value : "Sellette";
+    const inp = $("settingsNewSubtype"); const name = String(inp.value || "").trim().replace(/\s+/g, " ");
+    if (name.length < 2) { toast("Saisissez le type particulier.", "error"); return; }
+    if (getSubtypeList(type).some(s => colorKey(s) === colorKey(name))) { toast("Ce type particulier existe déjà pour cet équipement.", "error"); return; }
+    if (!isSynced()) { await ensureSynced(); return; }
+    const all = savedSubtypes(); all[type] = (all[type] || []).concat(name);
+    setSetting("subtypeOptions", JSON.stringify(all));
+    const ok = await persist(["settings"]);
+    if (ok) inp.value = "";
+    toast(ok ? "Type particulier ajouté." : "Ajout non enregistré.", ok ? undefined : "error");
+    renderSubtypeSettings(); refreshSubtypePickers();
+  }
+  async function removeSubtypeFromSettings(name) {
+    if (busy || !canUse("settings")) return;
+    const sel = $("settingsSubtypeTypeSel"), type = sel ? sel.value : "Sellette";
+    const k = colorKey(name);
+    if (subtypeUsage(type)[k]) { toast("Ce type particulier est utilisé par du matériel.", "error"); return; }
+    if ((SUBTYPE_OPTIONS[type] || []).map(colorKey).includes(k)) { toast("Ce type de base ne peut pas être retiré.", "error"); return; }
+    const all = savedSubtypes(); all[type] = (all[type] || []).filter(s => colorKey(s) !== k);
+    setSetting("subtypeOptions", JSON.stringify(all));
+    const ok = await persist(["settings"]);
+    toast(ok ? "Type particulier retiré." : "Modification non enregistrée.", ok ? undefined : "error");
+    renderSubtypeSettings(); refreshSubtypePickers();
+  }
+
   // Menus déroulants fermés des marques : plus de saisie libre. Une nouvelle marque ne s'ajoute que
   // par l'application (Réglages › Constructeurs, ou l'entrée « ➕ Nouvelle marque… » du menu).
   function fillBrandSelects() {
@@ -5539,7 +5691,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const sel = $(selectId);
     if (!sel) return;
     sel.innerHTML = `<option value="">${esc(emptyLabel || "Type de voile : Light / Montagne (facultatif)")}</option>` +
-      CATEGORIES_VOILE.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+      getCategorieList().map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
     if (current) sel.value = current;
   }
 
@@ -5979,6 +6131,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function renderSettingsForm() {
     $("settingsLongTermRentalEnabled").checked = isLongTermRentalEnabled();
     renderBrandSettings();
+    renderCategorieSettings();
+    renderSubtypeSettings();
     if ($("longTermRentalSettingStatus")) $("longTermRentalSettingStatus").textContent = "";
     $("settingsContractText").value = getContractText();
     const m = getMailSettings();
@@ -7244,7 +7398,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function refreshSubtypeField(typeSelectId, inputId) {
     const typeSel = $(typeSelectId), el = $(inputId);
     if (!typeSel || !el) return;
-    const opts = SUBTYPE_OPTIONS[typeSel.value] || [];
+    const opts = SUBTYPE_OPTIONS[typeSel.value] ? getSubtypeList(typeSel.value) : [];
     let box = document.querySelector(`[data-subtypepicker="${inputId}"]`);
     if (!box) {
       box = document.createElement("div");
@@ -7531,7 +7685,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-27.106";
+  const APP_VERSION = "2026-10-27.107";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -7544,6 +7698,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 107, title: "Types de voile et types particuliers modifiables dans les réglages", aud: "staff", items: [
+      { icon: "⚙️", t: "Réglages › Types de voile", steps: ["Light et Montagne restent toujours proposés ; vous pouvez en ajouter d'autres (ex. Cross, Compétition…) et retirer ceux que vous avez ajoutés s'ils ne sont pas utilisés."], aud: "staff" },
+      { icon: "⚙️", t: "Réglages › Types particuliers (sous-types)", steps: ["Les types de base (Montagne, Light, Cocon…) restent toujours proposés pour chaque équipement (sellette, voile, secours) ; vous pouvez en ajouter d'autres par équipement."], aud: "staff" },
+    ] },
     { v: 106, title: "Prix repris du stock, pictogrammes de type particulier, qui est connecté", aud: "staff", items: [
       { icon: "💶", t: "Prix d'achat repris automatiquement du stock", steps: ["En passant un article du stock en démo, le prix d'achat déjà connu dans la fiche de stock est prérempli : plus besoin de le ressaisir (modifiable si besoin)."], aud: "staff" },
       { icon: "🏔️", t: "Pastilles « Type particulier » dans les recherches", steps: ["Comme pour Type / Marque / Disponibilité, de nouvelles pastilles cliquables permettent de filtrer directement par type particulier (Montagne, Light, Cocon…), dans la recherche du Matériel comme dans le Stock."], aud: "staff" },
