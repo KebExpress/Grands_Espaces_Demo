@@ -804,6 +804,10 @@
         </div>
       </div>
       <label class="flex items-center gap-2 text-xs">
+        <input type="checkbox" id="loginShowPwd" onchange="toggleShowPassword('loginPwd', this.checked)">
+        <span>Afficher le mot de passe</span>
+      </label>
+      <label class="flex items-center gap-2 text-xs">
         <input type="checkbox" id="loginRememberMe" checked>
         <span>Rester connecté sur cet appareil</span>
       </label>
@@ -2796,9 +2800,17 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("loginUser").value = "";
     $("loginPwd").value = "";
     if ($("loginRememberMe")) $("loginRememberMe").checked = true;
+    // Par discrétion, le mot de passe repart toujours masqué à chaque ouverture de la fenêtre.
+    if ($("loginShowPwd")) { $("loginShowPwd").checked = false; toggleShowPassword("loginPwd", false); }
     show("loginError", false);
     openModal("loginModal");
     setTimeout(() => $("loginUser").focus(), 50);
+  }
+
+  // Affiche/masque un mot de passe en clair (case à cocher à côté du champ).
+  function toggleShowPassword(inputId, show) {
+    const el = $(inputId);
+    if (el) el.type = show ? "text" : "password";
   }
 
   async function submitLogin() {
@@ -7394,10 +7406,31 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   async function cancelBooking(bookingId) {
     if (busy) return;
     if (!canUse("planning")) { toast("Action non autorisée.", "error"); return; }
-    if (!confirm("Annuler cette réservation ?")) return;
+    const rows = Object.values(appData.planning).filter(p => p.bookingId === bookingId);
+    // Si le matériel de cette réservation est déjà sorti (prêt en cours — cas d'un emprunt
+    // immédiat/moniteur, ou d'une réservation déjà venue chercher son matériel), annuler la
+    // réservation remet aussi ce matériel disponible : sinon il resterait « Loué » indéfiniment,
+    // sans réservation active pour l'expliquer, et sans passer par une vraie restitution (aucun
+    // vol/heure n'est compté puisqu'il ne s'agit pas d'un usage réel).
+    const activeIds = [...new Set(rows.map(r => r.itemId))].filter(id => appData.items[id] && appData.items[id].status === "Loué");
+    const confirmMsg = activeIds.length
+      ? `Cette réservation correspond à un prêt en cours (${activeIds.length === 1 ? "1 article" : activeIds.length + " articles"}). L'annuler remettra aussi ce matériel disponible, sans enregistrer de restitution. Continuer ?`
+      : "Annuler cette réservation ?";
+    if (!confirm(confirmMsg)) return;
     Object.values(appData.planning).forEach(p => { if (p.bookingId === bookingId) p.status = "Annulé"; });
-    const ok = await persist(["planning"]);
-    toast(ok ? "Réservation annulée." : "Annulation enregistrée localement (hors ligne).");
+    activeIds.forEach(id => {
+      const it = appData.items[id];
+      const borrower = it.borrowerName, borrowerEmail = it.borrowerEmail;
+      it.status = "Disponible";
+      it.borrowerName = ""; it.borrowerEmail = ""; it.borrowedAt = "";
+      it.overdueAlerted = false; it.loanKind = ""; it.payment = ""; it.dueAt = "";
+      addHistory("Annulation", it, borrower, borrowerEmail, "Prêt annulé avec la réservation (aucun vol/heure comptabilisé).");
+      closePlanningForReturnedItem(id);
+    });
+    const ok = await persist(activeIds.length ? ["planning", "items", "history"] : ["planning"]);
+    toast(ok
+      ? (activeIds.length ? "Réservation annulée ; matériel remis disponible." : "Réservation annulée.")
+      : "Annulation enregistrée localement (hors ligne).");
     renderAll();
   }
 
@@ -8005,7 +8038,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.115";
+  const APP_VERSION = "2026-10-28.117";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8018,6 +8051,15 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 117, title: "Annuler une réservation libère aussi le prêt en cours", aud: "staff", items: [
+      { icon: "📅", t: "Annulation = matériel remis disponible", steps: [
+        "Dans Planning, annuler une réservation dont le matériel est déjà sorti (prêt en cours) le remet maintenant automatiquement disponible, au lieu de rester « Loué » sans réservation active pour l'expliquer.",
+        "Aucun vol ni heure de vol n'est comptabilisé dans ce cas (ce n'est pas une restitution normale) ; une trace « Annulation » est ajoutée à l'historique."] },
+    ] },
+    { v: 116, title: "Afficher le mot de passe à la connexion", aud: "staff", items: [
+      { icon: "👁️", t: "Case « Afficher le mot de passe »", steps: [
+        "Sur la fenêtre de connexion (moniteur, gestionnaire, administrateur), une case à cocher permet d'afficher le mot de passe en clair pendant la saisie."] },
+    ] },
     { v: 115, title: "Correctif supplémentaire : types particuliers du Stock", aud: "staff", items: [
       { icon: "🏷️", t: "Le champ ne s'efface plus jamais", steps: [
         "Le correctif de la version précédente ne suffisait pas : pour un type sans aucun historique (casque, vario, accessoire…), le champ était encore vidé et masqué dès l'ouverture de la fiche, avant même que la saisie ne soit possible. Le champ reste maintenant toujours visible et modifiable, quel que soit le type, et n'est plus jamais effacé automatiquement — qu'un type particulier ait ou non déjà été utilisé ou déclaré dans Réglages."] },
