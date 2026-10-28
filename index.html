@@ -709,7 +709,7 @@
               <textarea id="settingsNewAccountBody" rows="4" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
             </div>
           </div>
-          <p class="text-[10px] text-slate-400">Variables disponibles : {name} {email} {item} {threshold} {borrowedAt} {type} {items} {start} {end} {contract} {role} {username} {password} {returnedAt} {flights} {hours} {note}</p>
+          <p class="text-[10px] text-slate-400">Variables disponibles : {name} {email} {item} {threshold} {dueAt} {borrowedAt} {type} {items} {start} {end} {contract} {role} {username} {password} {returnedAt} {flights} {hours} {note}</p>
           <button onclick="saveMailSettings()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer les réglages email</button>
         </div>
       </div>
@@ -8038,7 +8038,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.117";
+  const APP_VERSION = "2026-10-28.118";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8051,6 +8051,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 118, title: "Correctif : mail de retard envoyé trop tôt", aud: "staff", items: [
+      { icon: "📧", t: "L'échéance personnalisée est enfin respectée", steps: [
+        "Correction d'un bug côté serveur : quand une échéance de retour personnalisée (dueAt) avait été accordée — prêt à un tiers ou date de retour modifiée depuis Planning —, le mail de retard automatique partait quand même au bout du délai habituel (3 h, ou 24 h pour un prêt moniteur) au lieu d'attendre cette échéance. Il respecte maintenant la même règle que l'affichage dans l'application : l'échéance personnalisée fait foi quand elle existe.",
+        "Nécessite de redéployer le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version)."] },
+    ] },
     { v: 117, title: "Annuler une réservation libère aussi le prêt en cours", aud: "staff", items: [
       { icon: "📅", t: "Annulation = matériel remis disponible", steps: [
         "Dans Planning, annuler une réservation dont le matériel est déjà sorti (prêt en cours) le remet maintenant automatiquement disponible, au lieu de rester « Loué » sans réservation active pour l'expliquer.",
