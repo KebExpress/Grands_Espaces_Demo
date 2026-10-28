@@ -7698,11 +7698,26 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function refreshSubtypeField(typeSelectId, inputId) {
     const typeSel = $(typeSelectId), el = $(inputId);
     if (!typeSel || !el) return;
-    // Avant, seuls Sellette/Voile/Secours (les types "de base" de SUBTYPE_OPTIONS) affichaient ce champ :
-    // pour tout autre type (Casque, Vario, Accessoire, Accessoire sellette…), il était vidé et masqué à
-    // chaque ouverture/changement, effaçant silencieusement toute valeur déjà enregistrée. getSubtypeList()
-    // tient déjà compte des types particuliers ajoutés dans Réglages et de ceux déjà utilisés sur du
-    // matériel/stock existant : on s'appuie uniquement sur elle, pour tous les types.
+    // IMPORTANT : cette fonction ne doit JAMAIS vider ni masquer le champ texte lui-même — c'est un
+    // champ libre, utilisable pour n'importe quel type, y compris Casque/Vario/Accessoire/Accessoire
+    // sellette qui n'ont pas de types particuliers « de base » dans SUBTYPE_OPTIONS. Seules les pastilles
+    // de suggestion (en dessous du champ) dépendent de la liste connue (SUBTYPE_OPTIONS + Réglages +
+    // valeurs déjà utilisées) : vide pour un type sans historique, elles sont alors simplement masquées,
+    // mais la saisie libre reste toujours possible et se conserve à l'enregistrement.
+    // (Avant ce correctif, le champ texte était entièrement vidé et masqué dès que la liste de
+    // suggestions était vide — ce qui effaçait silencieusement toute valeur déjà enregistrée à chaque
+    // ouverture de la fiche ou changement de type.)
+    // Exception volontaire : côté Matériel (onglet Items, pas Stock), un Accessoire ou un Vario n'a pas
+    // de suivi de révision/sous-type (la valeur n'est de toute façon jamais enregistrée pour ces deux
+    // types-là, voir addNewItem/saveEditedItem) — on masque donc le champ pour éviter une saisie inutile.
+    const isItemsField = typeSelectId === "newItemType" || typeSelectId === "editItemType";
+    if (isItemsField && !LIFECYCLE_TYPES.includes(typeSel.value)) {
+      el.hidden = true;
+      const hiddenBox = document.querySelector(`[data-subtypepicker="${inputId}"]`);
+      if (hiddenBox) { hiddenBox.hidden = true; hiddenBox.innerHTML = ""; }
+      return;
+    }
+    el.hidden = false;
     const opts = getSubtypeList(typeSel.value);
     let box = document.querySelector(`[data-subtypepicker="${inputId}"]`);
     if (!box) {
@@ -7712,10 +7727,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       el.insertAdjacentElement("afterend", box);
     }
     if (!opts.length) {
-      el.value = ""; el.hidden = true; box.hidden = true; box.innerHTML = "";
+      box.hidden = true; box.innerHTML = "";
       return;
     }
-    el.hidden = false; box.hidden = false;
+    box.hidden = false;
     // Une valeur déjà saisie qui ne correspond plus au type (changement de type) est conservée telle
     // quelle dans le champ texte ; seules les pastilles reconnues pour ce type sont cochables.
     box.innerHTML = opts.map(n => `<button type="button" data-st="${esc(n)}" onclick="toggleSubtype('${inputId}','${esc(n).replace(/'/g, "&#39;")}')">${esc(n)}</button>`).join("");
@@ -7990,7 +8005,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.114";
+  const APP_VERSION = "2026-10-28.115";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8003,6 +8018,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 115, title: "Correctif supplémentaire : types particuliers du Stock", aud: "staff", items: [
+      { icon: "🏷️", t: "Le champ ne s'efface plus jamais", steps: [
+        "Le correctif de la version précédente ne suffisait pas : pour un type sans aucun historique (casque, vario, accessoire…), le champ était encore vidé et masqué dès l'ouverture de la fiche, avant même que la saisie ne soit possible. Le champ reste maintenant toujours visible et modifiable, quel que soit le type, et n'est plus jamais effacé automatiquement — qu'un type particulier ait ou non déjà été utilisé ou déclaré dans Réglages."] },
+    ] },
     { v: 114, title: "Calendrier déplacé, logo officiel, types particuliers du stock, temps de vol en heures/minutes", aud: "staff", items: [
       { icon: "🚨", t: "Calendrier dans « Prêts en cours »", steps: [
         "Le calendrier visuel, qui était dans l'onglet Matériel, est maintenant dans l'onglet « Prêts en cours »."] },
