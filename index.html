@@ -4213,40 +4213,6 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     renderAll();
   }
 
-  // Restitution rapide depuis l'onglet Matériel, sans jamais demander le nombre de vols ni
-  // d'heures de vol : soit le moniteur restitue son propre emprunt (comme avant), soit un
-  // administrateur/gestionnaire restitue le matériel loué par un tiers, directement depuis la
-  // fiche de l'article (sans passer par la restitution détaillée de « Prêts en cours », qui
-  // demande ces informations).
-  async function instructorReturnItem(id) {
-    if (busy) return;
-    if (!isStaffViewer()) { toast("Action non autorisée.", "error"); return; }
-    const it = appData.items[id];
-    if (!it || it.status !== "Loué") return;
-    const isSelfLoan = it.borrowerEmail === instructorEmail();
-    if (!isSelfLoan && !canUse("items")) { toast("Ce matériel n'est pas emprunté par ce compte.", "error"); return; }
-
-    const borrower = it.borrowerName;
-    const borrowerEmail = it.borrowerEmail;
-    it.status = "Disponible";
-    it.borrowerName = "";
-    it.borrowerEmail = "";
-    it.borrowedAt = "";
-    it.overdueAlerted = false;
-    it.loanKind = "";
-    it.payment = "";
-    it.dueAt = "";
-    addHistory("Restitution", it, borrower, borrowerEmail, isSelfLoan ? "Restitution moniteur" : "Restitution rapide depuis l'onglet Matériel (sans vols/heures)");
-
-    closePlanningForReturnedItem(id);
-
-    const ok = await persist(["items", "history", "planning"]);
-    toast(ok ? "Matériel restitué." : "Restitution enregistrée localement (hors ligne).");
-    sendTransactionalMail("return", { name: borrower, email: borrowerEmail, item: itemLabel(it), items: "- " + itemLabel(it), returnedAt: new Date().toLocaleString("fr-FR"),
-      flights: "0", hours: "0", note: isSelfLoan ? "Restitution moniteur" : "Restitution rapide" });
-    renderAll();
-  }
-
   /* ------------------------------------------------------------------ */
   /*  STOCK SANS NUMÉRO DE SÉRIE (sellettes, secours, casques, varios)    */
   /* ------------------------------------------------------------------ */
@@ -5195,7 +5161,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         <div class="space-y-2">
           <h4 class="text-xs font-bold text-slate-500">${esc(brand)} · ${byBrand[brand].length}</h4>
           ${byBrand[brand].map(i => { const canManageItems = canUse("items"); const revision = LIFECYCLE_TYPES.includes(i.type) ? computeNextRevisionInfo(i) : null; const wingAlerts = wingAlertReasons(i); const restrictedLocked = i.status === "Disponible" && restrictedIdsBlocked([i.id]).length > 0; return `
-          <div class="${i.status === "Indisponible" ? "bg-red-50 border-red-600" : (i.pretConstructeur && isStaffViewer() && i.type === "Voile") ? "bg-orange-50 border-orange-500" : wingAlerts.length ? "bg-white border-rose-500" : "bg-white " + (revision && revision.due ? "border-rose-300" : "border-slate-200")} p-3 rounded-lg border text-xs space-y-2">
+          <div class="${i.status === "Indisponible" ? "bg-red-50 border-red-600" : (i.pretConstructeur && isStaffViewer() && i.type === "Voile") ? "bg-orange-50 border-orange-500" : "bg-white border-slate-200"} p-3 rounded-lg border text-xs space-y-2">
           <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <div class="min-w-0 cursor-pointer" onclick="openItemTimelineModal('${esc(i.id)}')" title="Voir le planning de cet équipement">
               <p class="font-bold break-words sm:truncate">${esc(itemLabel(i))}</p>
@@ -5218,7 +5184,6 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
               ${(canManageItems && canUse("archives") && canSeeFinances() && i.status === "Disponible") ? `<button onclick="openSellItemModal('${esc(i.id)}')" title="Vendre (archiver)" class="px-2 py-1 border border-sky-300 text-sky-700 rounded hover:bg-sky-50">💰</button>` : ""}
               ${(canManageItems && i.status !== "Loué") ? `<button onclick="deleteItem('${esc(i.id)}')" title="Supprimer" class="px-2 py-1 border border-rose-300 text-rose-600 rounded hover:bg-rose-50">✕</button>` : ""}
               ${(isStaffViewer() && i.status === "Disponible" && !restrictedLocked) ? `<button onclick="instructorBorrowItem('${esc(i.id)}')" title="Emprunter ce matériel pour moi" class="px-2 py-1 border border-emerald-300 text-emerald-700 rounded hover:bg-emerald-50">🪂 Emprunter</button>` : ""}
-              ${(isStaffViewer() && i.status === "Loué" && (i.borrowerEmail === instructorEmail() || canManageItems)) ? `<button onclick="instructorReturnItem('${esc(i.id)}')" title="Restituer ce matériel sans saisir vols/heures" class="px-2 py-1 border border-green-300 text-green-700 rounded hover:bg-green-50">↩ Restituer</button>` : ""}
               ${((currentRole === "instructor" || canManageItems) && i.status === "Disponible" && !restrictedLocked) ? `<button onclick="openThirdPartyBorrowModal('${esc(i.id)}')" title="Prêter à une personne tierce (24 h maximum)" class="px-2 py-1 border border-purple-300 text-purple-700 rounded hover:bg-purple-50">🎯 Prêt tiers</button>` : ""}
             </div>
           </div>
@@ -8049,7 +8014,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.119";
+  const APP_VERSION = "2026-10-28.120";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8062,14 +8027,20 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
-    { v: 119, title: "Contrat joint au prêt, signature des mails, restitution rapide, alerte révision plus discrète", aud: "staff", items: [
+    { v: 120, title: "Restitution toujours détaillée, alerte révision allégée", aud: "staff", items: [
+      { icon: "🔄", t: "Une seule façon de restituer, pour tout le monde", steps: [
+        "Le bouton « ↩ Restituer » de l'onglet Matériel est retiré : il n'est plus possible de restituer directement depuis la fiche d'un article, quel que soit le rôle (administrateur, gestionnaire, moniteur).",
+        "Toute restitution — vol libre moniteur compris — passe désormais par « Restituer le matériel » (onglet Prêts en cours), qui demande systématiquement le nombre de vols et le temps de vol, quel que soit le matériel.",
+        "Emprunter reste possible en un clic depuis l'onglet Matériel (« 🪂 Emprunter ») ; seule la restitution directe depuis cet onglet a été retirée."] },
+      { icon: "🔴", t: "Alerte révision : juste le voyant", steps: [
+        "Le cadre rouge autour du matériel à réviser est retiré dans l'onglet Matériel ; seul le petit voyant rouge 🔴 (avec le motif : révision à effectuer) signale encore qu'une révision est nécessaire."] },
+    ] },
+    { v: 119, title: "Contrat joint au prêt, signature des mails, alerte révision plus discrète", aud: "staff", items: [
       { icon: "📄", t: "Le contrat est enfin joint aux prêts à un tiers", steps: [
         "Correction d'un bug : lors d'un prêt effectué à un tiers (« 🎯 Prêt tiers »), le mail envoyé contenait un texte générique à la place du vrai contrat de prêt. Le contrat réel (celui modifiable dans Réglages) est maintenant inclus, comme pour tous les autres prêts à un client."] },
       { icon: "✍️", t: "Les mails sont signés par la personne qui a agi", steps: [
         "Tous les mails envoyés par l'application sont désormais signés « Les Grands Espaces », suivi du nom du moniteur/gestionnaire/administrateur connecté qui a fait l'action, pour que le destinataire sache qui, dans l'équipe, a traité son prêt ou sa restitution.",
         "Nécessite de redéployer le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version)."] },
-      { icon: "↩️", t: "Restitution rapide depuis l'onglet Matériel", steps: [
-        "Le bouton « ↩ Restituer » de l'onglet Matériel, auparavant réservé à un moniteur restituant son propre emprunt, est maintenant aussi proposé à un administrateur ou un gestionnaire pour restituer le matériel loué à un tiers — sans jamais demander le nombre de vols ni d'heures de vol (ceux-ci restent inchangés ; pour les compter, utiliser la restitution détaillée depuis « Prêts en cours »)."] },
       { icon: "🔴", t: "Alerte révision plus discrète", steps: [
         "Dans l'onglet Matériel, le matériel à réviser garde maintenant un encart blanc (au lieu d'un fond coloré), avec la pastille rouge 🔴 pour signaler la révision à effectuer."] },
     ] },
