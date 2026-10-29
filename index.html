@@ -2032,8 +2032,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // individuellement. Valeur par défaut = comportement historique (tout activé),
   // pour ne rien changer tant que l'administrateur n'a pas ouvert ce réglage.
   const DEFAULT_MANAGER_PERMISSIONS = {
-    items: true,       // ajouter/modifier/supprimer du matériel, disponibilité, révisions
-    clientsBlock: true, // bloquer/débloquer un client
+    items: true,       // accès à l'onglet Matériel (ajout, modification, suppression, disponibilité, révisions)
+    clientsBlock: true, // accès à l'onglet Clients, dont bloquer/débloquer un client
     usersBlock: true,   // bloquer/débloquer un compte moniteur/gestionnaire (onglet Comptes)
     planning: true,     // voir/annuler les réservations (onglet Planning)
     settings: true,     // contrat et modèles d'email (onglet Réglages)
@@ -2043,8 +2043,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   };
 
   const MANAGER_PERMISSION_LABELS = {
-    items: "Gérer le matériel (ajout, modification, suppression, disponibilité, révisions)",
-    clientsBlock: "Bloquer / débloquer un client",
+    items: "Accéder à l'onglet Matériel (ajout, modification, suppression, disponibilité, révisions)",
+    clientsBlock: "Accéder à l'onglet Clients (dont bloquer / débloquer un client)",
     usersBlock: "Bloquer / débloquer un compte moniteur ou gestionnaire",
     planning: "Accéder au planning et annuler une réservation",
     settings: "Modifier le contrat et les modèles d'email",
@@ -2964,9 +2964,20 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     show("tabFinances", canManage && canUse("finances"));
     show("tabArchives", canManage && canUse("archives"));
     show("tabStock", stockAllowed());
+    // Matériel et Clients : lecture ouverte à l'administrateur et au moniteur (consultation faisant
+    // partie du cœur de son rôle), mais masqués au gestionnaire auquel l'administrateur a retiré la
+    // permission correspondante — au lieu de rester visibles en lecture seule avec les boutons
+    // d'action grisés. « clientsBlock » (seule permission existante liée aux clients) fait foi pour
+    // l'onglet Clients du gestionnaire.
+    const itemsTabAllowed = role === "admin" || role === "instructor" || (role === "manager" && canUse("items"));
+    const clientsTabAllowed = role === "admin" || role === "instructor" || (role === "manager" && canUse("clientsBlock"));
+    show("tabItems", itemsTabAllowed);
+    show("tabClients", clientsTabAllowed);
     if (!stockAllowed() && currentAdminTab === "stock") currentAdminTab = "alerts";
     if (!canManage && ["users", "settings", "finances", "archives"].includes(currentAdminTab)) currentAdminTab = "alerts";
     if (!planningAllowed && currentAdminTab === "planning") currentAdminTab = "alerts";
+    if (!itemsTabAllowed && currentAdminTab === "items") currentAdminTab = "alerts";
+    if (!clientsTabAllowed && currentAdminTab === "clients") currentAdminTab = "alerts";
     if (role === "manager" && !canUse("usersBlock") && currentAdminTab === "users") currentAdminTab = "alerts";
     if (role === "manager" && !canUse("finances") && currentAdminTab === "finances") currentAdminTab = "alerts";
     if (role === "manager" && !canUse("settings") && currentAdminTab === "settings") currentAdminTab = "alerts";
@@ -8026,7 +8037,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.122";
+  const APP_VERSION = "2026-10-28.123";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8039,6 +8050,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 123, title: "Logo noir dans les mails, onglets masqués selon les droits", aud: "staff", items: [
+      { icon: "⬛", t: "Logo noir dans la signature des mails", steps: [
+        "Le logo dans la signature des mails est maintenant en noir (plus de bandeau coloré), mieux adapté à un fond blanc.",
+        "Nécessite de redéployer le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version)."] },
+      { icon: "🙈", t: "Onglets Matériel et Clients masqués sans permission", steps: [
+        "Un gestionnaire à qui l'administrateur a retiré la permission « Matériel » ou « Clients » (Réglages › Comptes) ne voit plus du tout l'onglet correspondant, au lieu de le voir en lecture seule avec les boutons d'action grisés.",
+        "L'administrateur et le moniteur conservent un accès inchangé à ces deux onglets."] },
+    ] },
     { v: 122, title: "Signature complète dans les mails, Planning sans historique", aud: "staff", items: [
       { icon: "✉️", t: "Logo et téléphone dans le corps des mails", steps: [
         "Tous les mails de l'application portent maintenant une signature en bas du corps du mail, avec le logo « les grands espaces. » et le numéro de téléphone (04 50 60 79 06), en plus du nom d'expéditeur « Les Grands Espaces — [nom] ».",
