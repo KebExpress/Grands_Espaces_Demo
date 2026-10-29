@@ -4208,8 +4208,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
 
     const ok = await persist(["items", "history", "planning"]);
     toast(ok ? "Matériel emprunté." : "Emprunt enregistré localement (hors ligne).");
+    // Le contrat de prêt est désormais joint à tous les prêts, y compris l'emprunt libre d'un
+    // moniteur pour lui-même (auparavant un texte générique était envoyé à la place).
     sendTransactionalMail("pickup", { name, email, items: "- " + itemLabel(it), start: new Date(stamp).toLocaleString("fr-FR"),
-      end: new Date(openEnd).toLocaleString("fr-FR") + " (24 h maximum)", contract: "Emprunt moniteur : aucun contrat client." });
+      end: new Date(openEnd).toLocaleString("fr-FR") + " (24 h maximum)", contract: getContractText() });
     renderAll();
   }
 
@@ -6548,6 +6550,15 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (!vars.item) vars.item = lines.join(", ") || "le matériel";
     if (!vars.items) vars.items = "- " + vars.item;
 
+    let filledBody = mailWording(fillTemplate(body, { threshold: m.thresholdHours, ...vars })).replace(/^Bonjour ,/, "Bonjour,");
+    // Le contrat de prêt doit toujours accompagner un mail de prêt (« pickup »), même si le modèle
+    // personnalisé enregistré dans Réglages a été modifié sans la variable {contract} ou sans la
+    // section "--- Contrat de prêt ---" : on l'ajoute alors systématiquement à la fin du mail,
+    // au lieu de dépendre uniquement de la présence de cette variable dans le modèle.
+    if (kind === "pickup" && vars.contract && !filledBody.includes(vars.contract)) {
+      filledBody += "\n\n--- Contrat de prêt ---\n" + vars.contract;
+    }
+
     const payload = {
       action: "sendMail",
       token: API_TOKEN,
@@ -6558,7 +6569,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       // qui a effectué l'action (moniteur/gestionnaire/administrateur), quand il y en a une.
       senderName: currentUser && currentUser.name ? currentUser.name : "",
       subject: mailWording(fillTemplate(subject, { threshold: m.thresholdHours, ...vars })),
-      body: mailWording(fillTemplate(body, { threshold: m.thresholdHours, ...vars })).replace(/^Bonjour ,/, "Bonjour,")
+      body: filledBody
     };
     try {
       const res = await fetch(SCRIPT_URL, {
@@ -8014,7 +8025,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.120";
+  const APP_VERSION = "2026-10-28.121";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8027,6 +8038,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 121, title: "Correctif : contrat de prêt joint à tous les prêts", aud: "staff", items: [
+      { icon: "📄", t: "Le contrat accompagne maintenant tous les prêts", steps: [
+        "Correction : le contrat de prêt n'était ajouté au mail que si le modèle de mail (Réglages) contenait encore la variable {contract} — un modèle personnalisé qui l'aurait perdue envoyait le mail sans aucun contrat. Le contrat est désormais toujours ajouté à la fin du mail de prêt, quel que soit le modèle utilisé.",
+        "Le contrat est maintenant joint à TOUS les prêts, y compris l'emprunt libre d'un moniteur pour lui-même (auparavant un texte générique était envoyé à la place)."] },
+    ] },
     { v: 120, title: "Restitution toujours détaillée, alerte révision allégée", aud: "staff", items: [
       { icon: "🔄", t: "Une seule façon de restituer, pour tout le monde", steps: [
         "Le bouton « ↩ Restituer » de l'onglet Matériel est retiré : il n'est plus possible de restituer directement depuis la fiche d'un article, quel que soit le rôle (administrateur, gestionnaire, moniteur).",
