@@ -271,13 +271,13 @@
       <div class="flex items-stretch gap-1">
         <button onclick="scrollAdminTabs(-1)" title="Défiler vers la gauche" class="hidden sm:flex items-center px-1 text-slate-400 hover:text-slate-700 border-b border-slate-300">◀</button>
         <div id="adminTabScroll" class="flex border-b border-slate-300 gap-2 overflow-x-auto flex-1 scroll-smooth">
-        <button onclick="switchAdminTab('alerts')" id="tabAlerts" class="py-2 px-3 font-bold text-sm tab-on">🚨 Prêts en cours</button>
         <button onclick="switchAdminTab('items')" id="tabItems" class="py-2 px-3 font-bold text-sm tab-off">📦 Matériel</button>
+        <button onclick="switchAdminTab('alerts')" id="tabAlerts" class="py-2 px-3 font-bold text-sm tab-on">🚨 Prêts en cours</button>
+        <button onclick="switchAdminTab('planning')" id="tabPlanning" hidden class="py-2 px-3 font-bold text-sm tab-off">📅 Planning</button>
         <button onclick="switchAdminTab('stock')" id="tabStock" hidden class="py-2 px-3 font-bold text-sm tab-off">🧰 Stock</button>
+        <button onclick="switchAdminTab('history')" id="tabHistory" class="py-2 px-3 font-bold text-sm tab-off">🕑 Historique</button>
         <button onclick="switchAdminTab('clients')" id="tabClients" class="py-2 px-3 font-bold text-sm tab-off">👥 Clients</button>
         <button onclick="switchAdminTab('users')" id="tabUsers" hidden class="py-2 px-3 font-bold text-sm tab-off">👤 Comptes</button>
-        <button onclick="switchAdminTab('planning')" id="tabPlanning" hidden class="py-2 px-3 font-bold text-sm tab-off">📅 Planning</button>
-        <button onclick="switchAdminTab('history')" id="tabHistory" class="py-2 px-3 font-bold text-sm tab-off">🕑 Historique</button>
         <button onclick="switchAdminTab('finances')" id="tabFinances" hidden class="py-2 px-3 font-bold text-sm tab-off">📊 Finances</button>
         <button onclick="switchAdminTab('archives')" id="tabArchives" hidden class="py-2 px-3 font-bold text-sm tab-off">🗄 Archives</button>
         <button onclick="switchAdminTab('settings')" id="tabSettings" hidden class="py-2 px-3 font-bold text-sm tab-off">⚙️ Réglages</button>
@@ -376,6 +376,7 @@
 
       <!-- Matériel vendu et statistiques d'utilisation, regroupés année par année. -->
       <div id="adminArchivesPage" hidden class="space-y-5 text-xs">
+        <div id="archiveLoanStats" class="space-y-4"></div>
         <div class="space-y-1">
           <input type="search" id="archiveSearch" oninput="clearTimeout(window.__arT); window.__arT = setTimeout(renderArchives, 150)" placeholder="🔍 Rechercher dans les archives : marque, modèle, S/N, acheteur, année, prix, couleur…" class="w-full p-2 border border-slate-300 rounded text-xs">
           <p id="archiveSearchInfo" class="text-[11px] text-slate-500"></p>
@@ -4855,7 +4856,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function adminTabAllowed(tab) {
     if (currentRole === "admin") return true;
     if (currentRole === "manager") {
-      const need = { users: "usersBlock", planning: "planning", finances: "finances", archives: "archives", settings: "settings", stock: "items" }[tab];
+      const need = { users: "usersBlock", planning: "planning", finances: "finances", archives: "archives", settings: "settings", stock: "items", items: "items", clients: "clientsBlock" }[tab];
       return !need || canUse(need);
     }
     if (currentRole === "instructor") return !["users", "finances", "archives", "settings"].includes(tab);
@@ -4865,13 +4866,13 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function switchAdminTab(tab) {
     if (!adminTabAllowed(tab)) tab = "alerts";
     currentAdminTab = tab;
-    const tabs = [["alerts", "tabAlerts", "adminAlertsPage"],
-                  ["items", "tabItems", "adminItemsPage"],
+    const tabs = [["items", "tabItems", "adminItemsPage"],
+                  ["alerts", "tabAlerts", "adminAlertsPage"],
+                  ["planning", "tabPlanning", "adminPlanningPage"],
                   ["stock", "tabStock", "adminStockPage"],
+                  ["history", "tabHistory", "adminHistoryPage"],
                   ["clients", "tabClients", "adminClientsPage"],
                   ["users", "tabUsers", "adminUsersPage"],
-                  ["planning", "tabPlanning", "adminPlanningPage"],
-                  ["history", "tabHistory", "adminHistoryPage"],
                   ["finances", "tabFinances", "adminFinancesPage"],
                   ["archives", "tabArchives", "adminArchivesPage"],
                   ["settings", "tabSettings", "adminSettingsPage"]];
@@ -5739,7 +5740,105 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         </div>`;
   }
 
+  // Type de matériel d'une ligne d'historique : lu dans l'intitulé figé au moment du prêt
+  // ("[Voile] Ozone Rush…"), jamais dans la fiche actuelle de l'article — qui a pu changer de
+  // type, être archivé (vendu) ou supprimé depuis. Les statistiques restent donc exactes même
+  // pour du matériel qui n'existe plus aujourd'hui.
+  function loanHistoryItemType(h) {
+    const m = String(h.itemLabel || "").match(/^\[([^\]]+)\]/);
+    return m ? m[1] : "";
+  }
+
+  // Statistiques (numériques et graphiques, calculées depuis l'historique complet) des prêts de
+  // voiles, sellettes, secours, et des emprunts moniteur — affichées en haut de l'onglet Archives.
+  function renderArchiveLoanStats() {
+    const box = $("archiveLoanStats");
+    if (!box) return;
+    const loans = Object.values(appData.history).filter(h => h.action === "Prêt" || h.action === "Emprunt moniteur");
+    if (!loans.length) { box.innerHTML = ""; return; }
+
+    const byType = {};
+    let moniteurCount = 0;
+    loans.forEach(h => {
+      const t = loanHistoryItemType(h);
+      if (LIFECYCLE_TYPES.includes(t)) byType[t] = (byType[t] || 0) + 1;
+      if (h.action === "Emprunt moniteur") moniteurCount++;
+    });
+
+    const tile = (label, value) => `
+      <div class="bg-white border border-slate-200 rounded-xl p-3">
+        <p class="text-[10px] font-bold text-slate-400 uppercase">${esc(label)}</p>
+        <p class="text-lg font-bold text-slate-900">${value}</p>
+      </div>`;
+    const tilesHtml = `<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      ${tile("🪂 Prêts voile", byType["Voile"] || 0)}
+      ${tile("🪑 Prêts sellette", byType["Sellette"] || 0)}
+      ${tile("🛟 Prêts secours", byType["Secours"] || 0)}
+      ${tile("🎯 Prêts moniteur", moniteurCount)}
+    </div>`;
+
+    // Graphique en barres (CSS, sans bibliothèque externe) : répartition des prêts par type de
+    // matériel, et part des emprunts moniteur parmi l'ensemble.
+    const barData = [
+      ["🪂 Voile", byType["Voile"] || 0, "bg-sky-500"],
+      ["🪑 Sellette", byType["Sellette"] || 0, "bg-emerald-500"],
+      ["🛟 Secours", byType["Secours"] || 0, "bg-amber-500"],
+      ["🎯 Moniteur", moniteurCount, "bg-violet-500"]
+    ];
+    const maxBar = Math.max(1, ...barData.map(([, n]) => n));
+    const barsHtml = `<div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+      <h4 class="font-bold text-sm text-slate-700">📊 Répartition des prêts</h4>
+      ${barData.map(([label, n, color]) => `
+        <div class="flex items-center gap-2">
+          <span class="w-20 shrink-0 text-slate-600">${esc(label)}</span>
+          <div class="flex-1 bg-slate-100 rounded h-4 overflow-hidden">
+            <div class="${color} h-4 rounded" style="width:${Math.max(2, Math.round(n / maxBar * 100))}%"></div>
+          </div>
+          <span class="w-8 shrink-0 text-right font-bold text-slate-700">${n}</span>
+        </div>`).join("")}
+    </div>`;
+
+    // Tendance sur les 12 derniers mois (tous types confondus), pour visualiser l'évolution de
+    // l'activité de prêt dans le temps.
+    const months = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }) });
+    }
+    const monthCounts = {};
+    loans.forEach(h => {
+      const d = new Date(h.date);
+      if (isNaN(d)) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthCounts[key] = (monthCounts[key] || 0) + 1;
+    });
+    const maxMonth = Math.max(1, ...months.map(m => monthCounts[m.key] || 0));
+    const trendHtml = `<div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+      <h4 class="font-bold text-sm text-slate-700">📈 Prêts par mois (12 derniers mois)</h4>
+      <div class="flex items-end gap-1 h-28">
+        ${months.map(m => {
+          const n = monthCounts[m.key] || 0;
+          const h = Math.max(2, Math.round(n / maxMonth * 100));
+          return `<div class="flex-1 flex flex-col items-center justify-end gap-1" title="${esc(m.label)} : ${n} prêt(s)">
+            <span class="text-[9px] text-slate-500">${n || ""}</span>
+            <div class="w-full bg-indigo-400 rounded-t" style="height:${h}%"></div>
+            <span class="text-[9px] text-slate-400">${esc(m.label)}</span>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+
+    box.innerHTML = `<div class="space-y-3">
+      <h3 class="font-bold text-sm text-slate-700">📊 Statistiques des prêts (voiles, sellettes, secours, moniteurs)</h3>
+      ${tilesHtml}
+      ${barsHtml}
+      ${trendHtml}
+    </div>`;
+  }
+
   function renderArchives() {
+    renderArchiveLoanStats();
     const box = $("archivesContent");
     if (!box) return;
     const allRecords = Object.values(appData.archives);
@@ -8037,7 +8136,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.123";
+  const APP_VERSION = "2026-10-28.124";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8050,6 +8149,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 124, title: "Statistiques de prêts dans Archives, onglets réordonnés", aud: "staff", items: [
+      { icon: "📊", t: "Statistiques des prêts dans l'onglet Archives", steps: [
+        "L'onglet Archives affiche maintenant, en haut, des statistiques numériques et graphiques sur les prêts : nombre de prêts par type (voile, sellette, secours) et d'emprunts moniteur, un graphique de répartition, et un graphique des prêts par mois sur les 12 derniers mois."], go: "tab:archives" },
+      { icon: "↔️", t: "Onglets réordonnés", steps: [
+        "L'ordre des onglets est maintenant : Matériel, Prêts en cours, Planning, Stock, Historique, Clients, Comptes, Finances, Archives, Réglages."] },
+    ] },
     { v: 123, title: "Logo noir dans les mails, onglets masqués selon les droits", aud: "staff", items: [
       { icon: "⬛", t: "Logo noir dans la signature des mails", steps: [
         "Le logo dans la signature des mails est maintenant en noir (plus de bandeau coloré), mieux adapté à un fond blanc.",
