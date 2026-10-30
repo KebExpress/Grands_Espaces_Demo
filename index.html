@@ -289,17 +289,22 @@
         <p id="itemsPaymentNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">La colonne « paiement » n'est pas encore dans l'onglet « articles » de la feuille Google : c'est pourquoi le statut Payé / À payer / Gratuit ne s'enregistre pas. Redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version), puis rechargez la page.</p>
         <!-- Planning visuel : déplacé ici depuis l'onglet « Matériel » pour l'avoir directement avec les prêts en cours. -->
         <div id="itemsCalendarCard" class="bg-white border border-slate-200 rounded-xl p-3">
-          <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center justify-between mb-2 gap-2">
             <button onclick="planningCalendarShift(-1)" class="px-2 py-1 border border-slate-300 rounded text-xs">◀</button>
             <p id="itemsCalendarTitle" class="font-bold text-sm"></p>
-            <button onclick="planningCalendarShift(1)" class="px-2 py-1 border border-slate-300 rounded text-xs">▶</button>
+            <div class="flex items-center gap-1">
+              <button onclick="planningCalendarShift(1)" class="px-2 py-1 border border-slate-300 rounded text-xs">▶</button>
+              <button type="button" onclick="togglePanel('itemsCalendarCard')" id="panelToggle-itemsCalendarCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50">▾</button>
+            </div>
           </div>
-          <div id="itemsCalendarGrid" class="grid grid-cols-7 gap-1 text-[10px]"></div>
-          <p class="text-[10px] text-slate-400 mt-1">Cliquez sur une date pour voir ce qui est loué ce jour-là.</p>
-          <div id="itemsCalendarDayDetails" class="space-y-1 text-xs mt-2"></div>
-          <div id="itemsCalendarLegend"></div>
-          <h5 class="text-xs font-bold text-slate-600 mt-3 mb-1">📋 Réservations à venir — ce qui n'est pas prêtable</h5>
-          <div id="itemsCalendarUpcoming" class="space-y-1 text-xs max-h-72 overflow-y-auto"></div>
+          <div id="panelBody-itemsCalendarCard">
+            <div id="itemsCalendarGrid" class="grid grid-cols-7 gap-1 text-[10px]"></div>
+            <p class="text-[10px] text-slate-400 mt-1">Cliquez sur une date pour voir ce qui est loué ce jour-là.</p>
+            <div id="itemsCalendarDayDetails" class="space-y-1 text-xs mt-2"></div>
+            <div id="itemsCalendarLegend"></div>
+            <h5 class="text-xs font-bold text-slate-600 mt-3 mb-1">📋 Réservations à venir — ce qui n'est pas prêtable</h5>
+            <div id="itemsCalendarUpcoming" class="space-y-1 text-xs max-h-72 overflow-y-auto"></div>
+          </div>
         </div>
         <div id="alertsList" class="space-y-3 text-xs"></div>
       </div>
@@ -368,9 +373,14 @@
 
       <div id="adminFinancesPage" hidden class="space-y-5">
         <div id="financesSummary" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
-        <div>
-          <h4 class="font-bold text-sm mb-2">⚠ Révisions à venir (30 jours) ou dépassées</h4>
-          <div id="financesRevisionList" class="space-y-2 text-xs"></div>
+        <div class="bg-white border border-slate-200 rounded-xl p-3">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <h4 class="font-bold text-sm">⚠ Révisions à venir (30 jours) ou dépassées</h4>
+            <button type="button" onclick="togglePanel('financesRevisionCard')" id="panelToggle-financesRevisionCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">▾</button>
+          </div>
+          <div id="panelBody-financesRevisionCard">
+            <div id="financesRevisionList" class="space-y-2 text-xs"></div>
+          </div>
         </div>
       </div>
 
@@ -435,7 +445,11 @@
 
         <div id="itemsCreatePane" hidden class="space-y-6">
         <div id="addItemCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
-          <h4 class="font-bold text-sm">Ajouter du matériel</h4>
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="font-bold text-sm">Ajouter du matériel</h4>
+            <button type="button" onclick="togglePanel('addItemCard')" id="panelToggle-addItemCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">▾</button>
+          </div>
+          <div id="panelBody-addItemCard" class="space-y-3">
           <div class="grid grid-cols-2 gap-2 text-xs">
             <select id="newItemType" onchange="toggleItemEN('newItemType', 'newItemENField'); toggleGliderLoanField('newItemType', 'newItemLoanField'); togglePTVFields('newItemType', 'newItemPTVField'); refreshSubtypeField('newItemType', 'newItemSubtype'); toggleLifecycleFields('newItemType', 'newItemLifecycleField', 'newItemHourlyField'); toggleSellettePairField('newItemType', 'newItemPairField', 'newItemPairedSecours')" class="p-2 border border-slate-300 rounded">
               <option value="Voile">Voile</option>
@@ -485,10 +499,15 @@
             </div>
           </div>
           <button onclick="addNewItem()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded text-xs">+ Ajouter</button>
+          </div>
         </div>
 
         <div id="packsManageCard" hidden class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
-          <h4 class="font-bold text-sm">📦 Packs prédéfinis</h4>
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="font-bold text-sm">📦 Packs prédéfinis</h4>
+            <button type="button" onclick="togglePanel('packsManageCard')" id="panelToggle-packsManageCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">▾</button>
+          </div>
+          <div id="panelBody-packsManageCard" class="space-y-3">
           <p class="text-[11px] text-slate-500">Composez un pack en choisissant, dans la liste, la voile, la sellette et le secours précis qui le composent (laissez « Aucun(e) » pour un pack sans cet élément). Le ou les accessoires restent toujours au libre choix du client, quel que soit le pack. Choisir une sellette associée à un ensemble (voir ci-dessus) présélectionne automatiquement son secours.</p>
           <div id="packsList" class="space-y-2 text-xs"></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3">
@@ -508,6 +527,7 @@
             </div>
           </div>
           <button onclick="savePack()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded text-xs">+ Créer / enregistrer le pack</button>
+          </div>
         </div>
 
         </div>
@@ -519,7 +539,11 @@
 
       <div id="adminUsersPage" hidden class="space-y-6">
         <div id="addUserCard" hidden class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
-          <h4 class="font-bold text-sm">Ajouter un moniteur ou un administrateur</h4>
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="font-bold text-sm">Ajouter un moniteur ou un administrateur</h4>
+            <button type="button" onclick="togglePanel('addUserCard')" id="panelToggle-addUserCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">▾</button>
+          </div>
+          <div id="panelBody-addUserCard" class="space-y-3">
           <div class="grid grid-cols-2 gap-2 text-xs">
             <input type="text" id="newUserName" list="staffNamesList" oninput="autofillStaffByName()" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Nom et prénom">
             <input type="text" id="newUserUsername" autocomplete="off" class="p-2 border border-slate-300 rounded" placeholder="Identifiant">
@@ -532,9 +556,14 @@
             </select>
           </div>
           <button onclick="addNewUser()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded text-xs">+ Ajouter</button>
+          </div>
         </div>
         <div id="inviteCard" hidden class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
-          <h4 class="font-bold text-sm">🔗 Lien d'invitation pour les moniteurs</h4>
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="font-bold text-sm">🔗 Lien d'invitation pour les moniteurs</h4>
+            <button type="button" onclick="togglePanel('inviteCard')" id="panelToggle-inviteCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">▾</button>
+          </div>
+          <div id="panelBody-inviteCard" class="space-y-3">
           <p class="text-[11px] text-slate-500">Générez un lien, envoyez-le par WhatsApp ou par mail : chaque moniteur crée lui-même son compte (identifiant + mot de passe). Vous êtes prévenu par mail à chaque inscription et pouvez bloquer un compte ou révoquer le lien à tout moment.</p>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <label class="block"><span class="font-bold text-slate-600">Valable</span>
@@ -556,6 +585,7 @@
             </div>
           </div>
           <div id="inviteList" class="space-y-1 text-xs"></div>
+          </div>
         </div>
         <div id="usersList" class="space-y-2 text-xs"></div>
       </div>
@@ -898,6 +928,22 @@
       <p id="returnError" hidden class="text-xs text-rose-600 font-bold"></p>
       <div class="flex justify-end gap-2">
         <button onclick="closeModal('returnModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : motif de l'emprunt (moniteur) : test personnel ou stage -->
+  <div id="borrowPurposeModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'borrowPurposeModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-4 shadow-xl">
+      <h3 class="font-bold text-lg">Motif de l'emprunt</h3>
+      <p class="text-xs text-slate-500"><span id="borrowPurposeLabel" class="font-bold"></span> — quel est le motif de cet emprunt ?</p>
+      <div class="grid grid-cols-1 gap-2">
+        <button onclick="borrowPurposeChoose('personnel')" class="w-full py-2 border border-emerald-300 text-emerald-700 rounded-lg text-sm font-bold hover:bg-emerald-50">🪂 Personnel</button>
+        <button onclick="borrowPurposeChoose('test')" class="w-full py-2 border border-emerald-300 text-emerald-700 rounded-lg text-sm font-bold hover:bg-emerald-50">🧪 Test</button>
+        <button onclick="borrowPurposeChoose('stage')" class="w-full py-2 border border-emerald-300 text-emerald-700 rounded-lg text-sm font-bold hover:bg-emerald-50">🎓 Stage</button>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="pendingInstructorBorrowId = null; closeModal('borrowPurposeModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
       </div>
     </div>
   </div>
@@ -1580,6 +1626,58 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function show(el, visible) {
     const node = typeof el === "string" ? $(el) : el;
     if (node) node.hidden = !visible;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  ENCARTS REPLIABLES — réduire le visuel dans chaque onglet           */
+  /* ------------------------------------------------------------------ */
+  // Mécanisme générique utilisé par les encarts secondaires de chaque onglet (statistiques,
+  // calendrier, création de matériel/comptes, résumé Finances, modèles de mail…) : un bouton
+  // ▾/▸ replie/déplie le corps de l'encart, et l'état choisi est mémorisé (localStorage) pour
+  // rester replié après un changement d'onglet ou un rafraîchissement des données.
+  function panelCollapsed(id) {
+    try { return localStorage.getItem("panelCollapsed:" + id) === "1"; } catch (e) { return false; }
+  }
+  function setPanelCollapsed(id, collapsed) {
+    try { localStorage.setItem("panelCollapsed:" + id, collapsed ? "1" : "0"); } catch (e) { /* mode privé */ }
+  }
+  // Pour un encart dont le CORPS est statique dans le HTML (pas regénéré par un render…()) :
+  // applique l'état mémorisé au chargement / changement de rôle.
+  function applyPanelState(id) {
+    const body = $("panelBody-" + id);
+    const btn = $("panelToggle-" + id);
+    if (!body) return;
+    const collapsed = panelCollapsed(id);
+    body.hidden = collapsed;
+    if (btn) btn.textContent = collapsed ? "▸" : "▾";
+  }
+  function togglePanel(id) {
+    const body = $("panelBody-" + id);
+    if (!body) return;
+    const collapsed = !body.hidden;
+    body.hidden = collapsed;
+    setPanelCollapsed(id, collapsed);
+    const btn = $("panelToggle-" + id);
+    if (btn) btn.textContent = collapsed ? "▸" : "▾";
+  }
+  // Petit bouton ▾/▸ à placer dans l'en-tête d'un encart statique (voir applyPanelState).
+  function panelToggleBtn(id) {
+    return `<button type="button" onclick="togglePanel('${id}')" id="panelToggle-${id}" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50">▾</button>`;
+  }
+  // Pour un encart entièrement regénéré par un render…() (contenu construit en JS) : construit
+  // directement le HTML replié/déplié selon l'état mémorisé, sans appel séparé à applyPanelState.
+  function collapsibleCard(id, titleHtml, bodyHtml) {
+    const collapsed = panelCollapsed(id);
+    return `<div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+      <div class="flex items-center justify-between gap-2">
+        <h4 class="font-bold text-sm text-slate-700">${titleHtml}</h4>
+        ${panelToggleBtnState(id, collapsed)}
+      </div>
+      <div id="panelBody-${id}" ${collapsed ? "hidden" : ""}>${bodyHtml}</div>
+    </div>`;
+  }
+  function panelToggleBtnState(id, collapsed) {
+    return `<button type="button" onclick="togglePanel('${id}')" id="panelToggle-${id}" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">${collapsed ? "▸" : "▾"}</button>`;
   }
 
   function esc(v) {
@@ -4185,7 +4283,32 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // interne, pas une location client). Le matériel est bloqué dans le
   // planning jusqu'à sa restitution explicite, pour rester cohérent avec les
   // autres flux d'emprunt.
-  async function instructorBorrowItem(id) {
+  // Demande au moniteur le motif de l'emprunt (test personnel ou stage) avant de finaliser —
+  // cette question ne concerne que le rôle moniteur ; admin/gestionnaire emprunte directement.
+  let pendingInstructorBorrowId = null;
+  function instructorBorrowItem(id) {
+    if (busy) return;
+    if (!isStaffViewer()) { toast("Action non autorisée.", "error"); return; }
+    const it = appData.items[id];
+    if (!it || it.status !== "Disponible") { toast("Ce matériel n'est plus disponible.", "error"); renderAll(); return; }
+    if (restrictedIdsBlocked([id]).length) { toast("Cette voile est réservée aux personnes habilitées.", "error"); return; }
+
+    if (currentRole === "instructor") {
+      pendingInstructorBorrowId = id;
+      $("borrowPurposeLabel").textContent = itemLabel(it);
+      openModal("borrowPurposeModal");
+      return;
+    }
+    instructorBorrowItemConfirmed(id, "");
+  }
+
+  function borrowPurposeChoose(purpose) {
+    const id = pendingInstructorBorrowId; pendingInstructorBorrowId = null;
+    closeModal("borrowPurposeModal");
+    if (id) instructorBorrowItemConfirmed(id, purpose);
+  }
+
+  async function instructorBorrowItemConfirmed(id, purpose) {
     if (busy) return;
     if (!isStaffViewer()) { toast("Action non autorisée.", "error"); return; }
     const it = appData.items[id];
@@ -4208,7 +4331,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     it.loanKind = "moniteur";
     it.payment = "Gratuit";
     it.dueAt = "";
-    addHistory("Emprunt moniteur", it, name, email, currentRole === "instructor" ? "Emprunt libre par un moniteur" : `Emprunt personnel (${roleLabel(currentRole)})`);
+    const purposeLabel = purpose === "stage" ? "Stage" : purpose === "test" ? "Test" : purpose === "personnel" ? "Personnel" : "";
+    const baseNote = currentRole === "instructor" ? "Emprunt libre par un moniteur" : `Emprunt personnel (${roleLabel(currentRole)})`;
+    addHistory("Emprunt moniteur", it, name, email, purposeLabel ? `${baseNote} · Motif : ${purposeLabel}` : baseNote);
 
     const rowId = `PLAN-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     appData.planning[rowId] = {
@@ -4910,6 +5035,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const summaryBox = $("financesSummary");
     const revisionBox = $("financesRevisionList");
     if (!summaryBox || !revisionBox) return;
+    applyPanelState("financesRevisionCard");
 
     if (!canSeeFinances()) { summaryBox.innerHTML = ""; revisionBox.innerHTML = ""; return; }
     const items = Object.values(appData.items).filter(i => LIFECYCLE_TYPES.includes(i.type));
@@ -5071,6 +5197,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function renderItems() {
     const ctn = $("itemsListByShelf");
     if (!ctn) return;
+    applyPanelState("addItemCard");
 
     const norm = s => String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     // Recherche par fragments : chaque mot tapé doit se retrouver, en partie ou en entier,
@@ -5232,6 +5359,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function renderPacks() {
     const box = $("packsList");
     if (!box) return;
+    applyPanelState("packsManageCard");
     const packs = Object.values(appData.packs).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
     if (!packs.length) {
       box.innerHTML = `<p class="text-slate-500">Aucun pack créé pour l'instant.</p>`;
@@ -5749,6 +5877,25 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return m ? m[1] : "";
   }
 
+  // Nom du moniteur/gestionnaire/administrateur qui a RÉALISÉ un emprunt moniteur, qu'il
+  // s'agisse d'un emprunt pour lui-même (le champ « personne » de la ligne d'historique est
+  // alors déjà le sien) ou d'un prêt fait POUR UN TIERS (le champ « personne » est alors celui
+  // du bénéficiaire, pas de la personne connectée qui a agi — son nom est extrait de la remarque,
+  // écrite par confirmThirdPartyBorrow sous la forme « Prêt pour un tiers, effectué par X · … »).
+  function loanActingStaffName(h) {
+    if (h.action !== "Emprunt moniteur") return "";
+    const m = String(h.note || "").match(/^Prêt pour un tiers, effectué par (.+?) ·/);
+    return m ? m[1].trim() : (h.person || "");
+  }
+
+  // Motif d'un emprunt moniteur pour lui-même (Personnel / Test / Stage), choisi via la fenêtre
+  // affichée à l'emprunt — absent pour les prêts faits pour un tiers ou les lignes antérieures
+  // à cette fonctionnalité.
+  function loanPurpose(h) {
+    const m = String(h.note || "").match(/Motif : (Personnel|Test|Stage)/);
+    return m ? m[1] : "";
+  }
+
   // Statistiques (numériques et graphiques, calculées depuis l'historique complet) des prêts de
   // voiles, sellettes, secours, et des emprunts moniteur — affichées en haut de l'onglet Archives.
   function renderArchiveLoanStats() {
@@ -5786,17 +5933,67 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       ["🎯 Moniteur", moniteurCount, "bg-violet-500"]
     ];
     const maxBar = Math.max(1, ...barData.map(([, n]) => n));
-    const barsHtml = `<div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
-      <h4 class="font-bold text-sm text-slate-700">📊 Répartition des prêts</h4>
-      ${barData.map(([label, n, color]) => `
+    const barsHtml = collapsibleCard("archStatsBars", "📊 Répartition des prêts",
+      barData.map(([label, n, color]) => `
         <div class="flex items-center gap-2">
           <span class="w-20 shrink-0 text-slate-600">${esc(label)}</span>
           <div class="flex-1 bg-slate-100 rounded h-4 overflow-hidden">
             <div class="${color} h-4 rounded" style="width:${Math.max(2, Math.round(n / maxBar * 100))}%"></div>
           </div>
           <span class="w-8 shrink-0 text-right font-bold text-slate-700">${n}</span>
-        </div>`).join("")}
-    </div>`;
+        </div>`).join(""));
+
+    // Classement des moniteurs par nombre de prêts moniteur réalisés (pour eux-mêmes ou pour un
+    // tiers), du plus actif au moins actif, avec le détail du motif (Personnel / Test / Stage)
+    // pour les emprunts faits pour eux-mêmes.
+    const staffCounts = {};
+    loans.forEach(h => {
+      const name = loanActingStaffName(h);
+      if (!name) return;
+      if (!staffCounts[name]) staffCounts[name] = { total: 0, Personnel: 0, Test: 0, Stage: 0 };
+      staffCounts[name].total++;
+      const p = loanPurpose(h);
+      if (p) staffCounts[name][p]++;
+    });
+    const staffRanking = Object.entries(staffCounts).sort((a, b) => b[1].total - a[1].total);
+    const rankingList = (rows) => `<ol class="space-y-1">
+      ${rows.map(([label, n], i) => `<li class="flex justify-between items-center gap-2 py-0.5 ${i > 0 ? "border-t border-slate-100" : ""}">
+        <span class="text-slate-600"><b class="text-slate-400">#${i + 1}</b> ${esc(label)}</span>
+        <span class="font-bold text-slate-900">${n}</span>
+      </li>`).join("")}
+    </ol>`;
+    const staffRankingListHtml = `<ol class="space-y-1.5">
+      ${staffRanking.map(([name, c], i) => `<li class="py-0.5 ${i > 0 ? "border-t border-slate-100" : ""}">
+        <div class="flex justify-between items-center gap-2">
+          <span class="text-slate-600"><b class="text-slate-400">#${i + 1}</b> ${esc(name)}</span>
+          <span class="font-bold text-slate-900">${c.total}</span>
+        </div>
+        <div class="flex flex-wrap gap-x-3 text-[10px] text-slate-400 mt-0.5">
+          <span>🪂 Personnel : <b class="text-slate-600">${c.Personnel}</b></span>
+          <span>🧪 Test : <b class="text-slate-600">${c.Test}</b></span>
+          <span>🎓 Stage : <b class="text-slate-600">${c.Stage}</b></span>
+        </div>
+      </li>`).join("")}
+    </ol>`;
+    const staffRankingHtml = staffRanking.length ? collapsibleCard("archStatsStaff", "🏅 Classement des moniteurs (prêts effectués, du plus au moins — détail Personnel / Test / Stage)", staffRankingListHtml) : "";
+
+    // Matériel le plus loué, voile/sellette/secours séparément, du plus au moins loué.
+    const itemCounts = {};
+    loans.forEach(h => {
+      const type = loanHistoryItemType(h);
+      if (!LIFECYCLE_TYPES.includes(type)) return;
+      const key = (h.itemId || "") + "|" + h.itemLabel;
+      if (!itemCounts[key]) itemCounts[key] = { label: String(h.itemLabel || "").replace(/^\[[^\]]+\]\s*/, ""), type, count: 0 };
+      itemCounts[key].count++;
+    });
+    const itemsByType = {};
+    Object.values(itemCounts).forEach(e => { (itemsByType[e.type] = itemsByType[e.type] || []).push(e); });
+    const lifecycleIcon = { Voile: "🪂", Sellette: "🪑", Secours: "🛟" };
+    const itemRankingHtml = LIFECYCLE_TYPES.map(type => {
+      const arr = (itemsByType[type] || []).sort((a, b) => b.count - a.count);
+      if (!arr.length) return "";
+      return collapsibleCard("archStatsItems" + type, `${lifecycleIcon[type] || "📦"} Matériel le plus loué — ${esc(type)}`, rankingList(arr.map(e => [e.label, e.count])));
+    }).join("");
 
     // Tendance sur les 12 derniers mois (tous types confondus), pour visualiser l'évolution de
     // l'activité de prêt dans le temps.
@@ -5814,8 +6011,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       monthCounts[key] = (monthCounts[key] || 0) + 1;
     });
     const maxMonth = Math.max(1, ...months.map(m => monthCounts[m.key] || 0));
-    const trendHtml = `<div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
-      <h4 class="font-bold text-sm text-slate-700">📈 Prêts par mois (12 derniers mois)</h4>
+    const trendHtml = collapsibleCard("archStatsTrend", "📈 Prêts par mois (12 derniers mois)", `
       <div class="flex items-end gap-1 h-28">
         ${months.map(m => {
           const n = monthCounts[m.key] || 0;
@@ -5826,13 +6022,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
             <span class="text-[9px] text-slate-400">${esc(m.label)}</span>
           </div>`;
         }).join("")}
-      </div>
-    </div>`;
+      </div>`);
 
     box.innerHTML = `<div class="space-y-3">
       <h3 class="font-bold text-sm text-slate-700">📊 Statistiques des prêts (voiles, sellettes, secours, moniteurs)</h3>
       ${tilesHtml}
       ${barsHtml}
+      ${staffRankingHtml}
+      ${itemRankingHtml}
       ${trendHtml}
     </div>`;
   }
@@ -6340,6 +6537,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function renderUsers() {
     const box = $("usersList");
     if (!box) return;
+    applyPanelState("addUserCard");
+    applyPanelState("inviteCard");
     const users = Object.values(appData.users);
     if (!users.length) {
       box.innerHTML = `<div class="bg-white border border-slate-200 rounded-xl p-6 text-center text-slate-500">
@@ -7371,6 +7570,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function renderAllPlanningCalendars() {
     renderOnePlanningCalendar("planningCalendar");
     if (currentRole !== "instructor") renderOnePlanningCalendar("itemsCalendar");
+    applyPanelState("itemsCalendarCard");
   }
 
   /* ------------------------------------------------------------------ */
@@ -8136,7 +8336,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.124";
+  const APP_VERSION = "2026-10-28.129";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8149,6 +8349,26 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 129, title: "Détail Personnel / Test / Stage dans le classement des moniteurs", aud: "staff", items: [
+      { icon: "🏅", t: "Le classement se détaille par motif", steps: [
+        "Dans Archives, le classement des moniteurs affiche maintenant, sous le total de chaque moniteur, la répartition de ses emprunts par motif : Personnel, Test, Stage."] },
+    ] },
+    { v: 128, title: "Motif d'emprunt pour les moniteurs", aud: "staff", items: [
+      { icon: "🎓", t: "Personnel, Test ou Stage ?", steps: [
+        "Quand un moniteur emprunte du matériel pour lui-même (bouton « 🪂 Emprunter » ou via QR code), l'app demande maintenant le motif : Personnel, Test ou Stage.",
+        "Le motif choisi est enregistré dans l'historique de ce prêt. (Ne concerne que le rôle moniteur ; un emprunt personnel admin/gestionnaire reste direct, sans cette question.)"] },
+    ] },
+    { v: 126, title: "Encarts repliables : réduisez le visuel partout", aud: "staff", items: [
+      { icon: "🔽", t: "Petit bouton ▾/▸ sur chaque encart", steps: [
+        "Dans Archives (statistiques), Prêts en cours (planning visuel), Finances (révisions à venir), Matériel (ajouter du matériel, packs) et Comptes (ajouter un moniteur/admin, lien d'invitation), un petit bouton permet maintenant de replier ou déplier chaque encart.",
+        "Le choix est mémorisé sur cet appareil : un encart replié le reste la prochaine fois."] },
+    ] },
+    { v: 125, title: "Classements dans les statistiques de prêts", aud: "staff", items: [
+      { icon: "🏅", t: "Classement des moniteurs", steps: [
+        "La statistique des prêts (onglet Archives) affiche maintenant le classement des moniteurs par nombre de prêts réalisés, du plus au moins actif (y compris un prêt fait pour un tiers, attribué à la personne qui l'a effectué, pas au bénéficiaire)."], go: "tab:archives" },
+      { icon: "🥇", t: "Matériel le plus loué", steps: [
+        "Un classement du matériel le plus loué, du plus au moins, est ajouté séparément pour les voiles, les sellettes et les secours."] },
+    ] },
     { v: 124, title: "Statistiques de prêts dans Archives, onglets réordonnés", aud: "staff", items: [
       { icon: "📊", t: "Statistiques des prêts dans l'onglet Archives", steps: [
         "L'onglet Archives affiche maintenant, en haut, des statistiques numériques et graphiques sur les prêts : nombre de prêts par type (voile, sellette, secours) et d'emprunts moniteur, un graphique de répartition, et un graphique des prêts par mois sur les 12 derniers mois."], go: "tab:archives" },
