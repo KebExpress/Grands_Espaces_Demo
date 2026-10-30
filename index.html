@@ -7443,6 +7443,47 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // statut « Réservé » compte ici — une réservation terminée ou annulée ne
   // bloque plus rien, même si les cases à cocher par type l'affichent
   // encore dans la grille mensuelle au-dessus.
+  // Une réservation (essai / prêt longue durée) ne bascule JAMAIS automatiquement en prêt actif
+  // à sa date de début : rien ne garantit que la personne soit réellement venue chercher le
+  // matériel ce jour-là. Le statut du planning (« À venir »/« En cours »/« Dépassé ») est une
+  // simple indication de date, pas la preuve d'une remise physique. D'où le bouton « Mettre en
+  // prêt » : c'est lui, et lui seul, qui fait vraiment sortir le matériel (statut Loué, apparaît
+  // dans « Prêts en cours », alertes de retard actives) — jamais une bascule automatique.
+  function planningNeedsHandover(p) {
+    if (p.status !== "Réservé") return false;
+    if (p.type !== "essai" && p.type !== "location") return false;
+    const it = appData.items[p.itemId];
+    return !!it && it.status === "Disponible";
+  }
+
+  async function confirmBookingHandover(bookingId) {
+    if (busy) return;
+    // Remettre physiquement le matériel est une action opérationnelle (comme emprunter pour
+    // soi-même ou restituer) : ouverte au moniteur, pas seulement à canUse("planning")
+    // (réservé aux actions de gestion du planning : annuler, changer une date de retour).
+    if (!isStaffViewer()) { toast("Action non autorisée.", "error"); return; }
+    const rows = Object.values(appData.planning).filter(p => p.bookingId === bookingId && planningNeedsHandover(p));
+    if (!rows.length) { toast("Ce matériel n'est plus disponible pour cette réservation.", "error"); renderAll(); return; }
+    if (!confirm(`Remettre ${rows.length === 1 ? "ce matériel" : "ces " + rows.length + " articles"} à ${rows[0].clientName || "ce client"} maintenant ?`)) return;
+
+    const stamp = new Date().toISOString();
+    rows.forEach(p => {
+      const it = appData.items[p.itemId];
+      it.status = "Loué";
+      it.borrowerName = p.clientName;
+      it.borrowerEmail = p.clientEmail;
+      it.borrowedAt = stamp;
+      it.loanKind = "";
+      it.payment = "";
+      it.dueAt = p.end;
+      addHistory("Prêt", it, p.clientName, p.clientEmail, `Mise en prêt d'une réservation (${planningTypeLabel(p)}).`);
+    });
+
+    const ok = await persist(["items", "history"]);
+    toast(ok ? "📤 Matériel remis au client." : "Mise en prêt enregistrée localement (hors ligne).");
+    renderAll();
+  }
+
   function planningUpcomingHtml() {
     const now = Date.now();
     const upcoming = Object.values(appData.planning)
@@ -7461,6 +7502,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         <p class="font-bold truncate">${esc(p.itemLabel)}</p>
         <p class="text-slate-500">${planningTypeLabel(p)} · ${period}</p>
         <p class="text-slate-400">${esc(p.clientName || "")} <span class="${PLANNING_STATE_DEFS[planningDotState(p, now)].text} font-bold">· ${esc(PLANNING_STATE_DEFS[planningDotState(p, now)].label.toLowerCase())}</span>${planningPayment(p) ? ` <span class="${PAYMENT_DOT[planningPayment(p)].text} font-bold">· 💶 ${esc(planningPayment(p))}</span>` : ""}</p>
+        ${isStaffViewer() && planningNeedsHandover(p) ? `<button onclick="confirmBookingHandover('${esc(p.bookingId)}')" class="mt-1 w-full border border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold py-1 rounded text-[11px]">📤 Mettre en prêt</button>` : ""}
       </div>`;
     }).join("");
   }
@@ -7693,6 +7735,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
             <span class="shrink-0 px-2 py-1 rounded-full font-bold bg-green-100 text-green-700">${esc(first.status)}</span>
           </div>
           <ul class="text-slate-600">${items.map(i => `<li>• ${esc(i.itemLabel)}</li>`).join("")}</ul>
+          ${isStaffViewer() && items.some(planningNeedsHandover) ? `<button onclick="confirmBookingHandover('${esc(first.bookingId)}')" class="w-full border border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold py-1.5 rounded">📤 Mettre en prêt (remettre le matériel)</button>` : ""}
           <div class="flex gap-2 mt-1">
             <button onclick="openEditReturnDate('${esc(first.bookingId)}')" class="flex-1 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-bold py-1.5 rounded">✏️ Date de retour</button>
             <button onclick="cancelBooking('${esc(first.bookingId)}')" class="flex-1 border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold py-1.5 rounded">Annuler</button>
@@ -8336,7 +8379,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.129";
+  const APP_VERSION = "2026-10-28.130";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8349,6 +8392,11 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 130, title: "Bouton « Mettre en prêt » pour les réservations", aud: "staff", items: [
+      { icon: "📤", t: "Le prêt n'est plus jamais automatique", steps: [
+        "Une réservation (essai ou prêt longue durée) ne faisait jamais vraiment sortir le matériel : le statut « En cours » dans le planning n'était qu'une indication de date, pas la preuve d'une remise en main.",
+        "Dans l'onglet Prêts en cours comme dans l'onglet Planning, chaque réservation affiche maintenant un bouton « 📤 Mettre en prêt » : c'est lui qui fait réellement sortir le matériel (statut Loué, apparition dans Prêts en cours, alertes de retard actives), au moment où vous remettez vraiment l'équipement."] },
+    ] },
     { v: 129, title: "Détail Personnel / Test / Stage dans le classement des moniteurs", aud: "staff", items: [
       { icon: "🏅", t: "Le classement se détaille par motif", steps: [
         "Dans Archives, le classement des moniteurs affiche maintenant, sous le total de chaque moniteur, la répartition de ses emprunts par motif : Personnel, Test, Stage."] },
