@@ -3048,7 +3048,9 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     show("addItemCard", canManage && canUse("items"));
     show("itemsSubTabs", canManage && canUse("items"));
     switchItemsSubTab("search");
-    show("itemsCalendarCard", role !== "instructor");   // pas de planning visuel dans la partie Matériel du moniteur
+    // Visible aussi au moniteur désormais : c'est ici (réservations à venir/en cours) qu'apparaît
+    // le bouton « Mettre en prêt », nécessaire pour remettre en main le matériel réservé.
+    show("itemsCalendarCard", true);
     show("packsManageCard", canManage && canUse("items"));
     show("instructorPrefBox", isStaff);
     show("tabUsers", canManage && canUse("usersBlock"));
@@ -7312,18 +7314,28 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   //  - ou son emprunt (immédiat / moniteur) est marqué en cours alors que le matériel
   //    n'est plus sorti ;
   //  - ou sa date de fin est passée sans que le matériel soit encore sorti sous cette ligne.
+  // IMPORTANT : une réservation essai/prêt longue durée dont l'échéance est dépassée mais qui
+  // n'a JAMAIS été remise en main (bouton « Mettre en prêt » jamais utilisé, matériel toujours
+  // Disponible) n'est PAS considérée comme finie — elle doit rester visible (en « Dépassé »)
+  // tant que le personnel n'a pas tranché (mise en prêt tardive ou annulation), plutôt que de
+  // disparaître silencieusement comme si le prêt avait eu lieu tout seul.
   function planningFinished(p) {
     if (p.status === "Terminé") return true;
     if (p.status !== "Réservé") return false;
     const now = Date.now();
     const item = appData.items[p.itemId];
     const isLoan = p.type === "immediat" || p.type === "moniteur";
-    const stillOut = !!item && item.status === "Loué" && isLoan;
+    // Le matériel est encore sorti pour CETTE ligne s'il est actuellement Loué avec le même
+    // emprunteur — qu'il s'agisse d'un emprunt direct (immédiat/moniteur, Loué dès sa création)
+    // ou d'une réservation essai/location remise en main via « Mettre en prêt ».
+    const sameBorrower = !item || !item.borrowerEmail || !p.clientEmail || item.borrowerEmail.toLowerCase() === String(p.clientEmail).toLowerCase();
+    const stillOut = !!item && item.status === "Loué" && sameBorrower;
     const start = new Date(p.start).getTime();
     const returnedAt = lastReturnTimes()[p.itemId];
     if (returnedAt !== undefined && !isNaN(start) && returnedAt >= start - 60000 && !stillOut) return true;
     if (isLoan && item && item.status !== "Loué" && start <= now) return true;
     if (new Date(p.end).getTime() >= now) return false;
+    if (!isLoan && item && item.status === "Disponible") return false;
     return !stillOut;
   }
 
@@ -7611,7 +7623,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // instant (page non montée) sont ignorées silencieusement.
   function renderAllPlanningCalendars() {
     renderOnePlanningCalendar("planningCalendar");
-    if (currentRole !== "instructor") renderOnePlanningCalendar("itemsCalendar");
+    renderOnePlanningCalendar("itemsCalendar");
     applyPanelState("itemsCalendarCard");
   }
 
@@ -8379,7 +8391,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.130";
+  const APP_VERSION = "2026-10-28.132";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8392,6 +8404,16 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 132, title: "« Mettre en prêt » visible aussi au moniteur dans Prêts en cours", aud: "staff", items: [
+      { icon: "📤", t: "Le planning visuel réapparaît pour le moniteur", steps: [
+        "Dans l'onglet Prêts en cours, le moniteur voit maintenant le planning visuel (réservations à venir/en cours) qui lui était caché — c'est là qu'apparaît le bouton « Mettre en prêt ».",
+        "Toutes les réservations déjà existantes (créées avant cette mise à jour), qu'elles soient prévues dans les prochains jours ou déjà en cours, en bénéficient aussi : rien à refaire."] },
+    ] },
+    { v: 131, title: "Les vieilles réservations jamais remises réapparaissent", aud: "staff", items: [
+      { icon: "📤", t: "Plus aucune réservation ne disparaît sans décision", steps: [
+        "Une réservation (essai/prêt longue durée) dont le créneau était déjà passé, mais jamais remise en main, disparaissait silencieusement des onglets Prêts en cours et Planning — comme si le prêt avait eu lieu tout seul.",
+        "Elle réapparaît maintenant, marquée « Dépassé », avec le bouton « 📤 Mettre en prêt » (ou « Annuler ») toujours disponible : rien ne se referme sans un geste explicite du personnel."] },
+    ] },
     { v: 130, title: "Bouton « Mettre en prêt » pour les réservations", aud: "staff", items: [
       { icon: "📤", t: "Le prêt n'est plus jamais automatique", steps: [
         "Une réservation (essai ou prêt longue durée) ne faisait jamais vraiment sortir le matériel : le statut « En cours » dans le planning n'était qu'une indication de date, pas la preuve d'une remise en main.",
