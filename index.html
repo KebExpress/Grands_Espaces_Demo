@@ -287,6 +287,7 @@
 
       <div id="adminAlertsPage" class="space-y-4">
         <p id="itemsPaymentNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">La colonne « paiement » n'est pas encore dans l'onglet « articles » de la feuille Google : c'est pourquoi le statut Payé / À payer / Gratuit ne s'enregistre pas. Redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version), puis rechargez la page.</p>
+        <p id="itemsPoidsNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">La colonne « poids » n'est pas encore dans l'onglet « articles » de la feuille Google : c'est pourquoi le poids saisi ne s'enregistre pas. Redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version), puis rechargez la page.</p>
         <!-- Planning visuel : déplacé ici depuis l'onglet « Matériel » pour l'avoir directement avec les prêts en cours. -->
         <div id="itemsCalendarCard" class="bg-white border border-slate-200 rounded-xl p-3">
           <div class="flex items-center justify-between mb-2 gap-2">
@@ -479,6 +480,7 @@
               <label class="col-span-2 text-[11px] text-slate-500 -mb-1">Date d'achat *</label>
               <input type="date" id="newItemDateMES" class="p-2 border border-slate-300 rounded" title="Date d'achat * (obligatoire)" aria-label="Date d'achat (obligatoire)">
               <input type="text" id="newItemTaille" class="p-2 border border-slate-300 rounded" placeholder="Taille *">
+              <input type="number" id="newItemPoids" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Poids (kg)">
               <input data-fin="1" type="number" id="newItemPrixAchat" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€) *">
               <input data-fin="1" type="number" id="newItemCoefVente" min="0" step="0.01" value="1.4" class="p-2 border border-slate-300 rounded" placeholder="Coefficient (ex : 1,4)">
               <input type="text" id="newItemCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur *">
@@ -611,6 +613,14 @@
         <div class="space-y-1">
           <input type="search" id="historySearch" oninput="clearTimeout(window.__hiT); window.__hiT = setTimeout(renderHistory, 150)" placeholder="🔍 Rechercher dans l'historique : matériel, personne, e-mail, action, date, remarque…" class="w-full p-2 border border-slate-300 rounded text-xs">
           <p id="historySearchInfo" class="text-[11px] text-slate-500"></p>
+        </div>
+        <div id="historyBulkBar" hidden class="flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 rounded-lg p-2">
+          <label class="flex items-center gap-1.5 shrink-0">
+            <input type="checkbox" id="historySelectAllCb" onchange="toggleHistorySelectAll(this.checked)">
+            Tout sélectionner (affiché)
+          </label>
+          <span id="historySelectedCount" class="text-slate-500"></span>
+          <button onclick="deleteSelectedHistoryEntries()" class="ml-auto px-3 py-1.5 border border-rose-300 text-rose-600 rounded hover:bg-rose-50 font-bold">🗑 Supprimer la sélection</button>
         </div>
         <div id="historyList" class="space-y-2 text-xs"></div>
       </div>
@@ -982,6 +992,7 @@
           <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Données admin (non visibles du client)</p>
           <input type="date" id="editItemDateMES" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Date mise en service">
           <input type="text" id="editItemTaille" class="p-2 border border-slate-300 rounded" placeholder="Taille">
+          <input type="number" id="editItemPoids" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Poids (kg)">
           <input data-fin="1" type="number" id="editItemPrixAchat" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€)">
           <input data-fin="1" type="number" id="editItemCoefVente" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Coefficient (ex : 1,4)">
           <input type="text" id="editItemCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur">
@@ -1795,6 +1806,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       prixAchat: (raw.prixAchat !== undefined && raw.prixAchat !== "") ? Number(raw.prixAchat) : "",
       prixHeureVol: (raw.prixHeureVol !== undefined && raw.prixHeureVol !== "") ? Number(raw.prixHeureVol) : "",
       taille: String(raw.taille || "").trim(),
+      // Poids de l'article (kg) — voile/sellette/secours uniquement. Affiché avec la taille,
+      // en premier, partout où le matériel disponible est présenté (fiche équipement, recherche,
+      // stock, matériel de démo…).
+      poids: (raw.poids !== undefined && raw.poids !== "" && !isNaN(Number(raw.poids))) ? Number(raw.poids) : "",
       // Coefficient multiplicateur du prix de vente (modifiable par article, 1,4 par défaut).
       coefVente: (raw.coefVente !== undefined && raw.coefVente !== "" && !isNaN(Number(raw.coefVente))) ? Number(raw.coefVente) : 1.4,
       // Dernière révision effectuée : date + heures de vol cumulées à cette date.
@@ -1980,17 +1995,26 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return `${itemLabel(item)} — S/N ${item.sn || "non renseigné"}`;
   }
 
-  // Texte " · PTV 70-95kg" pour une voile ou un secours, vide sinon ou si
-  // aucune des deux bornes n'est renseignée.
+  // Poids et taille d'un article (voile/sellette/secours) : affichés en premier, partout où le
+  // matériel disponible est présenté (recherche Matériel, sélection client, assistant de
+  // réservation…), pour que ces deux critères sautent aux yeux avant le reste de la fiche.
+  function itemPoidsTailleTag(item) {
+    if (!item || !LIFECYCLE_TYPES.includes(item.type)) return "";
+    const parts = [];
+    if (item.poids !== "" && item.poids !== undefined && item.poids !== null) parts.push(`⚖️ ${item.poids} kg`);
+    if (item.taille) parts.push(`📏 ${item.taille}`);
+    return parts.join(" · ");
+  }
+
+  // Texte " · PTV 70-95kg" pour une voile ou un secours, vide sinon ou si aucune des deux bornes
+  // n'est renseignée. La taille est désormais affichée via itemPoidsTailleTag, en premier,
+  // plutôt qu'en fin de ligne ici.
   function ptvSuffix(item) {
     if (!item) return "";
     if (PTV_TYPES.includes(item.type) && (item.ptvMin !== "" || item.ptvMax !== "")) {
       const min = item.ptvMin !== "" ? item.ptvMin : "?";
       const max = item.ptvMax !== "" ? item.ptvMax : "?";
       return ` · PTV ${min}-${max}kg`;
-    }
-    if (TAILLE_TYPES.includes(item.type) && item.taille) {
-      return ` · taille ${item.taille}`;
     }
     return "";
   }
@@ -3194,7 +3218,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   function optionHtml(item) {
     const free = item.status === "Disponible";
     const suffix = free ? "" : item.status === "Indisponible" ? " — indisponible" : " — loué";
-    return `<option value="${esc(item.id)}"${free ? "" : " disabled"}>${esc(itemLabel(item) + ptvSuffix(item))}${suffix}</option>`;
+    const tag = itemPoidsTailleTag(item);
+    return `<option value="${esc(item.id)}"${free ? "" : " disabled"}>${esc((tag ? tag + " — " : "") + itemLabel(item) + ptvSuffix(item))}${suffix}</option>`;
   }
 
   // Reconstruit un select en conservant la sélection courante si possible.
@@ -3272,7 +3297,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       if (!item) return `<div class="flex justify-between bg-rose-50 border border-rose-200 rounded px-2 py-1"><span>${esc(slot.type)}</span><span class="text-rose-700 font-bold">Indisponible</span></div>`;
       const locked = item.status === "Disponible" && restrictedIdsBlocked([item.id]).length > 0;
       const ok = item.status === "Disponible" && !locked;
-      return `<div class="flex justify-between ${ok ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"} border rounded px-2 py-1"><span>${esc(itemLabel(item))}</span><span class="${ok ? "text-emerald-700" : "text-rose-700"} font-bold">${ok ? "OK" : (locked ? "Réservé aux personnes habilitées" : "Indisponible")}</span></div>`;
+      const tag = itemPoidsTailleTag(item);
+      return `<div class="flex justify-between ${ok ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"} border rounded px-2 py-1"><span>${esc((tag ? tag + " — " : "") + itemLabel(item))}</span><span class="${ok ? "text-emerald-700" : "text-rose-700"} font-bold">${ok ? "OK" : (locked ? "Réservé aux personnes habilitées" : "Indisponible")}</span></div>`;
     });
     if (content) content.innerHTML = lines.join("") || `<p class="text-slate-400">Ce pack n'a aucun article associé.</p>`;
 
@@ -3325,9 +3351,10 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (label) label.textContent = currentUserMode === "pack" ? "Pack prédéfini" : "Équipement";
     if (name) name.textContent = single ? itemLabel(items[0]) : `${items.length} équipements sélectionnés`;
     if (detail) {
+      const tag0 = itemPoidsTailleTag(items[0]);
       detail.textContent = single
-        ? `S/N ${items[0].sn || "non renseigné"} · Étagère ${items[0].shelf || "—"} · ${items[0].flights} vols · ${items[0].hours} h${ptvSuffix(items[0])}`
-        : items.map(i => itemLabel(i) + ptvSuffix(i)).join(" + ");
+        ? `${tag0 ? tag0 + " · " : ""}S/N ${items[0].sn || "non renseigné"} · Étagère ${items[0].shelf || "—"} · ${items[0].flights} vols · ${items[0].hours} h${ptvSuffix(items[0])}`
+        : items.map(i => { const t = itemPoidsTailleTag(i); return (t ? t + " — " : "") + itemLabel(i) + ptvSuffix(i); }).join(" + ");
     }
 
     const rented = items.filter(i => i.status === "Loué");
@@ -5140,6 +5167,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const box = $("alertsList");
     if (!box) return;
     show("itemsPaymentNote", isStaffViewer() && !missingSheets.includes("items") && !!(sheetHeaders.items && sheetHeaders.items.length) && !sheetHeaders.items.includes("payment"));
+    show("itemsPoidsNote", isStaffViewer() && !missingSheets.includes("items") && !!(sheetHeaders.items && sheetHeaders.items.length) && !sheetHeaders.items.includes("poids"));
     const rented = Object.values(appData.items).filter(i => i.status === "Loué");
 
     if (!rented.length) {
@@ -5308,6 +5336,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <div class="min-w-0 cursor-pointer" onclick="openItemTimelineModal('${esc(i.id)}')" title="Voir le planning de cet équipement">
               <p class="font-bold break-words sm:truncate">${esc(itemLabel(i))}</p>
+              ${itemPoidsTailleTag(i) ? `<p class="text-slate-700 font-bold break-words sm:truncate">${esc(itemPoidsTailleTag(i))}</p>` : ""}
               <p class="text-slate-500 break-words sm:truncate">S/N ${esc(i.sn || "—")} · ${i.flights} vols · ${i.hours} h${esc(ptvSuffix(i))}${i.borrowerName ? ` · ${esc(i.borrowerName)}` : ""}</p>
               ${i.subtype ? `<p class="text-sky-700 break-words sm:truncate">🏷️ ${esc(i.subtype)}</p>` : ""}
               ${(LIFECYCLE_TYPES.includes(i.type) && canManageItems) ? `<p class="text-slate-400 break-words sm:truncate">${adminLifecycleSummary(i)}</p>` : ""}
@@ -5534,9 +5563,58 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     return words.every(w => hay.includes(w));
   }
 
+  // Suppression de lignes d'historique : réservée à l'administrateur (jamais au gestionnaire ni
+  // au moniteur), pour corriger une erreur de saisie ou purger de vieilles lignes. Une ligne
+  // supprimée est définitive (pas de corbeille) ; la sélection ne survit pas à un changement de
+  // recherche (lignes différentes affichées).
+  let historySelectedIds = new Set();
+
+  function toggleHistorySelect(id, checked) {
+    if (checked) historySelectedIds.add(id); else historySelectedIds.delete(id);
+    renderHistory();
+  }
+
+  function toggleHistorySelectAll(checked) {
+    const box = $("historyList");
+    if (!box) return;
+    box.querySelectorAll("input[data-history-id]").forEach(cb => {
+      const id = cb.getAttribute("data-history-id");
+      if (checked) historySelectedIds.add(id); else historySelectedIds.delete(id);
+    });
+    renderHistory();
+  }
+
+  async function deleteHistoryEntry(id) {
+    if (busy) return;
+    if (currentRole !== "admin") { toast("Action non autorisée.", "error"); return; }
+    const h = appData.history[id];
+    if (!h) return;
+    if (!confirm(`Supprimer définitivement cette ligne d'historique (${actionLabel(h.action)} · ${h.itemLabel}) ?`)) return;
+    delete appData.history[id];
+    historySelectedIds.delete(id);
+    const ok = await persist(["history"]);
+    toast(ok ? "Ligne d'historique supprimée." : "Suppression enregistrée localement (hors ligne).");
+    renderAll();
+  }
+
+  async function deleteSelectedHistoryEntries() {
+    if (busy) return;
+    if (currentRole !== "admin") { toast("Action non autorisée.", "error"); return; }
+    const ids = [...historySelectedIds].filter(id => appData.history[id]);
+    if (!ids.length) { toast("Aucune ligne sélectionnée.", "error"); return; }
+    if (!confirm(`Supprimer définitivement ${ids.length === 1 ? "cette ligne" : "ces " + ids.length + " lignes"} d'historique ?`)) return;
+    ids.forEach(id => delete appData.history[id]);
+    historySelectedIds.clear();
+    const ok = await persist(["history"]);
+    toast(ok ? "Lignes d'historique supprimées." : "Suppression enregistrée localement (hors ligne).");
+    renderAll();
+  }
+
   function renderHistory() {
     const box = $("historyList");
     if (!box) return;
+    const isAdmin = currentRole === "admin";
+    show("historyBulkBar", isAdmin);
     const all = Object.values(appData.history).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const words = searchWords($("historySearch") ? $("historySearch").value : "");
     const found = words.length ? all.filter(h => recordMatchesWords(h, words, [formatFrDateTime(h.date), formatFrDate(h.date)])) : all;
@@ -5546,6 +5624,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     if (info) info.textContent = words.length
       ? `${found.length} résultat(s) sur ${all.length}${found.length > LIMIT ? ` — les ${LIMIT} plus récents sont affichés, affinez la recherche` : ""}`
       : (all.length > LIMIT ? `${LIMIT} dernières opérations affichées sur ${all.length} — utilisez la recherche pour retrouver n'importe quelle information.` : "");
+    // La sélection ne garde que les lignes encore affichées (évite de supprimer, sans le
+    // vouloir, une ligne sélectionnée puis sortie de la recherche).
+    const shownIds = new Set(rows.map(h => h.id));
+    [...historySelectedIds].forEach(id => { if (!shownIds.has(id)) historySelectedIds.delete(id); });
+    const selCountEl = $("historySelectedCount");
+    if (selCountEl) selCountEl.textContent = historySelectedIds.size ? `${historySelectedIds.size} sélectionnée(s)` : "";
+    const selectAllCb = $("historySelectAllCb");
+    if (selectAllCb) selectAllCb.checked = rows.length > 0 && rows.every(h => historySelectedIds.has(h.id));
     if (!rows.length) {
       box.innerHTML = `<div class="bg-white border border-slate-200 rounded-xl p-6 text-center text-slate-500">
         ${all.length ? "Aucune opération ne correspond à cette recherche." : "L'historique se remplira au premier prêt."}</div>`;
@@ -5556,11 +5642,17 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const when = isNaN(d) ? h.date : d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
       const isBorrow = isBorrowAction(h.action);
       return `<div class="bg-white p-3 rounded-lg border border-slate-200 flex justify-between gap-2">
-        <div class="min-w-0">
-          <p class="font-bold truncate"><span class="${isBorrow ? "text-rose-600" : "text-emerald-600"}">${esc(actionLabel(h.action))}</span> · ${esc(h.itemLabel)}</p>
-          <p class="text-slate-500 truncate">${esc(h.person || "")}${h.note ? ` — ${esc(h.note)}` : ""}</p>
+        <div class="min-w-0 flex gap-2">
+          ${isAdmin ? `<input type="checkbox" data-history-id="${esc(h.id)}" ${historySelectedIds.has(h.id) ? "checked" : ""} onchange="toggleHistorySelect('${esc(h.id)}', this.checked)" class="mt-1 shrink-0">` : ""}
+          <div class="min-w-0">
+            <p class="font-bold truncate"><span class="${isBorrow ? "text-rose-600" : "text-emerald-600"}">${esc(actionLabel(h.action))}</span> · ${esc(h.itemLabel)}</p>
+            <p class="text-slate-500 truncate">${esc(h.person || "")}${h.note ? ` — ${esc(h.note)}` : ""}</p>
+          </div>
         </div>
-        <span class="text-slate-400 shrink-0">${esc(when)}</span>
+        <div class="shrink-0 flex items-center gap-2">
+          <span class="text-slate-400">${esc(when)}</span>
+          ${isAdmin ? `<button onclick="deleteHistoryEntry('${esc(h.id)}')" title="Supprimer cette ligne" class="px-2 py-1 border border-rose-300 text-rose-600 rounded hover:bg-rose-50">✕</button>` : ""}
+        </div>
       </div>`;
     }).join("");
   }
@@ -5601,6 +5693,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const hourly = LIFECYCLE_HOURLY_TYPES.includes(type);
     const dateMiseEnService = lifecycle ? $("newItemDateMES").value : "";
     const taille = lifecycle ? $("newItemTaille").value.trim() : "";
+    const poids = lifecycle ? $("newItemPoids").value : "";
     const prixAchat = lifecycle ? $("newItemPrixAchat").value : "";
     const coefVente = lifecycle ? $("newItemCoefVente").value : "";
     const couleur = lifecycle ? $("newItemCouleur").value.trim() : "";
@@ -5615,7 +5708,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     appData.items[id] = normalizeItem({
       id, shelf, type, brand, model, sn, en, categorie, ptvMin, ptvMax,
       hours: 0, flights: 0, status: "Disponible", borrowerName: "", borrowerEmail: "",
-      dateMiseEnService, couleur, subtype, prixAchat, prixHeureVol, taille, coefVente, pretConstructeur, salePriceManual, pairedSecoursId, revisionMonths, revisionHours
+      dateMiseEnService, couleur, subtype, prixAchat, prixHeureVol, taille, poids, coefVente, pretConstructeur, salePriceManual, pairedSecoursId, revisionMonths, revisionHours
     });
 
     const brandAdded = rememberBrand(brand);   // constructeur inconnu : ajouté à la liste des réglages
@@ -5631,6 +5724,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     $("newItemPTVMax").value = "";
     $("newItemDateMES").value = "";
     $("newItemTaille").value = "";
+    $("newItemPoids").value = "";
     $("newItemPrixAchat").value = "";
     $("newItemCoefVente").value = "1.4";
     $("newItemCouleur").value = "";
@@ -6275,6 +6369,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     togglePTVFields("editItemType", "editItemPTVField");
     $("editItemDateMES").value = item.dateMiseEnService || "";
     $("editItemTaille").value = item.taille || "";
+    $("editItemPoids").value = item.poids === "" || item.poids === undefined ? "" : item.poids;
     $("editItemPrixAchat").value = item.prixAchat === "" ? "" : item.prixAchat;
     $("editItemCoefVente").value = saleCoef(item);
     $("editItemCouleur").value = item.couleur || "";
@@ -6356,6 +6451,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const hourly = LIFECYCLE_HOURLY_TYPES.includes(item.type);
     item.dateMiseEnService = lifecycle ? $("editItemDateMES").value : "";
     item.taille = lifecycle ? $("editItemTaille").value.trim() : "";
+    const poidsVal = lifecycle ? $("editItemPoids").value : "";
+    item.poids = (poidsVal !== "" && !isNaN(Number(poidsVal))) ? Number(poidsVal) : "";
     const prixAchatVal = lifecycle ? $("editItemPrixAchat").value : "";
     item.prixAchat = prixAchatVal === "" ? "" : Number(prixAchatVal);
     const coefVenteVal = lifecycle ? $("editItemCoefVente").value : "";
@@ -7134,7 +7231,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         const blocked = conflict && !isStaffViewer();
         return `<label class="flex items-center gap-2 text-xs ${blocked ? "opacity-40" : ""}">
           <input type="checkbox" data-wizard-item="${esc(i.id)}" ${blocked ? "disabled" : ""}>
-          <span${staffOverride ? ' class="text-amber-600 font-bold"' : ""}>${esc(itemLabel(i) + ptvSuffix(i))}${conflict ? (staffOverride ? " — ⚠️ déjà prêté/réservé sur ce créneau" : " — déjà réservé sur ce créneau") : ""}</span>
+          <span${staffOverride ? ' class="text-amber-600 font-bold"' : ""}>${esc((itemPoidsTailleTag(i) ? itemPoidsTailleTag(i) + " — " : "") + itemLabel(i) + ptvSuffix(i))}${conflict ? (staffOverride ? " — ⚠️ déjà prêté/réservé sur ce créneau" : " — déjà réservé sur ce créneau") : ""}</span>
         </label>`;
       }).join("");
       return `<div><p class="text-xs font-bold text-slate-500 mb-1">${esc(type)}</p><div class="space-y-1">${rows}</div></div>`;
@@ -8391,7 +8488,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.132";
+  const APP_VERSION = "2026-10-28.133";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8404,6 +8501,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 133, title: "Poids du matériel, et suppression dans l'historique", aud: "staff", items: [
+      { icon: "⚖️", t: "Poids des voiles, sellettes et secours", steps: [
+        "Un nouveau champ « Poids (kg) » s'ajoute à côté de la taille, pour les voiles, sellettes et secours (ajout/édition d'un équipement).",
+        "Poids et taille s'affichent maintenant en premier, partout où le matériel disponible est présenté : recherche Matériel, sélection client, assistant de réservation, packs.",
+        "Nécessite de redéployer le Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version) puis de relancer INSTALLER() une fois pour ajouter la colonne « poids » à la feuille — sinon un message le rappelle dans Prêts en cours."] },
+      { icon: "🗑", t: "Suppression dans l'historique (administrateur)", steps: [
+        "L'administrateur peut désormais supprimer une ligne de l'historique (bouton ✕ sur chaque ligne), ou plusieurs à la fois via les cases à cocher et « Supprimer la sélection ». Réservé à l'administrateur, pas au gestionnaire ni au moniteur."] },
+    ] },
     { v: 132, title: "« Mettre en prêt » visible aussi au moniteur dans Prêts en cours", aud: "staff", items: [
       { icon: "📤", t: "Le planning visuel réapparaît pour le moniteur", steps: [
         "Dans l'onglet Prêts en cours, le moniteur voit maintenant le planning visuel (réservations à venir/en cours) qui lui était caché — c'est là qu'apparaît le bouton « Mettre en prêt ».",
