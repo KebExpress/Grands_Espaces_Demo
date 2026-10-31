@@ -334,6 +334,7 @@
             <select id="stockNewBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
             <input type="text" id="stockNewModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
             <input type="text" id="stockNewSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
+            <input type="number" id="stockNewPoids" min="0" step="0.01" placeholder="Poids (kg)" class="p-2 border border-slate-300 rounded">
             <input type="text" id="stockNewSubtype" placeholder="Type(s) particulier(s)" class="p-2 border border-slate-300 rounded col-span-2">
             <input type="text" id="stockNewColor" placeholder="Couleur" class="p-2 border border-slate-300 rounded">
             <input type="text" id="stockNewShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
@@ -463,6 +464,7 @@
             <select id="newItemBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
             <input type="text" id="newItemModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle *">
             <input type="text" id="newItemSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série *">
+            <input type="number" id="newItemPoids" min="0" step="0.01" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Poids (kg) (facultatif)">
             <select id="newItemENField" class="p-2 border border-slate-300 rounded col-span-2">
               <option value="">Catégorie EN…</option>
             </select>
@@ -480,7 +482,6 @@
               <label class="col-span-2 text-[11px] text-slate-500 -mb-1">Date d'achat *</label>
               <input type="date" id="newItemDateMES" class="p-2 border border-slate-300 rounded" title="Date d'achat * (obligatoire)" aria-label="Date d'achat (obligatoire)">
               <input type="text" id="newItemTaille" class="p-2 border border-slate-300 rounded" placeholder="Taille *">
-              <input type="number" id="newItemPoids" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Poids (kg)">
               <input data-fin="1" type="number" id="newItemPrixAchat" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€) *">
               <input data-fin="1" type="number" id="newItemCoefVente" min="0" step="0.01" value="1.4" class="p-2 border border-slate-300 rounded" placeholder="Coefficient (ex : 1,4)">
               <input type="text" id="newItemCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur *">
@@ -974,6 +975,7 @@
         <select id="editItemBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
         <input type="text" id="editItemModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle">
         <input type="text" id="editItemSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série">
+        <input type="number" id="editItemPoids" min="0" step="0.01" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Poids (kg) (facultatif)">
         <select id="editItemENField" class="p-2 border border-slate-300 rounded col-span-2">
           <option value="">Catégorie EN…</option>
         </select>
@@ -992,7 +994,6 @@
           <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Données admin (non visibles du client)</p>
           <input type="date" id="editItemDateMES" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Date mise en service">
           <input type="text" id="editItemTaille" class="p-2 border border-slate-300 rounded" placeholder="Taille">
-          <input type="number" id="editItemPoids" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Poids (kg)">
           <input data-fin="1" type="number" id="editItemPrixAchat" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€)">
           <input data-fin="1" type="number" id="editItemCoefVente" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Coefficient (ex : 1,4)">
           <input type="text" id="editItemCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur">
@@ -1198,6 +1199,7 @@
           <select id="stockEditBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
           <input type="text" id="stockEditModel" placeholder="Modèle" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
+          <input type="number" id="stockEditPoids" min="0" step="0.01" placeholder="Poids (kg)" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditSubtype" placeholder="Type(s) particulier(s)" class="p-2 border border-slate-300 rounded col-span-2">
           <input type="text" id="stockEditColor" placeholder="Couleur" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockEditShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
@@ -1220,6 +1222,7 @@
           <input type="text" id="stockDemoModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoSN" placeholder="Numéro de série *" class="col-span-2 p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoSize" placeholder="Taille *" data-lc="1" class="p-2 border border-slate-300 rounded">
+          <input type="number" id="stockDemoPoids" min="0" step="0.01" placeholder="Poids (kg)" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
           <input type="text" id="stockDemoColor" placeholder="Couleur *" data-lc="1" class="p-2 border border-slate-300 rounded">
           <label id="stockDemoDateLbl" class="text-[11px] text-slate-500">Date d'achat *<input type="date" id="stockDemoDate" class="w-full p-2 border border-slate-300 rounded"></label>
@@ -1999,7 +2002,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // matériel disponible est présenté (recherche Matériel, sélection client, assistant de
   // réservation…), pour que ces deux critères sautent aux yeux avant le reste de la fiche.
   function itemPoidsTailleTag(item) {
-    if (!item || !LIFECYCLE_TYPES.includes(item.type)) return "";
+    if (!item) return "";
     const parts = [];
     if (item.poids !== "" && item.poids !== undefined && item.poids !== null) parts.push(`⚖️ ${item.poids} kg`);
     if (item.taille) parts.push(`📏 ${item.taille}`);
@@ -4600,9 +4603,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         : stockIsLow(r) ? `<span class="px-2 py-0.5 rounded-full bg-orange-500 text-white font-bold">Stock bas</span>` : "";
       const loanTxt = Object.keys(loans).filter(n => Number(loans[n]) > 0).map(n => `${esc(n)} ×${Number(loans[n])}`).join(" · ");
       const btn = (kind, label, cls) => `<button onclick="openStockAction('${k}','${kind}')" class="px-2 py-1 rounded border ${cls || "border-slate-300 hover:bg-slate-50"}">${label}</button>`;
+      const stockPoidsTailleTag = [r.poids !== "" && r.poids !== undefined && r.poids !== null ? `⚖️ ${r.poids} kg` : "", r.size ? `📏 ${esc(r.size)}` : ""].filter(Boolean).join(" · ");
       return head + `<div class="bg-white border ${stockIsLow(r) ? "border-orange-300" : "border-slate-200"} rounded-xl p-3 space-y-2">
         <div class="flex justify-between gap-2 items-start">
-          <div class="min-w-0"><p class="font-bold text-sm break-words sm:truncate">${esc([r.brand, r.model].filter(Boolean).join(" "))}</p>
+          <div class="min-w-0">
+            ${stockPoidsTailleTag ? `<p class="font-bold text-slate-700 break-words">${stockPoidsTailleTag}</p>` : ""}
+            <p class="font-bold text-sm break-words sm:truncate">${esc([r.brand, r.model].filter(Boolean).join(" "))}</p>
             ${r.subtype ? `<p class="text-sky-700 break-words">🏷️ ${esc(r.subtype)}</p>` : ""}
             <p class="text-slate-500">${[r.size ? "Taille " + esc(r.size) : "", r.color ? esc(r.color) : "", r.shelf ? "Étagère " + esc(r.shelf) : ""].filter(Boolean).join(" · ") || "&nbsp;"}</p></div>
           <div class="flex flex-col items-end gap-1 shrink-0">${lowBadge}</div>
@@ -4627,6 +4633,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const category = $("stockNewCat").value;
     const brand = canonicalBrand($("stockNewBrand").value), model = $("stockNewModel").value.trim();
     const size = $("stockNewSize").value.trim(), color = $("stockNewColor").value.trim(), shelf = $("stockNewShelf").value.trim();
+    const poidsStr = $("stockNewPoids").value;
+    const poids = (poidsStr !== "" && !isNaN(Number(poidsStr))) ? Number(poidsStr) : "";
     const subtype = $("stockNewSubtype") ? $("stockNewSubtype").value.trim() : "";
     const qtyStr = $("stockNewQty").value, minStr = $("stockNewMin").value;
     if (!STOCK_CATS.includes(category)) { toast("Choisissez une catégorie.", "error"); return; }
@@ -4640,12 +4648,12 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const pr = canSeeStockPrices() ? readStockPrices("stockNew") : { ht: "", ttc: "", pub: "" };
     if (pr.error) { toast(pr.error, "error"); return; }
     const id = `STK-${Date.now()}`;
-    const rec = { id, category, brand, model, size, color, shelf, subtype, qty: Number(qtyStr), loans: "{}", min: minStr === "" ? 0 : Number(minStr), note: "", createdAt: new Date().toISOString(), priceHT: pr.ht, priceTTC: pr.ttc, pricePublic: pr.pub };
+    const rec = { id, category, brand, model, size, color, shelf, poids, subtype, qty: Number(qtyStr), loans: "{}", min: minStr === "" ? 0 : Number(minStr), note: "", createdAt: new Date().toISOString(), priceHT: pr.ht, priceTTC: pr.ttc, pricePublic: pr.pub };
     appData.stock[id] = rec;
     if (Number(qtyStr) > 0) stockHistory(STOCK_ACTIONS.entree.hist, rec, currentUser ? currentUser.name : "", `×${qtyStr} · création de la référence`);
     const brandAdded = rememberBrand(brand);
     const ok = await persist(brandAdded ? ["stock", "history", "settings"] : ["stock", "history"]);
-    if (ok) { ["stockNewBrand", "stockNewModel", "stockNewSize", "stockNewColor", "stockNewShelf", "stockNewSubtype", "stockNewQty", "stockNewMin", "stockNewHT", "stockNewTTC", "stockNewPublic"].forEach(i => { $(i).value = ""; }); refreshSubtypeField("stockNewCat", "stockNewSubtype"); }
+    if (ok) { ["stockNewBrand", "stockNewModel", "stockNewSize", "stockNewColor", "stockNewShelf", "stockNewPoids", "stockNewSubtype", "stockNewQty", "stockNewMin", "stockNewHT", "stockNewTTC", "stockNewPublic"].forEach(i => { $(i).value = ""; }); refreshSubtypeField("stockNewCat", "stockNewSubtype"); }
     stockPricePreview("stockNew");
     toast(ok ? "Référence ajoutée au stock." : "Ajout non enregistré.", ok ? undefined : "error");
     renderAll();
@@ -4719,6 +4727,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       cs.innerHTML = cats.map(c => `<option value="${esc(c)}">${iconTextFor(c)} ${esc(c)}</option>`).join("");
       cs.value = r.category || cats[0];
       setBrandSelect("stockEditBrand", r.brand); $("stockEditModel").value = r.model || ""; $("stockEditSize").value = r.size || "";
+      $("stockEditPoids").value = r.poids === "" || r.poids === undefined ? "" : r.poids;
       $("stockEditSubtype").value = r.subtype || ""; refreshSubtypeField("stockEditCat", "stockEditSubtype");
       $("stockEditColor").value = r.color || ""; $("stockEditShelf").value = r.shelf || ""; $("stockEditMin").value = stockMin(r) || ""; $("stockEditNote").value = r.note || "";
       $("stockEditHT").value = r.priceHT === undefined || r.priceHT === "" ? "" : String(r.priceHT);
@@ -4731,6 +4740,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       $("stockDemoType").value = r.category === "Sellette" ? "Sellette" : r.category === "Secours" ? "Secours" : r.category === "Vario" ? "Vario" : "Accessoire";
       setBrandSelect("stockDemoBrand", r.brand); $("stockDemoModel").value = r.model || ""; $("stockDemoSN").value = "";
       $("stockDemoSize").value = r.size || ""; $("stockDemoShelf").value = r.shelf || ""; $("stockDemoColor").value = r.color || "";
+      $("stockDemoPoids").value = r.poids === "" || r.poids === undefined ? "" : r.poids;
       $("stockDemoDate").value = "";
       // Prix d'achat déjà connu dans le stock (TTC, sinon HT) : pas besoin de le ressaisir.
       $("stockDemoPrix").value = r.priceTTC !== undefined && r.priceTTC !== "" ? String(r.priceTTC) : (r.priceHT !== undefined && r.priceHT !== "" ? String(r.priceHT) : "");
@@ -4786,6 +4796,8 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         const brand = canonicalBrand($("stockDemoBrand").value), model = $("stockDemoModel").value.trim();
         sn = $("stockDemoSN").value.trim();
         const taille = $("stockDemoSize").value.trim(), couleur = $("stockDemoColor").value.trim();
+        const poidsStrD = $("stockDemoPoids").value;
+        const poids = (poidsStrD !== "" && !isNaN(Number(poidsStrD))) ? Number(poidsStrD) : "";
         const shelf = $("stockDemoShelf").value.trim(), dateMES = $("stockDemoDate").value, prix = $("stockDemoPrix").value;
         if (missingSheets.includes("stock")) { err("L'onglet « stock » est absent de la base : redéployez le nouveau Code.gs, puis réessayez."); return; }
         const lc = LIFECYCLE_TYPES.includes(type);
@@ -4801,7 +4813,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         newItem = normalizeItem({
           id: itemId, shelf, type, brand, model, sn, en: "", categorie: "", ptvMin: "", ptvMax: "",
           hours: 0, flights: 0, status: "Disponible", borrowerName: "", borrowerEmail: "",
-          dateMiseEnService: lc ? dateMES : "", couleur, prixAchat: lc && canSeeFinances() ? prix : "", prixHeureVol: "", taille, coefVente: "1.4",
+          dateMiseEnService: lc ? dateMES : "", couleur, prixAchat: lc && canSeeFinances() ? prix : "", prixHeureVol: "", taille, poids, coefVente: "1.4",
           pretConstructeur: false, salePriceManual: "", pairedSecoursId: "", revisionMonths: "", revisionHours: ""
         });
         appData.items[itemId] = newItem;
@@ -4839,13 +4851,15 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
       const brand = canonicalBrand($("stockEditBrand").value), model = $("stockEditModel").value.trim();
       if (!brand || !model) { err("Marque et modèle sont obligatoires."); return; }
       const size = $("stockEditSize").value.trim(), color = $("stockEditColor").value.trim();
+      const poidsStr = $("stockEditPoids").value;
+      const poids = (poidsStr !== "" && !isNaN(Number(poidsStr))) ? Number(poidsStr) : "";
       const category = $("stockEditCat").value || r.category;
       const key = stockKey(category, brand, model, size, color);
       if (Object.values(appData.stock).some(o => o.id !== id && stockKey(o.category, o.brand, o.model, o.size, o.color) === key)) { err("Une autre référence identique existe déjà dans cette catégorie."); return; }
       const oldCat = r.category;
       const pr = canSeeStockPrices() ? readStockPrices("stockEdit") : null;
       if (pr && pr.error) { err(pr.error); return; }
-      Object.assign(r, { category, brand, model, size, color, subtype: $("stockEditSubtype") ? $("stockEditSubtype").value.trim() : "", shelf: $("stockEditShelf").value.trim(), min: Math.max(0, Math.floor(Number($("stockEditMin").value) || 0)), note: $("stockEditNote").value.trim() });
+      Object.assign(r, { category, brand, model, size, color, poids, subtype: $("stockEditSubtype") ? $("stockEditSubtype").value.trim() : "", shelf: $("stockEditShelf").value.trim(), min: Math.max(0, Math.floor(Number($("stockEditMin").value) || 0)), note: $("stockEditNote").value.trim() });
       if (pr) { r.priceHT = pr.ht; r.priceTTC = pr.ttc; r.pricePublic = pr.pub; }
       stockHistory(def.hist, r, who, category !== oldCat ? `Catégorie : ${oldCat} → ${category}` : "");
     } else {
@@ -5618,12 +5632,14 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const all = Object.values(appData.history).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const words = searchWords($("historySearch") ? $("historySearch").value : "");
     const found = words.length ? all.filter(h => recordMatchesWords(h, words, [formatFrDateTime(h.date), formatFrDate(h.date)])) : all;
-    const LIMIT = words.length ? 500 : 100;
-    const rows = found.slice(0, LIMIT);
+    // Historique entier affiché (plus de limite à 100/500) : regroupé par type d'action,
+    // chaque groupe trié de la plus récente opération à la plus ancienne, les groupes
+    // eux-mêmes ordonnés selon leur opération la plus récente.
+    const rows = found;
     const info = $("historySearchInfo");
     if (info) info.textContent = words.length
-      ? `${found.length} résultat(s) sur ${all.length}${found.length > LIMIT ? ` — les ${LIMIT} plus récents sont affichés, affinez la recherche` : ""}`
-      : (all.length > LIMIT ? `${LIMIT} dernières opérations affichées sur ${all.length} — utilisez la recherche pour retrouver n'importe quelle information.` : "");
+      ? `${found.length} résultat(s) sur ${all.length}`
+      : `${all.length} opération(s) au total, classées par action.`;
     // La sélection ne garde que les lignes encore affichées (évite de supprimer, sans le
     // vouloir, une ligne sélectionnée puis sortie de la recherche).
     const shownIds = new Set(rows.map(h => h.id));
@@ -5637,7 +5653,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
         ${all.length ? "Aucune opération ne correspond à cette recherche." : "L'historique se remplira au premier prêt."}</div>`;
       return;
     }
-    box.innerHTML = rows.map(h => {
+    const rowHtml = h => {
       const d = new Date(h.date);
       const when = isNaN(d) ? h.date : d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
       const isBorrow = isBorrowAction(h.action);
@@ -5654,7 +5670,21 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
           ${isAdmin ? `<button onclick="deleteHistoryEntry('${esc(h.id)}')" title="Supprimer cette ligne" class="px-2 py-1 border border-rose-300 text-rose-600 rounded hover:bg-rose-50">✕</button>` : ""}
         </div>
       </div>`;
-    }).join("");
+    };
+    // Groupement : l'ordre des groupes suit la première rencontre dans "rows" (déjà trié
+    // du plus récent au plus ancien), donc le groupe contenant l'opération la plus récente
+    // apparaît en premier.
+    const groups = new Map();
+    rows.forEach(h => {
+      const label = actionLabel(h.action) || "(sans type)";
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(h);
+    });
+    box.innerHTML = [...groups.entries()].map(([label, items]) => `
+      <div class="space-y-1.5">
+        <p class="text-[11px] font-bold text-slate-400 uppercase pt-1">${esc(label)} <span class="text-slate-400 font-normal">(${items.length})</span></p>
+        <div class="space-y-1.5">${items.map(rowHtml).join("")}</div>
+      </div>`).join("");
   }
 
   async function addNewItem() {
@@ -5693,7 +5723,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const hourly = LIFECYCLE_HOURLY_TYPES.includes(type);
     const dateMiseEnService = lifecycle ? $("newItemDateMES").value : "";
     const taille = lifecycle ? $("newItemTaille").value.trim() : "";
-    const poids = lifecycle ? $("newItemPoids").value : "";
+    const poids = $("newItemPoids").value;
     const prixAchat = lifecycle ? $("newItemPrixAchat").value : "";
     const coefVente = lifecycle ? $("newItemCoefVente").value : "";
     const couleur = lifecycle ? $("newItemCouleur").value.trim() : "";
@@ -6451,7 +6481,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
     const hourly = LIFECYCLE_HOURLY_TYPES.includes(item.type);
     item.dateMiseEnService = lifecycle ? $("editItemDateMES").value : "";
     item.taille = lifecycle ? $("editItemTaille").value.trim() : "";
-    const poidsVal = lifecycle ? $("editItemPoids").value : "";
+    const poidsVal = $("editItemPoids").value;
     item.poids = (poidsVal !== "" && !isNaN(Number(poidsVal))) ? Number(poidsVal) : "";
     const prixAchatVal = lifecycle ? $("editItemPrixAchat").value : "";
     item.prixAchat = prixAchatVal === "" ? "" : Number(prixAchatVal);
@@ -8488,7 +8518,7 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.133";
+  const APP_VERSION = "2026-10-28.134";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -8501,6 +8531,15 @@ Le locataire déclare disposer des compétences et, le cas échéant, du brevet 
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 134, title: "Poids étendu au stock et à tous les articles, historique complet", aud: "staff", items: [
+      { icon: "⚖️", t: "Poids : stock et tous les types d'articles", steps: [
+        "Le champ « Poids (kg) » est maintenant disponible pour TOUS les types d'articles (accessoires, varios compris, pas seulement voile/sellette/secours), et aussi dans le Stock (ajout d'une référence, modification, sortie en démo).",
+        "Poids et taille s'affichent en premier partout où du matériel disponible est présenté, y compris sur les fiches de stock.",
+        "Nécessite de redéployer le Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version) puis de relancer INSTALLER() une fois pour ajouter la colonne « poids » à la feuille stock."] },
+      { icon: "🗂️", t: "Historique : tout affiché, classé par action", steps: [
+        "L'historique affiche désormais TOUTES les opérations (plus de limite à 100/500 dernières), regroupées par type d'action (Prêt, Restitution, etc.) pour s'y retrouver facilement.",
+        "La suppression (ligne par ligne ou par sélection), réservée à l'administrateur, fonctionne comme avant."] },
+    ] },
     { v: 133, title: "Poids du matériel, et suppression dans l'historique", aud: "staff", items: [
       { icon: "⚖️", t: "Poids des voiles, sellettes et secours", steps: [
         "Un nouveau champ « Poids (kg) » s'ajoute à côté de la taille, pour les voiles, sellettes et secours (ajout/édition d'un équipement).",
