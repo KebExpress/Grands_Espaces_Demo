@@ -8271,15 +8271,29 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // correspondante bascule en rouge dans Prêts en cours / Planning / Historique, et la remise du
   // matériel (« 📤 Donner au client ») est bloquée jusqu'à ce qu'elles soient complétées — sans quoi
   // le matériel sortirait sans aucun moyen fiable de recontacter ce client par la suite.
+  // Un bénéficiaire "Moniteur" (compte existant, choisi via le sélecteur de bénéficiaire) n'a pas
+  // de numéro de téléphone dans sa fiche — ce champ n'existe pas pour les comptes du personnel.
+  // Reconnu par son email, qui correspond alors à celui d'un compte instructor.
+  function planningBeneficiaryIsInstructor(p) {
+    const email = String(p.clientEmail || "").toLowerCase();
+    if (!email) return false;
+    return Object.values(appData.users || {}).some(u => u.role === "instructor" && u.email && u.email.toLowerCase() === email);
+  }
+
   function planningContactMissing(p) {
-    return !isValidEmail(p.clientEmail || "") || !isValidPhone(p.clientPhone || "");
+    if (!isValidEmail(p.clientEmail || "")) return true;
+    // Téléphone non exigé pour un bénéficiaire Moniteur : l'exiger bloquerait indéfiniment la
+    // remise du matériel, puisqu'aucun compte moniteur n'en dispose.
+    if (planningBeneficiaryIsInstructor(p)) return false;
+    return !isValidPhone(p.clientPhone || "");
   }
 
   function planningMissingInfoHtml(bookingId, p) {
     if (!isStaffViewer()) return "";
     const bits = [];
     if (!isValidEmail(p.clientEmail || "")) bits.push(`<button onclick="promptSetPlanningEmail(${escJsAttr(bookingId)})" class="text-indigo-600 underline">➕ Ajouter l'email</button>`);
-    if (!isValidPhone(p.clientPhone || "")) bits.push(`<button onclick="promptSetPlanningPhone(${escJsAttr(bookingId)})" class="text-indigo-600 underline">➕ Ajouter le téléphone</button>`);
+    // Téléphone non proposé pour un bénéficiaire Moniteur (aucun compte moniteur n'en a).
+    if (!planningBeneficiaryIsInstructor(p) && !isValidPhone(p.clientPhone || "")) bits.push(`<button onclick="promptSetPlanningPhone(${escJsAttr(bookingId)})" class="text-indigo-600 underline">➕ Ajouter le téléphone</button>`);
     if (!bits.length) return "";
     return `<p class="text-rose-600 font-bold">⚠️ Coordonnées incomplètes : ${bits.join(" · ")}</p>`;
   }
@@ -9379,7 +9393,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.148";
+  const APP_VERSION = "2026-10-28.149";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
