@@ -4533,6 +4533,26 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     };
   }
 
+  // Trace, dans l'Historique, une modification qui ne porte pas sur un équipement précis
+  // (fiche client, compte du personnel, réglages…) — même principe qu'addHistory (qui exige un
+  // équipement), mais avec un libellé libre à la place d'une fiche matériel, pour que TOUTE
+  // modification de l'application reste consultable avec son auteur (colonne "by").
+  function addGenericHistory(action, label, person, email, note) {
+    const id = `H-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    returnTimesCache = null;
+    appData.history[id] = {
+      id,
+      date: new Date().toISOString(),
+      action,
+      itemId: "",
+      itemLabel: label || "",
+      person: person || "",
+      email: email || "",
+      note: note || "",
+      by: actingStaffName()
+    };
+  }
+
   // Identifiant email stable du moniteur connecté (utilisé comme "emprunteur"
   // pour ses propres emprunts libres et pour retrouver quel matériel lui
   // appartient parmi le matériel loué).
@@ -4762,7 +4782,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     for (const k in vals) { const n = priceNum(vals[k]); if (!(n >= 0 && n <= 1000)) { toast("Indiquez des pourcentages valides (0 ou plus).", "error"); return; } }
     if (!isSynced()) { await ensureSynced(); return; }
     Object.keys(vals).forEach(k => setSetting(k, String(priceNum(vals[k]))));
-    const ok = await persist(["settings"]);
+    addGenericHistory("Modification réglages", "Pourcentages de revente", "", "", "Pourcentages de revente du stock modifiés.");
+    const ok = await persist(["settings", "history"]);
     toast(ok ? "Pourcentages enregistrés." : "Enregistrement refusé : pourcentages non sauvegardés.", ok ? undefined : "error");
     renderAll();
   }
@@ -6275,8 +6296,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       dateMiseEnService, couleur, subtype, prixAchat, prixHeureVol, taille, poids, coefVente, pretConstructeur, salePriceManual, pairedSecoursId, revisionMonths, revisionHours
     });
 
+    addHistory("Ajout matériel", appData.items[id], "", "", "Équipement créé.");
     const brandAdded = rememberBrand(brand);   // constructeur inconnu : ajouté à la liste des réglages
-    const ok = await persist(brandAdded ? ["items", "settings"] : ["items"]);
+    const ok = await persist(brandAdded ? ["items", "settings", "history"] : ["items", "history"]);
 
     $("newItemBrand").value = "";
     $("newItemModel").value = "";
@@ -6311,8 +6333,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (item.status === "Loué") { toast("Impossible de supprimer un équipement prêté.", "error"); return; }
     if (!confirm(`Supprimer définitivement ${itemLabel(item)} ?`)) return;
 
+    addGenericHistory("Suppression matériel", itemLabel(item), "", "", "Équipement supprimé définitivement.");
     delete appData.items[id];
-    const ok = await persist(["items"]);
+    const ok = await persist(["items", "history"]);
     toast(ok ? "Équipement supprimé." : "Suppression enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -6334,7 +6357,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     item.status = "Indisponible";
     item.unavailableNote = String(note || "").trim();
-    const ok = await persist(["items"]);
+    addHistory("Mise hors service", item, "", "", item.unavailableNote ? `Motif : ${item.unavailableNote}` : "");
+    const ok = await persist(["items", "history"]);
     toast(ok ? "Équipement rendu indisponible." : "Modification enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -6349,7 +6373,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     item.status = "Disponible";
     item.unavailableNote = "";
-    const ok = await persist(["items"]);
+    addHistory("Remise en service", item, "", "", "");
+    const ok = await persist(["items", "history"]);
     toast(ok ? "Équipement remis disponible." : "Modification enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -7032,9 +7057,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     item.revisionHours = (rh !== "" && !isNaN(Number(rh)) && Number(rh) >= 0) ? Number(rh) : "";
     item.pairedSecoursId = item.type === "Sellette" ? $("editItemPairedSecours").value : "";
 
+    addHistory("Modification matériel", item, "", "", "Fiche équipement modifiée.");
     closeModal("editItemModal");
     const brandAdded = rememberBrand(brand);
-    const ok = await persist(brandAdded ? ["items", "settings"] : ["items"]);
+    const ok = await persist(brandAdded ? ["items", "settings", "history"] : ["items", "history"]);
     editingItemId = null;
     toast(ok ? "Équipement modifié." : "Modification enregistrée localement (hors ligne).");
     renderAll();
@@ -7089,8 +7115,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     client.city = $("editClientCity").value.trim();
     client.country = $("editClientCountry").value.trim();
 
+    addGenericHistory("Modification client", client.name || client.email, client.name, client.email, "Fiche client modifiée.");
     closeModal("editClientModal");
-    const ok = await persist(["clients"]);
+    const ok = await persist(["clients", "history"]);
     editingClientId = null;
     toast(ok ? "Client modifié." : "Modification enregistrée localement (hors ligne).");
     renderAll();
@@ -7102,7 +7129,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const client = appData.clients[id];
     if (!client) return;
     client.blocked = !client.blocked;
-    const ok = await persist(["clients"]);
+    addGenericHistory(client.blocked ? "Blocage client" : "Déblocage client", client.name || client.email, client.name, client.email, "");
+    const ok = await persist(["clients", "history"]);
     toast(ok ? (client.blocked ? "Client bloqué." : "Client débloqué.") : "Modification enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -7126,8 +7154,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     if (!confirm(`Supprimer définitivement la fiche de ${client.name || client.email} ? L'historique déjà enregistré sera conservé mais ne sera plus rattaché à une fiche client.`)) return;
 
+    addGenericHistory("Suppression client", client.name || client.email, client.name, client.email, "Fiche client supprimée définitivement.");
     delete appData.clients[id];
-    const ok = await persist(["clients"]);
+    const ok = await persist(["clients", "history"]);
     toast(ok ? "Client supprimé." : "Suppression enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -7164,8 +7193,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       city: $("newClientCity").value.trim(), country: $("newClientCountry").value.trim(),
       createdAt: today(), blocked: false
     };
+    addGenericHistory("Création client", name, name, email, "Fiche créée manuellement par le personnel.");
     closeModal("newClientModal");
-    const ok = await persist(["clients"]);
+    const ok = await persist(["clients", "history"]);
     toast(ok ? "Client créé." : "Client créé localement (hors ligne).");
     renderAll();
   }
@@ -7208,11 +7238,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (existing) {
       existing.name = name; existing.phone = phone;
       existing.address = address; existing.postalCode = postalCode; existing.city = city; existing.country = country;
+      addGenericHistory("Modification client", name, name, email, "Fiche mise à jour par le client lui-même (auto-inscription).");
     } else {
       const clientId = `CLI-${Date.now()}`;
       appData.clients[clientId] = { id: clientId, name, email, phone, address, postalCode, city, country, createdAt: today(), blocked: false };
+      addGenericHistory("Création client", name, name, email, "Fiche créée par le client lui-même (auto-inscription).");
     }
-    const ok = await persist(["clients"]);
+    const ok = await persist(["clients", "history"]);
     if (ok) { closeModal("clientRegisterModal"); showNotice("Inscription enregistrée", "Merci ! Votre fiche client a bien été enregistrée. Vous pouvez fermer cette page."); }
     else toast("Inscription impossible pour le moment (connexion). Réessayez dans un instant.", "error");
   }
@@ -7330,8 +7362,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     const id = `USR-${Date.now()}`;
     appData.users[id] = { id, name, username, password, role, email };
+    addGenericHistory("Création compte", name, name, email, `Rôle : ${roleLabel(role)}.`);
 
-    const ok = await persist(["users"]);
+    const ok = await persist(["users", "history"]);
 
     $("newUserName").value = "";
     $("newUserUsername").value = "";
@@ -7403,9 +7436,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     user.role = role;
     // Seul le titulaire du compte peut changer (ou garder) sa propre protection.
     if (isOwn) user.protected = !!($("editUserProtected") && $("editUserProtected").checked);
+    addGenericHistory("Modification compte", user.name, user.name, user.email, "Compte modifié.");
 
     closeModal("editUserModal");
-    const ok = await persist(["users"]);
+    const ok = await persist(["users", "history"]);
     editingUserId = null;
     toast(ok ? "Compte modifié." : "Modification enregistrée localement (hors ligne).");
     renderAll();
@@ -7426,12 +7460,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     }
     if (!confirm(`Supprimer définitivement le compte de ${user.name || user.username} ?`)) return;
 
+    addGenericHistory("Suppression compte", user.name || user.username, user.name, user.email, "Compte supprimé définitivement.");
     delete appData.users[id];
     // Nettoie les permissions individuelles éventuellement enregistrées pour ce
     // compte (onglet Réglages), pour ne pas laisser une entrée orpheline.
     const allPerms = getAllManagerPermissions();
     if (allPerms[id]) { delete allPerms[id]; setSetting("managerPermissions", JSON.stringify(allPerms)); }
-    const ok = await persist(["users", "settings"]);
+    const ok = await persist(["users", "settings", "history"]);
     toast(ok ? "Compte supprimé." : "Suppression enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -7444,7 +7479,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (currentUser && currentUser.id === id) { toast("Impossible de bloquer le compte avec lequel vous êtes connecté.", "error"); return; }
     if (user.protected) { toast("Ce compte est protégé : seul son titulaire peut le bloquer.", "error"); return; }
     user.blocked = !user.blocked;
-    const ok = await persist(["users"]);
+    addGenericHistory(user.blocked ? "Blocage compte" : "Déblocage compte", user.name || user.username, user.name, user.email, "");
+    const ok = await persist(["users", "history"]);
     toast(ok ? (user.blocked ? "Compte bloqué." : "Compte débloqué.") : "Modification enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -7524,7 +7560,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       perms[key] = el ? el.checked : (DEFAULT_MANAGER_PERMISSIONS[key] !== false);
     });
     setManagerPermissionsFor(userId, perms);
-    const ok = await persist(["settings"]);
+    const u = appData.users[userId];
+    addGenericHistory("Modification permissions", u ? (u.name || u.username) : userId, u ? u.name : "", u ? u.email : "", "Permissions du compte modifiées.");
+    const ok = await persist(["settings", "history"]);
     toast(ok ? "Permissions enregistrées pour ce compte." : "Permissions enregistrées localement (hors ligne).");
   }
 
@@ -7562,7 +7600,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     }
     const enabled = $("settingsLongTermRentalEnabled").checked;
     setSetting("longTermRentalEnabled", enabled ? "true" : "false");
-    const ok = await persist(["settings"]);
+    addGenericHistory("Modification réglages", "Location longue durée", "", "", enabled ? "Prêt longue durée autorisé." : "Prêt longue durée verrouillé.");
+    const ok = await persist(["settings", "history"]);
     updateReservationWizardLabels();
     toast(ok ? "Réglage enregistré." : "Réglage enregistré localement (hors ligne).");
     if (statusEl) {
@@ -7578,7 +7617,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const text = $("settingsContractText").value.trim();
     if (!text) { toast("Le contrat ne peut pas être vide.", "error"); return; }
     setSetting("contract", text);
-    const ok = await persist(["settings"]);
+    addGenericHistory("Modification réglages", "Texte du contrat", "", "", "Texte du contrat de prêt modifié.");
+    const ok = await persist(["settings", "history"]);
     toast(ok ? "Contrat enregistré." : "Contrat enregistré localement (hors ligne).");
   }
 
@@ -7588,7 +7628,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const text = $("settingsLegalNoticeText").value.trim();
     if (!text) { toast("Les mentions légales ne peuvent pas être vides.", "error"); return; }
     setSetting("legalNotice", text);
-    const ok = await persist(["settings"]);
+    addGenericHistory("Modification réglages", "Mentions légales (RGPD)", "", "", "Texte des mentions légales modifié.");
+    const ok = await persist(["settings", "history"]);
     toast(ok ? "Mentions légales enregistrées." : "Mentions légales enregistrées localement (hors ligne).");
   }
 
@@ -7615,7 +7656,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     setSetting("newAccountSubject", $("settingsNewAccountSubject").value);
     setSetting("newAccountBody", $("settingsNewAccountBody").value);
 
-    const ok = await persist(["settings"]);
+    addGenericHistory("Modification réglages", "Réglages email", "", "", "Modèles et paramètres d'emails modifiés.");
+    const ok = await persist(["settings", "history"]);
     toast(ok ? "Réglages email enregistrés." : "Réglages enregistrés localement (hors ligne).");
     renderAlerts();
   }
@@ -8702,9 +8744,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       const it = appData.items[p.itemId];
       if (it && it.status === "Loué") it.dueAt = newEnd.toISOString();
     });
+    addGenericHistory("Modification date de retour", rows.map(p => p.itemLabel).join(", "), rows[0].clientName, rows[0].clientEmail, `Nouvelle date de retour : ${newEnd.toLocaleString("fr-FR")}.`);
 
     closeModal("editReturnDateModal");
-    const ok = await persist(["planning", "items"]);
+    const ok = await persist(["planning", "items", "history"]);
     editReturnBookingId = null;
     toast(ok ? "Date de retour mise à jour." : "Mise à jour enregistrée localement (hors ligne).");
     renderAll();
@@ -8821,6 +8864,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       }
     });
     if (newClientRecord && !sheets.includes("clients")) sheets.push("clients");
+    addGenericHistory("Modification bénéficiaire", rows.map(p => p.itemLabel).join(", "), name, email, "Bénéficiaire de la réservation modifié.");
+    if (!sheets.includes("history")) sheets.push("history");
 
     closeModal("editBeneficiaryModal");
     const ok = await persist(sheets);
@@ -9393,7 +9438,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.149";
+  const APP_VERSION = "2026-10-28.150";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -9407,6 +9452,28 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 150, title: "L'Historique trace désormais toutes les modifications, avec leur auteur", aud: "staff", items: [
+      { icon: "📜", t: "Chaque création, modification, blocage ou suppression est enregistrée", steps: [
+        "Matériel (ajout, modification de fiche, mise hors/en service, suppression), fiches clients (création, modification, blocage/déblocage, suppression) et comptes du personnel (création, modification, blocage/déblocage, suppression) apparaissent désormais dans l'Historique, même quand aucun prêt n'est concerné.",
+        "Le changement de bénéficiaire d'une réservation, la modification d'une date de retour, et chaque enregistrement de réglages (contrat, mentions légales, emails, permissions, pourcentages de revente…) sont également tracés.",
+        "Chaque ligne indique « par qui » : le nom du membre du personnel connecté, ou « le client lui-même » quand l'action vient d'une auto-inscription côté client."
+      ] }
+    ] },
+    { v: 149, title: "Téléphone non exigé pour une réservation attribuée à un Moniteur", aud: "staff", items: [
+      { icon: "📵", t: "Un bénéficiaire Moniteur ne bloque plus la remise du matériel", steps: [
+        "Quand une réservation ou un prêt tiers est attribué(e) à un compte Moniteur, le téléphone n'est plus exigé avant de pouvoir « 📤 Donner au client » (seul l'email reste nécessaire) : les comptes moniteur n'ont pas de numéro de téléphone enregistré.",
+        "Pour un bénéficiaire Client ou Autre, rien ne change : l'email et le téléphone restent tous les deux requis."
+      ] }
+    ] },
+    { v: 147, title: "Compte protégé : personne d'autre ne peut le modifier ni le supprimer", aud: "staff", items: [
+      { icon: "🔒", t: "Nouvelle case « Protéger ce compte » en modifiant son propre compte", steps: [
+        "Dans l'onglet Comptes, en modifiant VOTRE PROPRE compte, cochez « 🔒 Protéger ce compte » : aucun autre administrateur ne pourra plus le modifier, le bloquer ou le supprimer — vous seul(e) le pouvez, y compris décocher la protection plus tard.",
+        "Impossible de protéger (ni de déprotéger) le compte de quelqu'un d'autre : chacun ne protège que le sien."
+      ] },
+      { icon: "🛡️", t: "Le dernier administrateur actif ne peut plus être supprimé ni rétrogradé", steps: [
+        "S'il ne reste qu'un seul compte administrateur, impossible de le supprimer ou de changer son rôle — pour ne jamais se retrouver sans accès pour gérer les comptes."
+      ] }
+    ] },
     { v: 146, title: "Modifier le bénéficiaire d'une réservation (Moniteur ↔ Client)", aud: "staff", items: [
       { icon: "✏️", t: "Nouveau bouton « ✏️ Bénéficiaire » dans l'onglet Planning", steps: [
         "Permet de changer à qui une réservation ou un prêt tiers est attribué(e) : basculer d'un compte Moniteur vers un Client (ou l'inverse), choisir une autre fiche client, ou simplement corriger le nom/email/téléphone saisis à la main — sans avoir à annuler la réservation pour la recréer.",
