@@ -289,21 +289,22 @@
         <p id="itemsPaymentNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">La colonne « paiement » n'est pas encore dans l'onglet « articles » de la feuille Google : c'est pourquoi le statut Payé / À payer / Gratuit ne s'enregistre pas. Redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version), puis rechargez la page.</p>
         <p id="itemsPoidsNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">La colonne « poids » n'est pas encore dans l'onglet « articles » de la feuille Google : c'est pourquoi le poids saisi ne s'enregistre pas. Redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version), puis rechargez la page.</p>
         <p id="historyByNote" hidden class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2">La colonne « by » n'est pas encore dans l'onglet « historique » de la feuille Google : c'est pourquoi le détail « Effectué par » d'une ligne d'historique ne s'enregistre pas. Redéployez le nouveau Code.gs (Déployer › Gérer les déploiements › Modifier › Nouvelle version), puis rechargez la page.</p>
-        <!-- Planning visuel : déplacé ici depuis l'onglet « Matériel » pour l'avoir directement avec les prêts en cours. -->
+        <!-- Planning horaire de la journée en cours (remplace l'ancien calendrier mensuel, qui reste
+             dans l'onglet Planning) : déplacé ici depuis l'onglet « Matériel » pour l'avoir directement
+             avec les prêts en cours. -->
         <div id="itemsCalendarCard" class="bg-white border border-slate-200 rounded-xl p-3">
           <div class="flex items-center justify-between mb-2 gap-2">
-            <button onclick="planningCalendarShift(-1)" class="px-2 py-1 border border-slate-300 rounded text-xs">◀</button>
-            <p id="itemsCalendarTitle" class="font-bold text-sm"></p>
-            <div class="flex items-center gap-1">
-              <button onclick="planningCalendarShift(1)" class="px-2 py-1 border border-slate-300 rounded text-xs">▶</button>
-              <button type="button" onclick="togglePanel('itemsCalendarCard')" id="panelToggle-itemsCalendarCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50">▾</button>
-            </div>
+            <p id="itemsDayTimelineTitle" class="font-bold text-sm"></p>
+            <button type="button" onclick="togglePanel('itemsCalendarCard')" id="panelToggle-itemsCalendarCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50">▾</button>
           </div>
           <div id="panelBody-itemsCalendarCard">
-            <div id="itemsCalendarGrid" class="grid grid-cols-7 gap-1 text-[10px]"></div>
-            <p class="text-[10px] text-slate-400 mt-1">Cliquez sur une date pour voir ce qui est loué ce jour-là.</p>
-            <div id="itemsCalendarDayDetails" class="space-y-1 text-xs mt-2"></div>
-            <div id="itemsCalendarLegend"></div>
+            <div id="itemsDayTimeline" class="space-y-0.5"></div>
+            <!-- Éléments techniques gardés cachés : partagent le code de rendu du planning visuel
+                 (onglet Planning) pour la légende et la liste « Réservations à venir ». -->
+            <p id="itemsCalendarTitle" hidden></p>
+            <div id="itemsCalendarGrid" hidden></div>
+            <div id="itemsCalendarDayDetails" hidden></div>
+            <div id="itemsCalendarLegend" class="mt-2"></div>
             <h5 class="text-xs font-bold text-slate-600 mt-3 mb-1">📋 Réservations à venir — ce qui n'est pas prêtable</h5>
             <div id="itemsCalendarUpcoming" class="space-y-1 text-xs max-h-72 overflow-y-auto"></div>
           </div>
@@ -406,7 +407,7 @@
         </div>
 
         <div id="itemsSearchPane" class="space-y-6">
-        <button onclick="openReservationWizard()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2.5 rounded-xl text-sm shadow flex items-center justify-center gap-2">
+        <button id="itemsTabReserveBtn" onclick="openReservationWizard()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2.5 rounded-xl text-sm shadow flex items-center justify-center gap-2">
           📅 Réserver un créneau (pour un client)
         </button>
         <div id="instructorPrefBox" hidden class="bg-green-50 p-4 rounded-xl shadow-sm border border-green-200 space-y-2">
@@ -1260,6 +1261,41 @@
     </div>
   </div>
 
+  <!-- MODAL : adresse postale obligatoire (+ vérification géographique) à la remise du matériel,
+       quand la fiche client n'en a pas encore (voir confirmBookingHandover/confirmHandoverAddress). -->
+  <div id="handoverAddressModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'handoverAddressModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
+      <h3 class="font-bold text-lg">📍 Adresse du client</h3>
+      <p id="handoverAddressLabel" class="text-xs text-slate-500"></p>
+      <p class="text-[11px] text-slate-500">Avant de remettre le matériel, l'adresse postale complète du client doit être renseignée et vérifiée (une seule fois : elle reste enregistrée sur sa fiche client).</p>
+      <div class="space-y-2 text-xs">
+        <div>
+          <label for="handoverAddress" class="block text-[10px] font-bold text-slate-600">Adresse <span class="text-rose-600">*</span></label>
+          <input type="text" id="handoverAddress" autocomplete="street-address" class="w-full p-2 border border-slate-300 rounded">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="handoverPostal" class="block text-[10px] font-bold text-slate-600">Code postal <span class="text-rose-600">*</span></label>
+            <input type="text" id="handoverPostal" autocomplete="postal-code" class="w-full p-2 border border-slate-300 rounded">
+          </div>
+          <div>
+            <label for="handoverCity" class="block text-[10px] font-bold text-slate-600">Ville <span class="text-rose-600">*</span></label>
+            <input type="text" id="handoverCity" autocomplete="address-level2" class="w-full p-2 border border-slate-300 rounded">
+          </div>
+        </div>
+        <div>
+          <label for="handoverCountry" class="block text-[10px] font-bold text-slate-600">Pays <span class="text-rose-600">*</span></label>
+          <input type="text" id="handoverCountry" autocomplete="country-name" value="France" class="w-full p-2 border border-slate-300 rounded">
+        </div>
+      </div>
+      <p id="handoverAddressStatus" hidden class="text-xs"></p>
+      <div class="flex gap-2 pt-1">
+        <button onclick="closeModal('handoverAddressModal')" class="flex-1 px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+        <button onclick="confirmHandoverAddress()" class="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-xs">Vérifier et remettre</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL : détail d'une ligne d'historique (« qui a fait quoi ») -->
   <div id="historyDetailModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'historyDetailModal')">
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-2 shadow-xl text-xs">
@@ -1499,38 +1535,27 @@
         <div id="wizardEquipmentList" class="space-y-3"></div>
 
         <div class="pt-2 border-t border-slate-100 space-y-2">
-          <p class="text-sm font-bold">Vos coordonnées</p>
-          <div>
-            <label for="wizardName" class="block text-xs text-slate-600 font-bold">Nom et prénom <span class="text-rose-600">*</span></label>
-            <input type="text" id="wizardName" autocomplete="name" list="clientNamesList" oninput="autofillWizardByName(); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
+          <p class="text-sm font-bold">Pour qui ?</p>
+          <div id="wizardClientSelectRow" hidden>
+            <label for="wizardClientSelect" class="block text-xs text-slate-600 font-bold">Client</label>
+            <select id="wizardClientSelect" onchange="wizardClientSelectChanged()" class="w-full p-2 border border-slate-300 rounded bg-white text-sm"></select>
           </div>
-          <div>
-            <label for="wizardEmail" class="block text-xs text-slate-600 font-bold">Email <span class="text-rose-600">*</span></label>
-            <input type="email" id="wizardEmail" autocomplete="email" oninput="autofillByEmail('wizard'); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
-          </div>
-          <div>
-            <label for="wizardPhone" class="block text-xs text-slate-600 font-bold">Téléphone <span class="text-rose-600">*</span></label>
-            <input type="tel" id="wizardPhone" autocomplete="tel" oninput="scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
-          </div>
-          <p id="wizardDupStatus" hidden class="text-xs rounded-lg p-2" role="status"></p>
-          <div>
-            <label for="wizardAddress" class="block text-xs text-slate-600 font-bold">Adresse <span class="text-rose-600">*</span></label>
-            <input type="text" id="wizardAddress" autocomplete="street-address" class="w-full p-2 border border-slate-300 rounded text-sm">
-          </div>
-          <div class="grid grid-cols-2 gap-2">
+          <div id="wizardManualFields" class="space-y-2">
             <div>
-              <label for="wizardPostal" class="block text-xs text-slate-600 font-bold">Code postal <span class="text-rose-600">*</span></label>
-              <input type="text" id="wizardPostal" autocomplete="postal-code" oninput="scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
+              <label for="wizardName" class="block text-xs text-slate-600 font-bold">Nom et prénom <span class="text-rose-600">*</span></label>
+              <input type="text" id="wizardName" autocomplete="name" list="clientNamesList" oninput="autofillWizardByName(); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
             </div>
             <div>
-              <label for="wizardCity" class="block text-xs text-slate-600 font-bold">Ville <span class="text-rose-600">*</span></label>
-              <input type="text" id="wizardCity" autocomplete="address-level2" class="w-full p-2 border border-slate-300 rounded text-sm">
+              <label for="wizardEmail" class="block text-xs text-slate-600 font-bold">Email <span class="text-rose-600">*</span></label>
+              <input type="email" id="wizardEmail" autocomplete="email" oninput="autofillByEmail('wizard'); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
             </div>
+            <div>
+              <label for="wizardPhone" class="block text-xs text-slate-600 font-bold">Téléphone <span class="text-rose-600">*</span></label>
+              <input type="tel" id="wizardPhone" autocomplete="tel" oninput="scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
+            </div>
+            <p id="wizardDupStatus" hidden class="text-xs rounded-lg p-2" role="status"></p>
           </div>
-          <div>
-            <label for="wizardCountry" class="block text-xs text-slate-600 font-bold">Pays <span class="text-rose-600">*</span></label>
-            <input type="text" id="wizardCountry" autocomplete="country-name" value="France" class="w-full p-2 border border-slate-300 rounded text-sm">
-          </div>
+          <p class="text-[10px] text-slate-400">L'adresse postale complète ne sera demandée (et vérifiée) qu'au moment de remettre le matériel.</p>
         </div>
         <p id="wizardStep3Status" hidden class="text-xs"></p>
         <div class="flex justify-between gap-2 pt-2">
@@ -3727,7 +3752,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
   function dupFormValues(form) {
     const f = DUP_FIELDS[form];
-    return { name: $(f[0]).value.trim(), email: $(f[1]).value.trim(), phone: $(f[2]).value.trim(), postalCode: $(f[3]).value.trim() };
+    const val = id => { const el = $(id); return el ? el.value.trim() : ""; };
+    return { name: val(f[0]), email: val(f[1]), phone: val(f[2]), postalCode: val(f[3]) };
   }
 
   function dupShow(form, match, q) {
@@ -5804,6 +5830,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
               ${(canSelfLoan() && i.status === "Disponible" && !restrictedLocked) ? `<button onclick="instructorBorrowItem('${esc(i.id)}')" title="Emprunter ce matériel pour moi" class="px-2 py-1 border border-emerald-300 text-emerald-700 rounded hover:bg-emerald-50">🪂 Emprunter</button>` : ""}
               ${((currentRole === "instructor" || canManageItems) && i.status === "Disponible" && !restrictedLocked) ? `<button onclick="openThirdPartyBorrowModal('${esc(i.id)}','qr')" title="Faire scanner un QR code à une personne tierce (elle remplit elle-même le formulaire)" class="px-2 py-1 border border-purple-300 text-purple-700 rounded hover:bg-purple-50">🎯 Prêt tiers</button>` : ""}
               ${((currentRole === "instructor" || canManageItems) && canUseThirdPartyForm() && i.status === "Disponible" && !restrictedLocked) ? `<button onclick="openThirdPartyBorrowModal('${esc(i.id)}','form')" title="Prêter à une personne tierce en saisissant le formulaire à sa place (24 h maximum)" class="px-2 py-1 border border-indigo-300 text-indigo-700 rounded hover:bg-indigo-50">✍️ Prêt moniteur</button>` : ""}
+              ${((currentRole === "instructor" || canManageItems) && isLongTermRentalEnabled() && i.status !== "Indisponible") ? `<button onclick="openReservationWizard('${esc(i.id)}')" title="Réserver un créneau pour ce matériel précis" class="px-2 py-1 border border-teal-300 text-teal-700 rounded hover:bg-teal-50">📅 Réserver</button>` : ""}
             </div>
           </div>
           ${(revision && revision.due && canManageItems) ? `
@@ -7584,6 +7611,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (btnLabel) btnLabel.textContent = enabled ? "Réserver un créneau (essai ou prêt longue durée)" : "Réserver un créneau (essai)";
     const question = $("wizardStep1Question");
     if (question) question.textContent = enabled ? "Souhaitez-vous un essai ou un prêt longue durée ?" : "Souhaitez-vous faire un essai ?";
+    // Côté personnel (onglet Matériel) : le bouton global « Réserver un créneau » ne s'affiche
+    // que si le prêt longue durée est autorisé (celui de chaque fiche matériel suit la même
+    // règle directement dans son gabarit, à chaque rendu — voir renderItems).
+    show("itemsTabReserveBtn", enabled);
   }
 
   async function saveLongTermRentalSetting() {
@@ -7863,16 +7894,21 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /*  ASSISTANT DE RÉSERVATION (ESSAI / LOCATION) — PLANNING              */
   /* ------------------------------------------------------------------ */
 
-  const wizard = { type: null, start: null, end: null };
+  const wizard = { type: null, start: null, end: null, presetItemId: null };
 
-  function openReservationWizard() {
+  // presetItemId : quand l'assistant est ouvert depuis une fiche matériel précise (bouton
+  // « 📅 Réserver » de l'onglet Matériel), l'étape « quel matériel » ne propose plus que
+  // celui-ci, déjà coché, au lieu de la liste complète par type.
+  function openReservationWizard(presetItemId) {
     wizard.type = null;
     wizard.start = null;
     wizard.end = null;
+    wizard.presetItemId = presetItemId || null;
     ["wizardEssaiDate", "wizardEssaiTime", "wizardLocStart", "wizardLocEnd",
-     "wizardName", "wizardEmail", "wizardPhone", "wizardAddress", "wizardPostal", "wizardCity"]
+     "wizardName", "wizardEmail", "wizardPhone"]
       .forEach(id => { const el = $(id); if (el) el.value = ""; });
-    $("wizardCountry").value = "France";
+    if ($("wizardClientSelect")) $("wizardClientSelect").value = "__new__";
+    show("wizardManualFields", true);
     $("wizardAcceptContract").checked = false;
     show("wizardStep2Error", false);
     show("wizardStep3Status", false);
@@ -7929,7 +7965,40 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     }
 
     wizardRenderEquipmentList();
+    wizardPopulateClientSelect();
     wizardGoTo(3);
+  }
+
+  // Liste déroulante « Pour qui ? » (personnel uniquement — jamais exposée à un client public,
+  // qui ne doit pas voir la liste des autres clients) : mêmes principes que pour le changement
+  // de bénéficiaire d'une réservation (editBeneficiary).
+  function wizardPopulateClientSelect() {
+    const sel = $("wizardClientSelect");
+    if (!sel) return;
+    show("wizardClientSelectRow", isStaffViewer());
+    if (!isStaffViewer()) return;
+    const clients = Object.values(appData.clients || {}).filter(c => !c.blocked)
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
+    sel.innerHTML = `<option value="__new__">➕ Nouveau client…</option>` +
+      clients.map(c => `<option value="${esc(c.id)}">${esc(c.name || c.id)}${c.email ? " · " + esc(c.email) : ""}</option>`).join("");
+    sel.value = "__new__";
+    show("wizardManualFields", true);
+  }
+
+  function wizardClientSelectChanged() {
+    const sel = $("wizardClientSelect");
+    const v = sel ? sel.value : "__new__";
+    if (v === "__new__") {
+      show("wizardManualFields", true);
+      ["wizardName", "wizardEmail", "wizardPhone"].forEach(id => { const el = $(id); if (el) el.value = ""; });
+      return;
+    }
+    const c = appData.clients[v];
+    if (!c) return;
+    show("wizardManualFields", false);
+    if ($("wizardName")) $("wizardName").value = c.name || "";
+    if ($("wizardEmail")) $("wizardEmail").value = c.email || "";
+    if ($("wizardPhone")) $("wizardPhone").value = c.phone || "";
   }
 
   // Un créneau [start,end) chevauche un autre s'ils se recouvrent partiellement.
@@ -7950,6 +8019,20 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   function wizardRenderEquipmentList() {
     const box = $("wizardEquipmentList");
     if (!box) return;
+    // Matériel précis imposé (bouton « 📅 Réserver » d'une fiche matériel) : une seule case,
+    // déjà cochée, au lieu de la liste complète par type.
+    if (wizard.presetItemId) {
+      const i = appData.items[wizard.presetItemId];
+      if (!i || i.status === "Indisponible") { box.innerHTML = `<p class="text-xs text-rose-600">Ce matériel n'est plus disponible.</p>`; return; }
+      const conflict = planningConflictsForItem(i.id, wizard.start, wizard.end).length > 0;
+      const staffOverride = conflict && isStaffViewer();
+      const blocked = conflict && !isStaffViewer();
+      box.innerHTML = `<label class="flex items-center gap-2 text-xs ${blocked ? "opacity-40" : ""}">
+        <input type="checkbox" data-wizard-item="${esc(i.id)}" checked ${blocked ? "disabled" : ""}>
+        <span${staffOverride ? ' class="text-amber-600 font-bold"' : ""}>${esc((itemPoidsTailleTag(i) ? itemPoidsTailleTag(i) + " — " : "") + itemLabel(i) + ptvSuffix(i))}${conflict ? (staffOverride ? " — ⚠️ déjà prêté/réservé sur ce créneau" : " — déjà réservé sur ce créneau") : ""}</span>
+      </label>`;
+      return;
+    }
     box.innerHTML = TYPES.map(type => {
       // Un équipement rendu indisponible (panne, contrôle…) n'est jamais proposé à
       // la réservation, quel que soit le créneau demandé — contrairement à un
@@ -7986,44 +8069,23 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const name = $("wizardName").value.trim();
     const email = $("wizardEmail").value.trim();
     const phone = $("wizardPhone").value.trim();
-    const address = $("wizardAddress").value.trim();
-    const postalCode = $("wizardPostal").value.trim();
-    const city = $("wizardCity").value.trim();
-    const country = $("wizardCountry").value.trim();
 
     if (name.length < 3) { toast("Renseignez votre nom et prénom.", "error"); return; }
     if (!isValidEmail(email)) { toast("Adresse email invalide.", "error"); return; }
     if (!isValidPhone(phone)) { toast("Numéro de téléphone invalide.", "error"); return; }
-    if (!address || !postalCode || !city || !country) { toast("L'adresse complète est obligatoire.", "error"); return; }
 
     const existingClient = findClientByEmail(email);
     if (existingClient && existingClient.blocked) { toast("Ce compte client a été bloqué. Contactez la structure.", "error"); return; }
     if (await dupBlocksSubmit("wizard")) return;
     // Pas de limite de 2/jour ici : elle ne s'applique qu'à la location immédiate au
     // comptoir, jamais à une réservation de créneau (voir borrowAttemptsToday).
-
-    const statusEl = $("wizardStep3Status");
-    const fmtProblem = addressFormatProblem(address, postalCode, city, country);
-    if (fmtProblem) { statusEl.hidden = false; statusEl.className = "text-xs text-rose-600 font-bold"; statusEl.textContent = fmtProblem; return; }
-    statusEl.hidden = false;
-    statusEl.className = "text-xs text-slate-500";
-    statusEl.textContent = "Vérification de l'adresse…";
-    setBusy(true);
-    let addressFound;
-    try { addressFound = await verifyAddressIsReal(address, postalCode, city, country); }
-    catch (err) { console.warn("Vérification d'adresse impossible :", err); addressFound = null; toast("Vérification de l'adresse indisponible : contrôlez-la à l'oral avant de remettre le matériel.", "error"); }
-    setBusy(false);
-
-    if (addressFound === false) {
-      statusEl.className = "text-xs text-rose-600 font-bold";
-      statusEl.textContent = "Adresse introuvable. Vérifiez la saisie (numéro, rue, code postal, ville).";
-      return;
-    }
-    statusEl.hidden = true;
+    // L'adresse postale complète (et sa vérification géographique) n'est plus demandée à la
+    // réservation : seuls le nom, l'email et le téléphone sont obligatoires ici. L'adresse est
+    // demandée et vérifiée uniquement à la remise du matériel (voir confirmBookingHandover).
+    show("wizardStep3Status", false);
 
     wizard.selectedIds = ids;
     wizard.name = name; wizard.email = email; wizard.phone = phone;
-    wizard.address = address; wizard.postalCode = postalCode; wizard.city = city; wizard.country = country;
 
     $("wizardContractText").textContent = getContractText();
     const dueLabel = new Date(wizard.end).toLocaleString("fr-FR");
@@ -8054,12 +8116,17 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     const bookingId = `BK-${Date.now()}`;
     const createdAt = new Date().toISOString();
+    // Réservation faite via cet assistant simplifié (nom/email/téléphone seulement, sans adresse) :
+    // si le client n'a pas déjà une adresse complète enregistrée, la remise du matériel (« Donner
+    // au client ») exigera de la renseigner et de la vérifier avant de sortir le matériel.
+    const needsAddressAtHandover = !clientAddressComplete(findClientByEmail(wizard.email));
     wizard.selectedIds.forEach(itemId => {
       const rowId = `PLAN-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       appData.planning[rowId] = {
         id: rowId, bookingId, itemId, itemLabel: itemLabel(appData.items[itemId]),
         type: wizard.type, start: wizard.start, end: wizard.end,
         clientName: wizard.name, clientEmail: wizard.email, clientPhone: wizard.phone,
+        needsAddressAtHandover,
         status: "Réservé", createdAt
       };
       // Trace la réservation dans l'historique, afin que le suivi des
@@ -8068,17 +8135,16 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
         `${wizard.type === "essai" ? "Essai" : "Prêt longue durée"} du ${new Date(wizard.start).toLocaleString("fr-FR")} au ${new Date(wizard.end).toLocaleString("fr-FR")}`);
     });
 
+    // L'adresse postale n'est plus demandée ici : elle sera recueillie et vérifiée à la remise
+    // du matériel (voir confirmBookingHandover) si la fiche client ne l'a pas déjà.
     let client = findClientByEmail(wizard.email);
     if (client) {
       client.name = wizard.name; client.phone = wizard.phone;
-      client.address = wizard.address; client.postalCode = wizard.postalCode;
-      client.city = wizard.city; client.country = wizard.country;
     } else {
       const clientId = `CLI-${Date.now()}`;
       appData.clients[clientId] = {
         id: clientId, name: wizard.name, email: wizard.email, phone: wizard.phone,
-        address: wizard.address, postalCode: wizard.postalCode, city: wizard.city, country: wizard.country,
-        createdAt: today(), blocked: false
+        address: "", postalCode: "", city: "", country: "", createdAt: today(), blocked: false
       };
     }
 
@@ -8376,6 +8442,39 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     renderAll();
   }
 
+  // Adresse postale complète déjà connue (format correct) sur la fiche client — condition pour
+  // sauter la demande/vérification d'adresse à la remise (voir confirmBookingHandover).
+  function clientAddressComplete(client) {
+    if (!client) return false;
+    return !addressFormatProblem(client.address, client.postalCode, client.city, client.country);
+  }
+
+  // Effectue réellement la remise (sortie de stock) pour une réservation : extrait de
+  // confirmBookingHandover pour être appelé soit directement, soit après la vérification
+  // d'adresse (confirmHandoverAddress) quand elle était nécessaire.
+  async function doHandover(bookingId) {
+    const rows = Object.values(appData.planning).filter(p => p.bookingId === bookingId && planningNeedsHandover(p));
+    if (!rows.length) { toast("Ce matériel n'est plus disponible pour cette réservation.", "error"); renderAll(); return; }
+    const stamp = new Date().toISOString();
+    rows.forEach(p => {
+      const it = appData.items[p.itemId];
+      it.status = "Loué";
+      it.borrowerName = p.clientName;
+      it.borrowerEmail = p.clientEmail;
+      it.borrowedAt = stamp;
+      it.loanKind = "";
+      it.payment = "";
+      it.dueAt = p.end;
+      addHistory("Prêt", it, p.clientName, p.clientEmail, `Mise en prêt d'une réservation (${planningTypeLabel(p)}).`);
+    });
+
+    const ok = await persist(["items", "history", "clients", "planning"]);
+    toast(ok ? "📤 Matériel remis au client." : "Mise en prêt enregistrée localement (hors ligne).");
+    renderAll();
+  }
+
+  let handoverPendingBookingId = null;
+
   async function confirmBookingHandover(bookingId) {
     if (busy) return;
     // Remettre physiquement le matériel est une action opérationnelle (comme emprunter pour
@@ -8392,24 +8491,85 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       renderAll();
       return;
     }
+
+    // Adresse postale : obligatoire et vérifiée géographiquement (OpenStreetMap/Nominatim) avant
+    // la remise, mais seulement pour une réservation faite via l'assistant simplifié « Réserver un
+    // créneau » (nom/email/téléphone seulement) et dont le client n'avait pas déjà une adresse
+    // complète au moment de la réservation (voir wizardSubmit → needsAddressAtHandover). Les autres
+    // réservations (prêt tiers, prêt moniteur, anciennes données…) ne sont jamais concernées, et un
+    // bénéficiaire Moniteur en est de toute façon exempté (même exemption que pour le téléphone,
+    // voir planningBeneficiaryIsInstructor).
+    if (rows.some(p => p.needsAddressAtHandover) && !planningBeneficiaryIsInstructor(rows[0])) {
+      const client = findClientByEmail(rows[0].clientEmail);
+      if (!clientAddressComplete(client)) {
+        handoverPendingBookingId = bookingId;
+        $("handoverAddressLabel").textContent = `${rows.map(r => r.itemLabel).join(", ")} — ${rows[0].clientName || "ce client"}`;
+        ["handoverAddress", "handoverPostal", "handoverCity"].forEach(id => { if ($(id)) $(id).value = ""; });
+        if ($("handoverCountry")) $("handoverCountry").value = "France";
+        show("handoverAddressStatus", false);
+        openModal("handoverAddressModal");
+        return;
+      }
+    }
+
     if (!confirm(`Remettre ${rows.length === 1 ? "ce matériel" : "ces " + rows.length + " articles"} à ${rows[0].clientName || "ce client"} maintenant ?`)) return;
+    await doHandover(bookingId);
+  }
 
-    const stamp = new Date().toISOString();
-    rows.forEach(p => {
-      const it = appData.items[p.itemId];
-      it.status = "Loué";
-      it.borrowerName = p.clientName;
-      it.borrowerEmail = p.clientEmail;
-      it.borrowedAt = stamp;
-      it.loanKind = "";
-      it.payment = "";
-      it.dueAt = p.end;
-      addHistory("Prêt", it, p.clientName, p.clientEmail, `Mise en prêt d'une réservation (${planningTypeLabel(p)}).`);
-    });
+  // Validation du formulaire d'adresse ouvert par confirmBookingHandover quand la fiche client
+  // n'avait pas encore d'adresse complète : vérifie géographiquement l'adresse saisie (même
+  // fonction que l'assistant de réservation utilisait auparavant à l'étape coordonnées), l'enregistre
+  // sur la fiche client, puis effectue réellement la remise.
+  async function confirmHandoverAddress() {
+    if (busy || !handoverPendingBookingId) return;
+    const bookingId = handoverPendingBookingId;
+    const rows = Object.values(appData.planning).filter(p => p.bookingId === bookingId && planningNeedsHandover(p));
+    if (!rows.length) {
+      closeModal("handoverAddressModal"); handoverPendingBookingId = null;
+      toast("Ce matériel n'est plus disponible pour cette réservation.", "error"); renderAll(); return;
+    }
 
-    const ok = await persist(["items", "history"]);
-    toast(ok ? "📤 Matériel remis au client." : "Mise en prêt enregistrée localement (hors ligne).");
-    renderAll();
+    const address = $("handoverAddress").value.trim();
+    const postalCode = $("handoverPostal").value.trim();
+    const city = $("handoverCity").value.trim();
+    const country = $("handoverCountry").value.trim();
+    const statusEl = $("handoverAddressStatus");
+
+    const fmtProblem = addressFormatProblem(address, postalCode, city, country);
+    if (fmtProblem) { statusEl.hidden = false; statusEl.className = "text-xs text-rose-600 font-bold"; statusEl.textContent = fmtProblem; return; }
+    statusEl.hidden = false;
+    statusEl.className = "text-xs text-slate-500";
+    statusEl.textContent = "Vérification de l'adresse…";
+    setBusy(true);
+    let addressFound;
+    try { addressFound = await verifyAddressIsReal(address, postalCode, city, country); }
+    catch (err) { console.warn("Vérification d'adresse impossible :", err); addressFound = null; toast("Vérification de l'adresse indisponible : réessayez dans un instant.", "error"); }
+    setBusy(false);
+
+    if (addressFound === false) {
+      statusEl.className = "text-xs text-rose-600 font-bold";
+      statusEl.textContent = "Adresse introuvable. Vérifiez la saisie (numéro, rue, code postal, ville).";
+      return;
+    }
+    statusEl.hidden = true;
+
+    const p0 = rows[0];
+    let client = findClientByEmail(p0.clientEmail);
+    if (client) {
+      client.address = address; client.postalCode = postalCode; client.city = city; client.country = country;
+    } else {
+      const clientId = `CLI-${Date.now()}`;
+      client = { id: clientId, name: p0.clientName || "", email: p0.clientEmail, phone: p0.clientPhone || "",
+        address, postalCode, city, country, createdAt: today(), blocked: false };
+      appData.clients[clientId] = client;
+    }
+    addGenericHistory("Modification client", client.name || client.email, client.name, client.email, "Adresse postale renseignée et vérifiée à la remise du matériel.");
+    rows.forEach(p => { p.needsAddressAtHandover = false; });
+
+    closeModal("handoverAddressModal");
+    handoverPendingBookingId = null;
+    if (!confirm(`Adresse vérifiée. Remettre ${rows.length === 1 ? "ce matériel" : "ces " + rows.length + " articles"} à ${p0.clientName || "ce client"} maintenant ?`)) return;
+    await doHandover(bookingId);
   }
 
   function planningUpcomingHtml() {
@@ -8543,8 +8703,67 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // instant (page non montée) sont ignorées silencieusement.
   function renderAllPlanningCalendars() {
     renderOnePlanningCalendar("planningCalendar");
-    renderOnePlanningCalendar("itemsCalendar");
+    renderOnePlanningCalendar("itemsCalendar"); // garde la légende + « Réservations à venir » à jour.
+    renderDayTimeline();
     applyPanelState("itemsCalendarCard");
+  }
+
+  // Deux jours identiques (même jour local), à partir d'une date ISO et d'une référence Date.
+  function isSameLocalDay(iso, ref) {
+    const d = new Date(iso);
+    return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth() && d.getDate() === ref.getDate();
+  }
+
+  // Amplitude horaire affichée dans le planning de la journée (onglet « Prêts en cours ») :
+  // tout événement en dehors de cette plage est rattaché à l'heure la plus proche (début/fin),
+  // pour ne jamais faire disparaître un prêt/une réservation réellement pris(e) plus tôt/tard.
+  const DAY_TIMELINE_START_HOUR = 7;
+  const DAY_TIMELINE_END_HOUR = 20;
+
+  // Événements du jour en cours à afficher pour une heure donnée : réservations qui démarrent
+  // à cette heure-là, et matériels sortis (remis au client) à cette heure-là.
+  function dayTimelineEventsForHour(hour, now) {
+    const clamp = h => Math.min(Math.max(h, DAY_TIMELINE_START_HOUR), DAY_TIMELINE_END_HOUR);
+    const events = [];
+    Object.values(appData.planning).forEach(p => {
+      if (p.status !== "Réservé" || !isSameLocalDay(p.start, now)) return;
+      const d = new Date(p.start);
+      if (clamp(d.getHours()) !== hour) return;
+      events.push({ time: d, label: `${planningTypeLabel(p)} — ${p.itemLabel}`, person: p.clientName });
+    });
+    Object.values(appData.items).forEach(i => {
+      if (i.status !== "Loué" || !i.borrowedAt || !isSameLocalDay(i.borrowedAt, now)) return;
+      const d = new Date(i.borrowedAt);
+      if (clamp(d.getHours()) !== hour) return;
+      events.push({ time: d, label: `📤 Sorti — ${itemLabel(i)}`, person: i.borrowerName });
+    });
+    return events.sort((a, b) => a.time - b.time);
+  }
+
+  // Planning horaire de la journée en cours (remplace l'ancien calendrier mensuel dans l'onglet
+  // « Prêts en cours ») : une ligne par heure (7h à 20h), avec ce qui démarre ou sort à cette heure-là.
+  function renderDayTimeline() {
+    const box = $("itemsDayTimeline");
+    const titleEl = $("itemsDayTimelineTitle");
+    if (!box || !titleEl) return;
+    const now = new Date();
+    titleEl.textContent = `📅 Aujourd'hui — ${now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}`;
+    const nowHour = now.getHours();
+    let html = "";
+    for (let h = DAY_TIMELINE_START_HOUR; h <= DAY_TIMELINE_END_HOUR; h++) {
+      const events = dayTimelineEventsForHour(h, now);
+      const isCurrent = nowHour === h;
+      html += `<div class="flex gap-2 ${isCurrent ? "bg-emerald-50 rounded-lg" : ""} p-1">
+        <div class="w-9 shrink-0 text-right font-bold ${isCurrent ? "text-emerald-700" : "text-slate-400"}">${h}h</div>
+        <div class="flex-1 min-w-0 space-y-1">
+          ${events.length ? events.map(e => `<div class="bg-white border border-slate-200 rounded px-2 py-1">
+            <span class="font-bold">${esc(e.time.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }))}</span>
+            · ${esc(e.label)}${e.person ? ` · ${esc(e.person)}` : ""}
+          </div>`).join("") : `<div class="text-slate-300">—</div>`}
+        </div>
+      </div>`;
+    }
+    box.innerHTML = html;
   }
 
   /* ------------------------------------------------------------------ */
@@ -8673,7 +8892,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
           ${missing ? planningMissingInfoHtml(first.bookingId, first) : ""}
           ${isStaffViewer() && items.some(planningNeedsHandover) && !missing ? `<button onclick="confirmBookingHandover('${esc(first.bookingId)}')" class="w-full border border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold py-1.5 rounded">📤 Donner au client</button>` : ""}
           <div class="flex gap-2 mt-1">
-            <button onclick="openEditBeneficiary('${esc(first.bookingId)}')" class="flex-1 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-bold py-1.5 rounded">✏️ Bénéficiaire</button>
+            <button onclick="openEditBeneficiary('${esc(first.bookingId)}')" class="flex-1 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-bold py-1.5 rounded">✏️ Modifier</button>
             <button onclick="openEditReturnDate('${esc(first.bookingId)}')" class="flex-1 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-bold py-1.5 rounded">✏️ Date de retour</button>
           </div>
           <button onclick="cancelBooking('${esc(first.bookingId)}')" class="w-full border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold py-1.5 rounded">Annuler</button>
@@ -9182,7 +9401,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
     ["loginModal", "borrowConfirmModal", "returnModal", "qrModal",
-     "qrPrintModal", "editItemModal", "editClientModal", "clientHistoryModal", "sellItemModal", "editArchiveModal", "itemTimelineModal", "thirdPartyBorrowModal", "editUserModal", "contractModal", "wizardModal", "historyDetailModal", "newClientModal", "clientRegisterQrModal", "clientRegisterModal", "editReturnDateModal", "editBeneficiaryModal", "legalNoticeModal"].forEach(id => closeModal(id));
+     "qrPrintModal", "editItemModal", "editClientModal", "clientHistoryModal", "sellItemModal", "editArchiveModal", "itemTimelineModal", "thirdPartyBorrowModal", "editUserModal", "contractModal", "wizardModal", "historyDetailModal", "newClientModal", "clientRegisterQrModal", "clientRegisterModal", "editReturnDateModal", "editBeneficiaryModal", "legalNoticeModal", "handoverAddressModal"].forEach(id => closeModal(id));
   });
 
   /* ------------------------------------------------------------------ */
@@ -9438,7 +9657,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-10-28.150";
+  const APP_VERSION = "2026-11-03.151";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -9452,6 +9671,27 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 151, title: "Planning horaire du jour, réservation simplifiée, adresse vérifiée à la remise", aud: "staff", items: [
+      { icon: "🕐", t: "Dans « Prêts en cours » : planning horaire de la journée en cours", steps: [
+        "Le calendrier mensuel a été remplacé par une liste heure par heure (7h à 20h) de ce qui démarre ou sort aujourd'hui — plus simple à lire au comptoir qu'un calendrier sur tout le mois.",
+        "La liste « Réservations à venir » et la légende restent disponibles juste en dessous."
+      ] },
+      { icon: "✏️", t: "Onglet Planning : le bouton « Bénéficiaire » s'appelle maintenant « Modifier »", steps: [
+        "Même fonctionnement qu'avant (basculer Moniteur ↔ Client, ou corriger les coordonnées saisies à la main) — seul le libellé du bouton change."
+      ] },
+      { icon: "📅", t: "Un bouton « 📅 Réserver » sur chaque fiche matériel", steps: [
+        "Ouvre l'assistant de réservation directement pré-rempli sur ce matériel précis, sans repasser par la liste complète par type.",
+        "Comme le bouton général, il n'apparaît que si le prêt longue durée est autorisé (onglet Réglages)."
+      ] },
+      { icon: "👤", t: "Réservation simplifiée : choisir un client existant, ou en créer un nouveau", steps: [
+        "L'assistant « Réserver un créneau » propose maintenant de choisir un client déjà enregistré dans une liste, ou de saisir un nouveau client.",
+        "Pour un nouveau client, seuls le nom, l'email et le téléphone sont demandés — l'adresse postale n'est plus exigée à ce stade."
+      ] },
+      { icon: "📍", t: "L'adresse postale est désormais demandée (et vérifiée) à la remise du matériel", steps: [
+        "Quand un client réservé via cet assistant n'a pas encore d'adresse enregistrée, cliquer sur « 📤 Donner au client » ouvre une étape obligatoire pour la saisir — elle est vérifiée géographiquement (comme auparavant à la réservation) avant que le matériel ne sorte.",
+        "Une fois l'adresse enregistrée sur la fiche client, elle n'est plus redemandée aux remises suivantes. Un bénéficiaire Moniteur reste exempté, comme pour le téléphone."
+      ] }
+    ] },
     { v: 150, title: "L'Historique trace désormais toutes les modifications, avec leur auteur", aud: "staff", items: [
       { icon: "📜", t: "Chaque création, modification, blocage ou suppression est enregistrée", steps: [
         "Matériel (ajout, modification de fiche, mise hors/en service, suppression), fiches clients (création, modification, blocage/déblocage, suppression) et comptes du personnel (création, modification, blocage/déblocage, suppression) apparaissent désormais dans l'Historique, même quand aucun prêt n'est concerné.",
