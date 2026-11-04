@@ -294,8 +294,15 @@
              avec les prêts en cours. -->
         <div id="itemsCalendarCard" class="bg-white border border-slate-200 rounded-xl p-3">
           <div class="flex items-center justify-between mb-2 gap-2">
-            <p id="itemsDayTimelineTitle" class="font-bold text-sm"></p>
-            <button type="button" onclick="togglePanel('itemsCalendarCard')" id="panelToggle-itemsCalendarCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50">▾</button>
+            <div class="flex items-center gap-1 min-w-0">
+              <button type="button" onclick="dayTimelineShift(-1)" title="Jour précédent" class="px-2 py-0.5 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 shrink-0">◀</button>
+              <button type="button" onclick="openDayTimelinePicker()" title="Choisir une date" class="font-bold text-sm text-left hover:underline truncate min-w-0">
+                <span id="itemsDayTimelineTitle"></span> 📅
+              </button>
+              <button type="button" onclick="dayTimelineShift(1)" title="Jour suivant" class="px-2 py-0.5 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 shrink-0">▶</button>
+              <input type="date" id="itemsDayTimelinePicker" onchange="dayTimelineGoToPicked()" class="sr-only" tabindex="-1">
+            </div>
+            <button type="button" onclick="togglePanel('itemsCalendarCard')" id="panelToggle-itemsCalendarCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">▾</button>
           </div>
           <div id="panelBody-itemsCalendarCard">
             <div id="itemsDayTimeline" class="space-y-0.5"></div>
@@ -1296,6 +1303,17 @@
     </div>
   </div>
 
+  <!-- MODAL : infos d'un prêt/réservation, au clic sur sa barre dans le planning horaire (type Gantt) -->
+  <div id="dayTimelineEntryModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'dayTimelineEntryModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-2 shadow-xl text-xs">
+      <h3 class="font-bold text-lg">ℹ️ Détail du prêt</h3>
+      <div id="dayTimelineEntryContent" class="space-y-1"></div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="closeModal('dayTimelineEntryModal')" class="flex-1 px-4 py-2 border border-slate-300 rounded text-xs">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL : détail d'une ligne d'historique (« qui a fait quoi ») -->
   <div id="historyDetailModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'historyDetailModal')">
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-2 shadow-xl text-xs">
@@ -1481,10 +1499,62 @@
         <h3 class="font-bold text-lg">Réserver du matériel</h3>
         <button onclick="closeModal('wizardModal')" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
       </div>
-      <p class="text-xs text-slate-500">Étape <span id="wizardStepNumber">1</span> / 4</p>
+      <p class="text-xs text-slate-500">Étape <span id="wizardStepNumber">1</span> / 5</p>
+
+      <!-- Étape 0 : pour qui (client existant / nouveau client / personnel) -->
+      <div id="wizardStepBenef" class="space-y-3">
+        <p class="text-sm font-bold">Pour qui est cette réservation ?</p>
+        <div id="wizardBenefButtons" hidden class="space-y-2">
+          <button type="button" onclick="wizardChooseBenefMode('client')" id="wizardBenefBtnClient" class="w-full text-left p-3 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
+            <span class="block font-bold text-sm">👤 Client existant</span>
+            <span class="block text-xs text-slate-500 mt-1">Choisir un client déjà enregistré.</span>
+          </button>
+          <button type="button" onclick="wizardChooseBenefMode('new')" id="wizardBenefBtnNew" class="w-full text-left p-3 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
+            <span class="block font-bold text-sm">🆕 Nouveau client</span>
+            <span class="block text-xs text-slate-500 mt-1">Saisir son nom, son email et son téléphone.</span>
+          </button>
+          <button type="button" onclick="wizardChooseBenefMode('staff')" id="wizardBenefBtnStaff" class="w-full text-left p-3 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
+            <span class="block font-bold text-sm">🧑‍💼 Personnel</span>
+            <span class="block text-xs text-slate-500 mt-1">Administrateur, gestionnaire ou moniteur, pour un emprunt interne.</span>
+          </button>
+        </div>
+
+        <div id="wizardBenefClientPick" hidden>
+          <label for="wizardBenefClientSelect" class="block text-xs font-bold text-slate-600">Client <span class="text-rose-600">*</span></label>
+          <select id="wizardBenefClientSelect" onchange="wizardBenefClientSelected()" class="w-full p-2 border border-slate-300 rounded bg-white text-sm"></select>
+        </div>
+
+        <div id="wizardBenefStaffPick" hidden>
+          <label for="wizardBenefStaffSelect" class="block text-xs font-bold text-slate-600">Membre du personnel <span class="text-rose-600">*</span></label>
+          <select id="wizardBenefStaffSelect" onchange="wizardBenefStaffSelected()" class="w-full p-2 border border-slate-300 rounded bg-white text-sm"></select>
+        </div>
+
+        <div id="wizardManualFields" class="space-y-2">
+          <div>
+            <label for="wizardName" class="block text-xs text-slate-600 font-bold">Nom et prénom <span class="text-rose-600">*</span></label>
+            <input type="text" id="wizardName" autocomplete="name" list="clientNamesList" oninput="autofillWizardByName(); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label for="wizardEmail" class="block text-xs text-slate-600 font-bold">Email <span class="text-rose-600">*</span></label>
+            <input type="email" id="wizardEmail" autocomplete="email" oninput="autofillByEmail('wizard'); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label for="wizardPhone" class="block text-xs text-slate-600 font-bold">Téléphone <span class="text-rose-600">*</span></label>
+            <input type="tel" id="wizardPhone" autocomplete="tel" oninput="scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <p id="wizardDupStatus" hidden class="text-xs rounded-lg p-2" role="status"></p>
+        </div>
+        <p class="text-[10px] text-slate-400">L'adresse postale complète ne sera demandée (et vérifiée) qu'au moment de remettre le matériel.</p>
+        <p id="wizardBenefBackLink" hidden class="text-[10px]"><button type="button" onclick="wizardResetBenefMode()" class="underline text-indigo-600">← Changer de catégorie</button></p>
+        <p id="wizardBenefError" hidden class="text-xs text-rose-600 font-bold"></p>
+        <div class="flex justify-between gap-2 pt-2">
+          <button onclick="closeModal('wizardModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+          <button onclick="wizardValidateBenef()" class="px-4 py-2 bg-green-700 text-white font-bold rounded text-xs">Continuer →</button>
+        </div>
+      </div>
 
       <!-- Étape 1 : type -->
-      <div id="wizardStep1" class="space-y-3">
+      <div id="wizardStep1" hidden class="space-y-3">
         <p id="wizardStep1Question" class="text-sm font-bold">Souhaitez-vous un essai ou un prêt longue durée ?</p>
         <button onclick="wizardChooseType('essai')" class="w-full text-left p-4 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
           <span class="block font-bold text-sm">⏱️ Essai</span>
@@ -1494,6 +1564,9 @@
           <span class="block font-bold text-sm">📅 Prêt longue durée</span>
           <span class="block text-xs text-slate-500 mt-1">Du matériel réservé sur plusieurs jours.</span>
         </button>
+        <div class="pt-1">
+          <button onclick="wizardGoTo('Benef')" class="px-4 py-2 border border-slate-300 rounded text-xs">← Retour</button>
+        </div>
       </div>
 
       <!-- Étape 2 : quand -->
@@ -1523,43 +1596,19 @@
         </div>
         <p id="wizardStep2Error" hidden class="text-xs text-rose-600 font-bold"></p>
         <div class="flex justify-between gap-2 pt-2">
-          <button onclick="wizardGoTo(1)" class="px-4 py-2 border border-slate-300 rounded text-xs">← Retour</button>
+          <button onclick="wizardGoTo('1')" class="px-4 py-2 border border-slate-300 rounded text-xs">← Retour</button>
           <button onclick="wizardValidateStep2()" class="px-4 py-2 bg-green-700 text-white font-bold rounded text-xs">Continuer →</button>
         </div>
       </div>
 
-      <!-- Étape 3 : quoi + coordonnées -->
+      <!-- Étape 3 : quoi -->
       <div id="wizardStep3" hidden class="space-y-3">
         <p class="text-sm font-bold">Quel matériel souhaitez-vous réserver ?</p>
         <p class="text-[10px] text-slate-500">Seul le matériel encore libre sur ce créneau est proposé.</p>
         <div id="wizardEquipmentList" class="space-y-3"></div>
-
-        <div class="pt-2 border-t border-slate-100 space-y-2">
-          <p class="text-sm font-bold">Pour qui ?</p>
-          <div id="wizardClientSelectRow" hidden>
-            <label for="wizardClientSelect" class="block text-xs text-slate-600 font-bold">Client</label>
-            <select id="wizardClientSelect" onchange="wizardClientSelectChanged()" class="w-full p-2 border border-slate-300 rounded bg-white text-sm"></select>
-          </div>
-          <div id="wizardManualFields" class="space-y-2">
-            <div>
-              <label for="wizardName" class="block text-xs text-slate-600 font-bold">Nom et prénom <span class="text-rose-600">*</span></label>
-              <input type="text" id="wizardName" autocomplete="name" list="clientNamesList" oninput="autofillWizardByName(); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
-            </div>
-            <div>
-              <label for="wizardEmail" class="block text-xs text-slate-600 font-bold">Email <span class="text-rose-600">*</span></label>
-              <input type="email" id="wizardEmail" autocomplete="email" oninput="autofillByEmail('wizard'); scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
-            </div>
-            <div>
-              <label for="wizardPhone" class="block text-xs text-slate-600 font-bold">Téléphone <span class="text-rose-600">*</span></label>
-              <input type="tel" id="wizardPhone" autocomplete="tel" oninput="scheduleDupCheck('wizard')" class="w-full p-2 border border-slate-300 rounded text-sm">
-            </div>
-            <p id="wizardDupStatus" hidden class="text-xs rounded-lg p-2" role="status"></p>
-          </div>
-          <p class="text-[10px] text-slate-400">L'adresse postale complète ne sera demandée (et vérifiée) qu'au moment de remettre le matériel.</p>
-        </div>
         <p id="wizardStep3Status" hidden class="text-xs"></p>
         <div class="flex justify-between gap-2 pt-2">
-          <button onclick="wizardGoTo(2)" class="px-4 py-2 border border-slate-300 rounded text-xs">← Retour</button>
+          <button onclick="wizardGoTo('2')" class="px-4 py-2 border border-slate-300 rounded text-xs">← Retour</button>
           <button onclick="wizardValidateStep3()" class="px-4 py-2 bg-green-700 text-white font-bold rounded text-xs">Continuer →</button>
         </div>
       </div>
@@ -1575,7 +1624,7 @@
         </label>
         <div id="wizardSummary" class="text-xs bg-slate-50 border border-slate-200 rounded p-3 space-y-1"></div>
         <div class="flex justify-between gap-2 pt-2">
-          <button onclick="wizardGoTo(3)" class="px-4 py-2 border border-slate-300 rounded text-xs">← Retour</button>
+          <button onclick="wizardGoTo('3')" class="px-4 py-2 border border-slate-300 rounded text-xs">← Retour</button>
           <button id="wizardSubmitBtn" onclick="wizardSubmit()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded text-xs">✅ Valider la réservation</button>
         </div>
       </div>
@@ -2462,11 +2511,29 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // gestionnaire non autorisé sur les Finances — jamais d'un client. Le prêt constructeur ne concerne
   // que les voiles ; la révision concerne tout le matériel suivi (voiles, secours, sellettes).
   function isStaffViewer() { return currentRole === "admin" || currentRole === "manager" || currentRole === "instructor"; }
+  // Un email qui correspond à un compte du personnel (administrateur, gestionnaire ou moniteur) :
+  // utilisé pour ne pas envoyer les emails de prise/retour de prêt (destinés à un client) quand le
+  // bénéficiaire du prêt est lui-même un membre du personnel — voir sendTransactionalMail aux
+  // points de prise et de retour.
+  function isStaffEmail(email) {
+    const e = String(email || "").toLowerCase();
+    if (!e) return false;
+    return Object.values(appData.users || {}).some(u => (u.role === "admin" || u.role === "manager" || u.role === "instructor") && u.email && u.email.toLowerCase() === e);
+  }
   // Emprunter du matériel pour soi-même : toujours permis à l'administrateur et au moniteur ;
   // réglable, compte par compte, pour un gestionnaire (case « Emprunt » des réglages).
   function canSelfLoan() {
     if (currentRole === "admin" || currentRole === "instructor") return true;
     if (currentRole === "manager") return canUse("selfLoan");
+    return false;
+  }
+  // Même règle que canSelfLoan(), mais pour un compte du personnel précis (pas forcément le
+  // compte connecté) : utilisé pour proposer, dans l'assistant de réservation, la liste des
+  // membres du personnel qui peuvent être eux-mêmes bénéficiaires d'un créneau.
+  function userCanSelfLoan(user) {
+    if (!user || user.blocked) return false;
+    if (user.role === "admin" || user.role === "instructor") return true;
+    if (user.role === "manager") return getManagerPermissionsFor(user.id).selfLoan !== false;
     return false;
   }
   // Accès au formulaire de saisie manuelle dans « Prêt tiers » (sinon : uniquement via le QR
@@ -4424,14 +4491,17 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     // Confirmation de prise de matériel : un seul email récapitulatif, envoi
     // au client, meilleur effort (une panne d'envoi ne doit jamais bloquer
-    // l'enregistrement de la location).
-    sendTransactionalMail("pickup", {
-      name, email,
-      items: ids.map(id => "- " + itemLabel(appData.items[id])).join("\n"),
-      start: new Date(stamp).toLocaleString("fr-FR"),
-      end: new Date(dueAt).toLocaleString("fr-FR"),
-      contract: getContractText()
-    });
+    // l'enregistrement de la location). Jamais envoyé quand le bénéficiaire
+    // est lui-même un membre du personnel (moniteur, gestionnaire, administrateur).
+    if (!isStaffEmail(email)) {
+      sendTransactionalMail("pickup", {
+        name, email,
+        items: ids.map(id => "- " + itemLabel(appData.items[id])).join("\n"),
+        start: new Date(stamp).toLocaleString("fr-FR"),
+        end: new Date(dueAt).toLocaleString("fr-FR"),
+        contract: getContractText()
+      });
+    }
 
     pendingBorrowDetails = null;
     showBorrowDone({ ok, name, email, ids, dueAt });
@@ -4531,9 +4601,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const ok = await persist(["items", "history", "planning"]);
     toast(ok ? `Restitution enregistrée : ${itemLabel(it)}.` : "Restitution enregistrée localement (hors ligne).");
     // Trace écrite : mail à la personne + copie à l'adresse de référence (meilleur effort).
+    // Jamais envoyé quand l'emprunteur est lui-même un membre du personnel.
     const hoursLabel = `${Math.max(0, Number(hhEl.value) || 0)}h${String(Math.max(0, Math.min(59, Number(mmEl.value) || 0))).padStart(2, "0")}`;
-    sendTransactionalMail("return", { name: borrower, email: borrowerEmail, item: itemLabel(it), items: "- " + itemLabel(it), returnedAt: new Date().toLocaleString("fr-FR"),
-      flights: String(flights), hours: hoursLabel, note: note || "—" });
+    if (!isStaffEmail(borrowerEmail)) {
+      sendTransactionalMail("return", { name: borrower, email: borrowerEmail, item: itemLabel(it), items: "- " + itemLabel(it), returnedAt: new Date().toLocaleString("fr-FR"),
+        flights: String(flights), hours: hoursLabel, note: note || "—" });
+    }
     renderAll();
   }
 
@@ -4659,10 +4732,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     const ok = await persist(["items", "history", "planning"]);
     toast(ok ? "Matériel emprunté." : "Emprunt enregistré localement (hors ligne).");
-    // Le contrat de prêt est désormais joint à tous les prêts, y compris l'emprunt libre d'un
-    // moniteur pour lui-même (auparavant un texte générique était envoyé à la place).
-    sendTransactionalMail("pickup", { name, email, items: "- " + itemLabel(it), start: new Date(stamp).toLocaleString("fr-FR"),
-      end: new Date(openEnd).toLocaleString("fr-FR") + " (24 h maximum)", contract: getContractText() });
+    // Emprunt libre d'un membre du personnel pour lui-même : jamais d'email de prise, le
+    // bénéficiaire est forcément moniteur/gestionnaire/administrateur.
     renderAll();
   }
 
@@ -4711,7 +4782,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     demo:       { title: "🪂 Passer en démo", hist: "Stock passage en démo" },
     depart:     { title: "📦 Sortie du stock (vente / école / démo)", qty: "Quantité sortie", hist: "Stock départ" }
   };
-  const DEPART_DEST = { site: "Site Internet", magasin: "Magasin", ecole: "École", demo: "Démo", retro: "Rétrocession" };   // destinations archivées (avec prix) ; « pret » = prêt à une personne, avec retour, non archivé
+  // Destinations archivées (avec prix) ; « pret » = prêt à une personne, avec retour, non archivé.
+  // Rétrocession, vente site Internet et vente boutique/magasin ont été fusionnées en une seule
+  // destination « Vendu » (simplification demandée) ; école et démo restent inchangées.
+  const DEPART_DEST = { vendu: "Vendu", ecole: "École", demo: "Démo" };
   let stockActionState = null;
   let stockBrandFilter = "";    // "" = toutes les marques
   let stockTypeFilter = "";     // "" = tous les types
@@ -4986,7 +5060,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     show("stockDemoRow", false); show("stockDepartRow", kind === "depart");
     if (kind === "depart") {
       const opts = [["", "— Choisir —"], ["pret", "🤝 Prêt à une personne (retour prévu)"]];
-      if (canArchiveOut) opts.push(["site", "🛒 Vendu — site Internet"], ["magasin", "🏬 Vendu — boutique / magasin"], ["ecole", "🎓 Sorti pour l'école"], ["demo", "🪂 Sorti pour la démo"], ["retro", "↩️ Rétrocession"]);
+      if (canArchiveOut) opts.push(["vendu", "💰 Vendu"], ["ecole", "🎓 Sorti pour l'école"], ["demo", "🪂 Sorti pour la démo"]);
       $("stockDepartDest").innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
     }
     show("stockModalError", false);
@@ -5415,9 +5489,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     // Avant ce correctif, un prêt à un tiers envoyait un texte générique à la place du vrai contrat
     // ("...aucun contrat client.") : la personne ne recevait donc jamais sa copie du contrat de prêt,
     // contrairement à un emprunt fait directement par un client. On envoie maintenant le vrai contrat,
-    // comme pour tous les autres prêts à un client.
-    sendTransactionalMail("pickup", { name, email, items: "- " + itemLabel(it), start: new Date(stamp).toLocaleString("fr-FR"),
-      end: new Date(openEnd).toLocaleString("fr-FR") + (isDefaultWindow ? " (24 h par défaut)" : ""), contract: getContractText() });
+    // comme pour tous les autres prêts à un client — sauf si le bénéficiaire saisi est lui-même un
+    // membre du personnel (moniteur, gestionnaire, administrateur).
+    if (!isStaffEmail(email)) {
+      sendTransactionalMail("pickup", { name, email, items: "- " + itemLabel(it), start: new Date(stamp).toLocaleString("fr-FR"),
+        end: new Date(openEnd).toLocaleString("fr-FR") + (isDefaultWindow ? " (24 h par défaut)" : ""), contract: getContractText() });
+    }
     renderAll();
   }
 
@@ -5789,6 +5866,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
               <span class="${q > 0 ? "text-emerald-600" : "text-rose-600"} font-bold">${q > 0 ? "Disponible" : "Rupture"}</span>
               ${q > 0 ? `<button onclick="openStockAction('${k}','pret')" class="px-2 py-1 border border-purple-300 text-purple-700 rounded hover:bg-purple-50">🤝 Prêter</button>` : ""}
               ${o > 0 ? `<button onclick="openStockAction('${k}','retour')" class="px-2 py-1 border border-amber-300 text-amber-700 rounded hover:bg-amber-50">📥 Retour</button>` : ""}
+              ${(q > 0 && (currentRole === "instructor" || canUse("items"))) ? `<button onclick="openReservationWizard('${k}')" title="Réserver un créneau futur sur cette référence de stock" class="px-2 py-1 border border-teal-300 text-teal-700 rounded hover:bg-teal-50">📅 Réserver</button>` : ""}
             </div>
           </div>`; }).join("")}
       </div>` : "";
@@ -5830,7 +5908,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
               ${(canSelfLoan() && i.status === "Disponible" && !restrictedLocked) ? `<button onclick="instructorBorrowItem('${esc(i.id)}')" title="Emprunter ce matériel pour moi" class="px-2 py-1 border border-emerald-300 text-emerald-700 rounded hover:bg-emerald-50">🪂 Emprunter</button>` : ""}
               ${((currentRole === "instructor" || canManageItems) && i.status === "Disponible" && !restrictedLocked) ? `<button onclick="openThirdPartyBorrowModal('${esc(i.id)}','qr')" title="Faire scanner un QR code à une personne tierce (elle remplit elle-même le formulaire)" class="px-2 py-1 border border-purple-300 text-purple-700 rounded hover:bg-purple-50">🎯 Prêt tiers</button>` : ""}
               ${((currentRole === "instructor" || canManageItems) && canUseThirdPartyForm() && i.status === "Disponible" && !restrictedLocked) ? `<button onclick="openThirdPartyBorrowModal('${esc(i.id)}','form')" title="Prêter à une personne tierce en saisissant le formulaire à sa place (24 h maximum)" class="px-2 py-1 border border-indigo-300 text-indigo-700 rounded hover:bg-indigo-50">✍️ Prêt moniteur</button>` : ""}
-              ${((currentRole === "instructor" || canManageItems) && isLongTermRentalEnabled() && i.status !== "Indisponible") ? `<button onclick="openReservationWizard('${esc(i.id)}')" title="Réserver un créneau pour ce matériel précis" class="px-2 py-1 border border-teal-300 text-teal-700 rounded hover:bg-teal-50">📅 Réserver</button>` : ""}
+              ${((currentRole === "instructor" || canManageItems) && i.status !== "Indisponible") ? `<button onclick="openReservationWizard('${esc(i.id)}')" title="Réserver un créneau futur pour ce matériel précis" class="px-2 py-1 border border-teal-300 text-teal-700 rounded hover:bg-teal-50">📅 Réserver</button>` : ""}
             </div>
           </div>
           ${(revision && revision.due && canManageItems) ? `
@@ -7611,9 +7689,11 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (btnLabel) btnLabel.textContent = enabled ? "Réserver un créneau (essai ou prêt longue durée)" : "Réserver un créneau (essai)";
     const question = $("wizardStep1Question");
     if (question) question.textContent = enabled ? "Souhaitez-vous un essai ou un prêt longue durée ?" : "Souhaitez-vous faire un essai ?";
-    // Côté personnel (onglet Matériel) : le bouton global « Réserver un créneau » ne s'affiche
-    // que si le prêt longue durée est autorisé (celui de chaque fiche matériel suit la même
-    // règle directement dans son gabarit, à chaque rendu — voir renderItems).
+    // Côté personnel (onglet Matériel) : seul le bouton global « Réserver un créneau » (en haut
+    // de l'onglet, liste complète par type) suit ce réglage. Celui de chaque fiche matériel
+    // (« 📅 Réserver », réservation future sur ce seul matériel) reste toujours visible, y compris
+    // quand le prêt longue durée est désactivé : l'assistant qu'il ouvre ne propose alors que
+    // l'essai (voir show("wizardLocationTypeBtn", …) dans openReservationWizard).
     show("itemsTabReserveBtn", enabled);
   }
 
@@ -7894,7 +7974,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /*  ASSISTANT DE RÉSERVATION (ESSAI / LOCATION) — PLANNING              */
   /* ------------------------------------------------------------------ */
 
-  const wizard = { type: null, start: null, end: null, presetItemId: null };
+  const wizard = { type: null, start: null, end: null, presetItemId: null, isStaffBeneficiary: false, benefMode: null };
 
   // presetItemId : quand l'assistant est ouvert depuis une fiche matériel précise (bouton
   // « 📅 Réserver » de l'onglet Matériel), l'étape « quel matériel » ne propose plus que
@@ -7904,11 +7984,26 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     wizard.start = null;
     wizard.end = null;
     wizard.presetItemId = presetItemId || null;
+    wizard.isStaffBeneficiary = false;
+    wizard.benefMode = null;
     ["wizardEssaiDate", "wizardEssaiTime", "wizardLocStart", "wizardLocEnd",
      "wizardName", "wizardEmail", "wizardPhone"]
       .forEach(id => { const el = $(id); if (el) el.value = ""; });
-    if ($("wizardClientSelect")) $("wizardClientSelect").value = "__new__";
-    show("wizardManualFields", true);
+    if ($("wizardBenefClientSelect")) $("wizardBenefClientSelect").innerHTML = "";
+    if ($("wizardBenefStaffSelect")) $("wizardBenefStaffSelect").innerHTML = "";
+    // Le choix explicite « client existant / nouveau client / personnel » n'a de sens que pour
+    // le personnel : un client public ne doit jamais voir la liste des autres clients, et
+    // réserve forcément pour lui-même — il passe donc directement aux champs manuels.
+    const staffView = isStaffViewer();
+    show("wizardBenefButtons", staffView);
+    show("wizardBenefClientPick", false);
+    show("wizardBenefStaffPick", false);
+    show("wizardManualFields", !staffView);
+    show("wizardBenefBackLink", false);
+    show("wizardBenefError", false);
+    ["wizardBenefBtnClient", "wizardBenefBtnNew", "wizardBenefBtnStaff"].forEach(id => {
+      const el = $(id); if (el) el.classList.remove("border-green-500", "bg-green-50");
+    });
     $("wizardAcceptContract").checked = false;
     show("wizardStep2Error", false);
     show("wizardStep3Status", false);
@@ -7916,13 +8011,132 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     // « Location longue durée » côté client quand elle est désactivée.
     show("wizardLocationTypeBtn", isLongTermRentalEnabled());
     updateReservationWizardLabels();
-    wizardGoTo(1);
+    wizardGoTo("Benef");
     openModal("wizardModal");
   }
 
+  // Ordre des étapes de l'assistant : d'abord le bénéficiaire (qui ?), puis le type, la
+  // date/l'heure, le matériel, et enfin le contrat — voir wizardValidateBenef.
+  const WIZARD_STEP_ORDER = ["Benef", "1", "2", "3", "4"];
   function wizardGoTo(step) {
-    [1, 2, 3, 4].forEach(n => show(`wizardStep${n}`, n === step));
-    $("wizardStepNumber").textContent = step;
+    step = String(step);
+    WIZARD_STEP_ORDER.forEach(k => show(`wizardStep${k}`, k === step));
+    $("wizardStepNumber").textContent = WIZARD_STEP_ORDER.indexOf(step) + 1;
+  }
+
+  // Bascule entre les 3 catégories de bénéficiaire (client existant / nouveau client /
+  // personnel), bien distinguées plutôt que mélangées dans un seul menu déroulant : chaque
+  // catégorie révèle son propre contrôle (sélecteur de client, sélecteur de personnel, ou
+  // champs manuels), les deux autres restant masqués.
+  function wizardChooseBenefMode(mode) {
+    wizard.benefMode = mode;
+    const btnId = { client: "wizardBenefBtnClient", new: "wizardBenefBtnNew", staff: "wizardBenefBtnStaff" }[mode];
+    ["wizardBenefBtnClient", "wizardBenefBtnNew", "wizardBenefBtnStaff"].forEach(id => {
+      const el = $(id); if (!el) return;
+      el.classList.toggle("border-green-500", id === btnId);
+      el.classList.toggle("bg-green-50", id === btnId);
+    });
+    show("wizardBenefButtons", false);
+    show("wizardBenefClientPick", mode === "client");
+    show("wizardBenefStaffPick", mode === "staff");
+    show("wizardManualFields", mode === "new");
+    show("wizardBenefBackLink", true);
+    show("wizardBenefError", false);
+    ["wizardName", "wizardEmail", "wizardPhone"].forEach(id => { const el = $(id); if (el) el.value = ""; });
+    if (mode === "client") wizardPopulateBenefClientSelect();
+    if (mode === "staff") wizardPopulateBenefStaffSelect();
+  }
+
+  // Revient au choix de catégorie (lien « ← Changer de catégorie »), sans quitter l'étape.
+  function wizardResetBenefMode() {
+    wizard.benefMode = null;
+    show("wizardBenefButtons", true);
+    show("wizardBenefClientPick", false);
+    show("wizardBenefStaffPick", false);
+    show("wizardManualFields", false);
+    show("wizardBenefBackLink", false);
+    ["wizardBenefBtnClient", "wizardBenefBtnNew", "wizardBenefBtnStaff"].forEach(id => {
+      const el = $(id); if (el) el.classList.remove("border-green-500", "bg-green-50");
+    });
+  }
+
+  // Sélecteur « Client existant » : jamais exposé à un client public (voir openReservationWizard),
+  // qui ne doit pas voir la liste des autres clients.
+  function wizardPopulateBenefClientSelect() {
+    const sel = $("wizardBenefClientSelect");
+    if (!sel) return;
+    const clients = Object.values(appData.clients || {}).filter(c => !c.blocked)
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
+    sel.innerHTML = `<option value="">— Choisir —</option>` +
+      clients.map(c => `<option value="${esc(c.id)}">${esc(c.name || c.id)}${c.email ? " · " + esc(c.email) : ""}</option>`).join("");
+  }
+  function wizardBenefClientSelected() {
+    const c = appData.clients[$("wizardBenefClientSelect").value];
+    if (!c) return;
+    if ($("wizardName")) $("wizardName").value = c.name || "";
+    if ($("wizardEmail")) $("wizardEmail").value = c.email || "";
+    if ($("wizardPhone")) $("wizardPhone").value = c.phone || "";
+  }
+
+  // Sélecteur « Personnel » : administrateur, gestionnaire autorisé à emprunter pour lui-même,
+  // ou moniteur — ex. un moniteur qui réserve un créneau pour lui-même.
+  function wizardPopulateBenefStaffSelect() {
+    const sel = $("wizardBenefStaffSelect");
+    if (!sel) return;
+    const staff = Object.values(appData.users || {}).filter(u => userCanSelfLoan(u))
+      .sort((a, b) => String(a.name || a.username || "").localeCompare(String(b.name || b.username || ""), "fr"));
+    sel.innerHTML = `<option value="">— Choisir —</option>` +
+      staff.map(u => `<option value="${esc(u.id)}">${esc(u.name || u.username || u.id)} (${esc(roleLabel(u.role))})</option>`).join("");
+  }
+  function wizardBenefStaffSelected() {
+    const u = appData.users[$("wizardBenefStaffSelect").value];
+    if (!u) return;
+    if ($("wizardName")) $("wizardName").value = u.name || u.username || "";
+    if ($("wizardEmail")) $("wizardEmail").value = u.email || "";
+    if ($("wizardPhone")) $("wizardPhone").value = u.phone || "";
+  }
+
+  // Valide l'étape « Pour qui ? », désormais la toute première de l'assistant (avant même le
+  // type et la date/l'heure) : client existant, nouveau client et personnel sont distingués
+  // dès le départ plutôt que mélangés dans un seul menu déroulant.
+  async function wizardValidateBenef() {
+    if (busy) return;
+    const errEl = $("wizardBenefError");
+    show(errEl, false);
+    const staffView = isStaffViewer();
+    const mode = staffView ? wizard.benefMode : "new";
+    if (staffView && !mode) {
+      errEl.textContent = "Choisissez une catégorie : client existant, nouveau client ou personnel.";
+      show(errEl, true);
+      return;
+    }
+    if (mode === "client" && !$("wizardBenefClientSelect").value) {
+      errEl.textContent = "Choisissez un client."; show(errEl, true); return;
+    }
+    if (mode === "staff" && !$("wizardBenefStaffSelect").value) {
+      errEl.textContent = "Choisissez un membre du personnel."; show(errEl, true); return;
+    }
+
+    const name = $("wizardName").value.trim();
+    const email = $("wizardEmail").value.trim();
+    const phone = $("wizardPhone").value.trim();
+    const isStaffBeneficiary = mode === "staff";
+
+    if (name.length < 3) { toast("Renseignez le nom et prénom du bénéficiaire.", "error"); return; }
+    if (!isValidEmail(email)) { toast("Adresse email invalide.", "error"); return; }
+    if (!isStaffBeneficiary && !isValidPhone(phone)) { toast("Numéro de téléphone invalide.", "error"); return; }
+
+    // Le client est déjà connu (catégorie « Client existant ») ou interne (« Personnel ») :
+    // pas de vérification de doublon à faire, contrairement à un nouveau client saisi à la main.
+    if (mode === "new") {
+      const existingClient = findClientByEmail(email);
+      if (existingClient && existingClient.blocked) { toast("Ce compte client a été bloqué. Contactez la structure.", "error"); return; }
+      if (await dupBlocksSubmit("wizard")) return;
+    }
+
+    wizard.name = name; wizard.email = email; wizard.phone = phone;
+    wizard.isStaffBeneficiary = isStaffBeneficiary;
+    wizardGoTo("1");
   }
 
   function wizardChooseType(type) {
@@ -7933,7 +8147,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     wizard.type = type;
     show("wizardStep2Essai", type === "essai");
     show("wizardStep2Location", type === "location");
-    wizardGoTo(2);
+    wizardGoTo("2");
   }
 
   function wizardValidateStep2() {
@@ -7965,40 +8179,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     }
 
     wizardRenderEquipmentList();
-    wizardPopulateClientSelect();
-    wizardGoTo(3);
-  }
-
-  // Liste déroulante « Pour qui ? » (personnel uniquement — jamais exposée à un client public,
-  // qui ne doit pas voir la liste des autres clients) : mêmes principes que pour le changement
-  // de bénéficiaire d'une réservation (editBeneficiary).
-  function wizardPopulateClientSelect() {
-    const sel = $("wizardClientSelect");
-    if (!sel) return;
-    show("wizardClientSelectRow", isStaffViewer());
-    if (!isStaffViewer()) return;
-    const clients = Object.values(appData.clients || {}).filter(c => !c.blocked)
-      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
-    sel.innerHTML = `<option value="__new__">➕ Nouveau client…</option>` +
-      clients.map(c => `<option value="${esc(c.id)}">${esc(c.name || c.id)}${c.email ? " · " + esc(c.email) : ""}</option>`).join("");
-    sel.value = "__new__";
-    show("wizardManualFields", true);
-  }
-
-  function wizardClientSelectChanged() {
-    const sel = $("wizardClientSelect");
-    const v = sel ? sel.value : "__new__";
-    if (v === "__new__") {
-      show("wizardManualFields", true);
-      ["wizardName", "wizardEmail", "wizardPhone"].forEach(id => { const el = $(id); if (el) el.value = ""; });
-      return;
-    }
-    const c = appData.clients[v];
-    if (!c) return;
-    show("wizardManualFields", false);
-    if ($("wizardName")) $("wizardName").value = c.name || "";
-    if ($("wizardEmail")) $("wizardEmail").value = c.email || "";
-    if ($("wizardPhone")) $("wizardPhone").value = c.phone || "";
+    wizardGoTo("3");
   }
 
   // Un créneau [start,end) chevauche un autre s'ils se recouvrent partiellement.
@@ -8016,11 +8197,59 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     );
   }
 
+  // Sellette du stock partagé (non suivie individuellement, pas de numéro de série) réservable
+  // elle aussi via l'assistant : reconnue par le préfixe de son identifiant (voir newStockId,
+  // « STK- »), distinct de celui des équipements suivis individuellement (« ITEM- »).
+  function isStockReservationId(id) { return typeof id === "string" && id.startsWith("STK-"); }
+
+  function stockRowLabel(r) {
+    return `🪑 ${[r.brand, r.model].filter(Boolean).join(" ")}${r.size ? " — taille " + r.size : ""}${r.color ? " — " + r.color : ""} (stock)`;
+  }
+
+  // Libellé d'un équipement réservé dans l'assistant, qu'il soit suivi individuellement
+  // (appData.items) ou partagé en stock (appData.stock, sellettes) — utilisé partout où la
+  // réservation affiche ou enregistre le nom de l'équipement (résumé, planning, historique).
+  function reservationItemLabel(id) {
+    if (isStockReservationId(id)) { const r = appData.stock[id]; return r ? stockRowLabel(r) : "Sellette en stock"; }
+    return itemLabel(appData.items[id]);
+  }
+
+  // Nombre de réservations déjà en place sur ce créneau pour cette ligne de stock : contrairement
+  // à un équipement suivi individuellement (toujours capacité 1, voir planningConflictsForItem),
+  // plusieurs réservations simultanées sont possibles tant que leur nombre reste sous la quantité
+  // totale en stock (r.qty) — le stock prêté « maintenant » (stockOut) n'entre pas en compte ici,
+  // il s'agit de créneaux futurs, pas de l'état présent du rayon.
+  function stockReservationsOverlapCount(stockId, startISO, endISO) {
+    const start = new Date(startISO).getTime();
+    const end = new Date(endISO).getTime();
+    return Object.values(appData.planning).filter(p =>
+      p.itemId === stockId &&
+      p.status === "Réservé" &&
+      intervalsOverlap(start, end, new Date(p.start).getTime(), new Date(p.end).getTime())
+    ).length;
+  }
+
   function wizardRenderEquipmentList() {
     const box = $("wizardEquipmentList");
     if (!box) return;
-    // Matériel précis imposé (bouton « 📅 Réserver » d'une fiche matériel) : une seule case,
-    // déjà cochée, au lieu de la liste complète par type.
+    // Matériel précis imposé (bouton « 📅 Réserver » d'une fiche matériel ou d'une ligne de
+    // stock) : une seule case, déjà cochée, au lieu de la liste complète par type.
+    if (wizard.presetItemId && isStockReservationId(wizard.presetItemId)) {
+      const r = appData.stock[wizard.presetItemId];
+      if (!r) { box.innerHTML = `<p class="text-xs text-rose-600">Cette référence de stock n'existe plus.</p>`; return; }
+      // Rupture de stock (0 en rayon) : pas de réservation possible du tout, sans exception pour
+      // le personnel — contrairement à un créneau simplement complet (voir staffOverride plus bas).
+      if (stockQty(r) === 0) { box.innerHTML = `<p class="text-xs text-rose-600">${esc(stockRowLabel(r))} est en rupture de stock : réservation impossible.</p>`; return; }
+      const overlap = stockReservationsOverlapCount(r.id, wizard.start, wizard.end);
+      const full = overlap >= stockQty(r);
+      const staffOverride = full && isStaffViewer();
+      const blocked = full && !isStaffViewer();
+      box.innerHTML = `<label class="flex items-center gap-2 text-xs ${blocked ? "opacity-40" : ""}">
+        <input type="checkbox" data-wizard-item="${esc(r.id)}" checked ${blocked ? "disabled" : ""}>
+        <span${staffOverride ? ' class="text-amber-600 font-bold"' : ""}>${esc(stockRowLabel(r))} — ${overlap}/${stockQty(r)} déjà réservée(s) sur ce créneau${full ? (staffOverride ? " — ⚠️ stock complet sur ce créneau" : " — stock complet sur ce créneau") : ""}</span>
+      </label>`;
+      return;
+    }
     if (wizard.presetItemId) {
       const i = appData.items[wizard.presetItemId];
       if (!i || i.status === "Indisponible") { box.innerHTML = `<p class="text-xs text-rose-600">Ce matériel n'est plus disponible.</p>`; return; }
@@ -8033,6 +8262,23 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       </label>`;
       return;
     }
+    // Sellettes du stock partagé (quantité, pas de numéro de série) : une case par référence,
+    // réservable tant que le nombre de réservations déjà prises sur ce créneau reste sous la
+    // quantité totale en stock.
+    // Une référence en rupture de stock (0 en rayon) n'est pas proposée à la réservation.
+    const stockRowsForWizard = stockAllowed() ? Object.values(appData.stock).filter(r => r.category === "Sellette" && stockQty(r) > 0) : [];
+    const stockBlockHtml = stockRowsForWizard.length ? `<div><p class="text-xs font-bold text-slate-500 mb-1">🪑 Sellettes en stock</p><div class="space-y-1">${
+      stockRowsForWizard.map(r => {
+        const overlap = stockReservationsOverlapCount(r.id, wizard.start, wizard.end);
+        const full = overlap >= stockQty(r);
+        const staffOverride = full && isStaffViewer();
+        const blocked = full && !isStaffViewer();
+        return `<label class="flex items-center gap-2 text-xs ${blocked ? "opacity-40" : ""}">
+          <input type="checkbox" data-wizard-item="${esc(r.id)}" ${blocked ? "disabled" : ""}>
+          <span${staffOverride ? ' class="text-amber-600 font-bold"' : ""}>${esc(stockRowLabel(r))} — ${overlap}/${stockQty(r)} déjà réservée(s) sur ce créneau${full ? (staffOverride ? " — ⚠️ stock complet sur ce créneau" : " — stock complet sur ce créneau") : ""}</span>
+        </label>`;
+      }).join("")
+    }</div></div>` : "";
     box.innerHTML = TYPES.map(type => {
       // Un équipement rendu indisponible (panne, contrôle…) n'est jamais proposé à
       // la réservation, quel que soit le créneau demandé — contrairement à un
@@ -8052,7 +8298,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
         </label>`;
       }).join("");
       return `<div><p class="text-xs font-bold text-slate-500 mb-1">${esc(type)}</p><div class="space-y-1">${rows}</div></div>`;
-    }).join("") || `<p class="text-xs text-slate-500">Aucun équipement enregistré.</p>`;
+    }).join("") + stockBlockHtml || `<p class="text-xs text-slate-500">Aucun équipement enregistré.</p>`;
   }
 
   function wizardSelectedIds() {
@@ -8066,35 +8312,24 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (!ids.length) { toast("Sélectionnez au moins un équipement.", "error"); return; }
     if (restrictedIdsBlocked(ids).length) { toast("Une voile Acro / Speed / Parakite est réservée aux personnes habilitées.", "error"); return; }
 
-    const name = $("wizardName").value.trim();
-    const email = $("wizardEmail").value.trim();
-    const phone = $("wizardPhone").value.trim();
-
-    if (name.length < 3) { toast("Renseignez votre nom et prénom.", "error"); return; }
-    if (!isValidEmail(email)) { toast("Adresse email invalide.", "error"); return; }
-    if (!isValidPhone(phone)) { toast("Numéro de téléphone invalide.", "error"); return; }
-
-    const existingClient = findClientByEmail(email);
-    if (existingClient && existingClient.blocked) { toast("Ce compte client a été bloqué. Contactez la structure.", "error"); return; }
-    if (await dupBlocksSubmit("wizard")) return;
-    // Pas de limite de 2/jour ici : elle ne s'applique qu'à la location immédiate au
-    // comptoir, jamais à une réservation de créneau (voir borrowAttemptsToday).
-    // L'adresse postale complète (et sa vérification géographique) n'est plus demandée à la
-    // réservation : seuls le nom, l'email et le téléphone sont obligatoires ici. L'adresse est
-    // demandée et vérifiée uniquement à la remise du matériel (voir confirmBookingHandover).
+    // Le bénéficiaire (client existant, nouveau client ou personnel) a déjà été validé à la
+    // toute première étape — voir wizardValidateBenef. Pas de limite de 2/jour ici : elle ne
+    // s'applique qu'à la location immédiate au comptoir, jamais à une réservation de créneau
+    // (voir borrowAttemptsToday). L'adresse postale complète n'est demandée et vérifiée qu'à la
+    // remise du matériel (voir confirmBookingHandover).
     show("wizardStep3Status", false);
 
     wizard.selectedIds = ids;
-    wizard.name = name; wizard.email = email; wizard.phone = phone;
 
     $("wizardContractText").textContent = getContractText();
     const dueLabel = new Date(wizard.end).toLocaleString("fr-FR");
     $("wizardSummary").innerHTML = `
+      <p><strong>Bénéficiaire :</strong> ${esc(wizard.name)}${wizard.isStaffBeneficiary ? " (personnel)" : ""}</p>
       <p><strong>Type :</strong> ${wizard.type === "essai" ? "Essai" : "Prêt longue durée"}</p>
       <p><strong>Créneau :</strong> du ${esc(new Date(wizard.start).toLocaleString("fr-FR"))} au ${esc(dueLabel)}</p>
       <p><strong>Matériel :</strong></p>
-      <ul>${ids.map(id => `<li>• ${esc(itemLabel(appData.items[id]))}</li>`).join("")}</ul>`;
-    wizardGoTo(4);
+      <ul>${ids.map(id => `<li>• ${esc(reservationItemLabel(id))}</li>`).join("")}</ul>`;
+    wizardGoTo("4");
   }
 
   async function wizardSubmit() {
@@ -8105,8 +8340,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     // Re-vérifie les conflits juste avant validation (le créneau a pu être pris entre-temps).
     // Le personnel peut sciemment passer outre (voir wizardRenderEquipmentList) ; seul un client
-    // reste bloqué si le créneau vient d'être pris par quelqu'un d'autre.
-    const stillFree = isStaffViewer() || wizard.selectedIds.every(id => planningConflictsForItem(id, wizard.start, wizard.end).length === 0);
+    // reste bloqué si le créneau vient d'être pris par quelqu'un d'autre. Pour une sellette du
+    // stock partagé, la capacité n'est pas 1 mais la quantité totale en stock (voir
+    // stockReservationsOverlapCount) : plusieurs réservations simultanées restent possibles.
+    const stillFreeOne = id => isStockReservationId(id)
+      ? stockReservationsOverlapCount(id, wizard.start, wizard.end) < stockQty(appData.stock[id] || {})
+      : planningConflictsForItem(id, wizard.start, wizard.end).length === 0;
+    const stillFree = isStaffViewer() || wizard.selectedIds.every(stillFreeOne);
     if (!stillFree) {
       toast("Une partie du matériel vient d'être réservée par quelqu'un d'autre. Merci de recommencer.", "error");
       closeModal("wizardModal");
@@ -8119,33 +8359,43 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     // Réservation faite via cet assistant simplifié (nom/email/téléphone seulement, sans adresse) :
     // si le client n'a pas déjà une adresse complète enregistrée, la remise du matériel (« Donner
     // au client ») exigera de la renseigner et de la vérifier avant de sortir le matériel.
-    const needsAddressAtHandover = !clientAddressComplete(findClientByEmail(wizard.email));
+    // Un bénéficiaire interne (personnel) n'a pas de fiche client ni d'adresse à vérifier.
+    const needsAddressAtHandover = !wizard.isStaffBeneficiary && !clientAddressComplete(findClientByEmail(wizard.email));
     wizard.selectedIds.forEach(itemId => {
       const rowId = `PLAN-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       appData.planning[rowId] = {
-        id: rowId, bookingId, itemId, itemLabel: itemLabel(appData.items[itemId]),
+        id: rowId, bookingId, itemId, itemLabel: reservationItemLabel(itemId),
         type: wizard.type, start: wizard.start, end: wizard.end,
         clientName: wizard.name, clientEmail: wizard.email, clientPhone: wizard.phone,
         needsAddressAtHandover,
         status: "Réservé", createdAt
       };
       // Trace la réservation dans l'historique, afin que le suivi des
-      // locations et des plannings soit centralisé dans la même feuille.
-      addHistory("Réservation", appData.items[itemId], wizard.name, wizard.email,
-        `${wizard.type === "essai" ? "Essai" : "Prêt longue durée"} du ${new Date(wizard.start).toLocaleString("fr-FR")} au ${new Date(wizard.end).toLocaleString("fr-FR")}`);
+      // locations et des plannings soit centralisé dans la même feuille. Une sellette du stock
+      // partagé n'a pas de fiche équipement (appData.items) : addHistory, qui en exige une,
+      // n'est utilisable que pour un équipement suivi individuellement.
+      const note = `${wizard.type === "essai" ? "Essai" : "Prêt longue durée"} du ${new Date(wizard.start).toLocaleString("fr-FR")} au ${new Date(wizard.end).toLocaleString("fr-FR")}`;
+      if (isStockReservationId(itemId)) {
+        addGenericHistory("Réservation", reservationItemLabel(itemId), wizard.name, wizard.email, note);
+      } else {
+        addHistory("Réservation", appData.items[itemId], wizard.name, wizard.email, note);
+      }
     });
 
     // L'adresse postale n'est plus demandée ici : elle sera recueillie et vérifiée à la remise
     // du matériel (voir confirmBookingHandover) si la fiche client ne l'a pas déjà.
-    let client = findClientByEmail(wizard.email);
-    if (client) {
-      client.name = wizard.name; client.phone = wizard.phone;
-    } else {
-      const clientId = `CLI-${Date.now()}`;
-      appData.clients[clientId] = {
-        id: clientId, name: wizard.name, email: wizard.email, phone: wizard.phone,
-        address: "", postalCode: "", city: "", country: "", createdAt: today(), blocked: false
-      };
+    // Un bénéficiaire interne (personnel) n'a pas de fiche client à créer ou mettre à jour.
+    if (!wizard.isStaffBeneficiary) {
+      let client = findClientByEmail(wizard.email);
+      if (client) {
+        client.name = wizard.name; client.phone = wizard.phone;
+      } else {
+        const clientId = `CLI-${Date.now()}`;
+        appData.clients[clientId] = {
+          id: clientId, name: wizard.name, email: wizard.email, phone: wizard.phone,
+          address: "", postalCode: "", city: "", country: "", createdAt: today(), blocked: false
+        };
+      }
     }
 
     closeModal("wizardModal");
@@ -8154,7 +8404,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     sendTransactionalMail("booking", {
       name: wizard.name, email: wizard.email,
       type: wizard.type === "essai" ? "Essai" : "Prêt longue durée",
-      items: wizard.selectedIds.map(id => "- " + itemLabel(appData.items[id])).join("\n"),
+      items: wizard.selectedIds.map(id => "- " + reservationItemLabel(id)).join("\n"),
       start: new Date(wizard.start).toLocaleString("fr-FR"),
       end: new Date(wizard.end).toLocaleString("fr-FR"),
       contract: getContractText()
@@ -8309,11 +8559,36 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     "Gratuit": { color: "bg-yellow-400", text: "text-yellow-600" }
   };
   function planningPayment(p) {
+    // Sellette du stock partagé ou réservation pas encore remise : pas de fiche équipement
+    // (Loué) à consulter — le paiement choisi à l'avance vit directement sur la ligne de
+    // planning (voir reservationPaymentControl / setReservationPayment ci-dessous).
+    if (isStockReservationId(p.itemId) || planningNeedsHandover(p)) {
+      return (p.payment && PAYMENT_DOT[p.payment]) ? p.payment : "";
+    }
     const it = appData.items[p.itemId];
     if (!it || it.status !== "Loué" || !it.payment || !PAYMENT_DOT[it.payment]) return "";
-    const s0 = new Date(p.start).getTime();
-    if (!isNaN(s0) && s0 > Date.now()) return "";      // réservation à venir : pas encore de paiement
     return it.payment;
+  }
+  // Admin / gestionnaire peuvent choisir (ou corriger) Payé/Gratuit/À payer sur une réservation
+  // qui n'a pas encore été remise au client (bouton « 📤 Donner au client » pas encore utilisé) —
+  // la même valeur est ensuite reprise automatiquement lors de la remise (voir doHandover).
+  function reservationPaymentControl(p) {
+    if (currentRole !== "admin" && currentRole !== "manager") return paymentBadge(p);
+    return `<select onchange="setReservationPayment('${esc(String(p.bookingId)).replace(/'/g, "&#39;")}', this.value)" class="ml-1 p-0.5 border border-slate-300 rounded text-[10px] bg-white">
+      <option value=""${p.payment ? "" : " selected"}>💶 non précisé</option>
+      ${PAYMENT_STATES.map(v => `<option value="${v}"${p.payment === v ? " selected" : ""}>💶 ${v}</option>`).join("")}
+    </select>`;
+  }
+  async function setReservationPayment(bookingId, value) {
+    if (currentRole !== "admin" && currentRole !== "manager") return;
+    const rows = Object.values(appData.planning).filter(p => p.bookingId === bookingId);
+    if (!rows.length) return;
+    const payment = PAYMENT_STATES.includes(value) ? value : "";
+    rows.forEach(p => { p.payment = payment; });
+    addGenericHistory("Paiement", rows[0].itemLabel || "réservation", rows[0].clientName, rows[0].clientEmail, `Paiement (réservation) : ${payment || "non précisé"}`);
+    const ok = await persist(["planning", "history"]);
+    toast(ok ? "Paiement mis à jour." : "Modification enregistrée localement (hors ligne).");
+    renderAll();
   }
 
   function ymd(d) {
@@ -8371,6 +8646,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     // confirmThirdPartyBorrow. Un emprunt libre immédiat (self-loan) de type « moniteur » passe
     // lui directement en Loué à la création : la condition sur it.status ci-dessous l'exclut déjà.
     if (p.type !== "essai" && p.type !== "location" && p.type !== "moniteur") return false;
+    // Sellette du stock partagé (pas de fiche équipement individuelle, donc pas de statut
+    // Disponible/Loué à vérifier) : reste à remettre tant que sa propre remise n'a pas eu lieu
+    // (voir p.stockHandedOver, posé par doHandover).
+    if (isStockReservationId(p.itemId)) return !p.stockHandedOver;
     const it = appData.items[p.itemId];
     return !!it && it.status === "Disponible";
   }
@@ -8379,20 +8658,19 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // correspondante bascule en rouge dans Prêts en cours / Planning / Historique, et la remise du
   // matériel (« 📤 Donner au client ») est bloquée jusqu'à ce qu'elles soient complétées — sans quoi
   // le matériel sortirait sans aucun moyen fiable de recontacter ce client par la suite.
-  // Un bénéficiaire "Moniteur" (compte existant, choisi via le sélecteur de bénéficiaire) n'a pas
-  // de numéro de téléphone dans sa fiche — ce champ n'existe pas pour les comptes du personnel.
-  // Reconnu par son email, qui correspond alors à celui d'un compte instructor.
-  function planningBeneficiaryIsInstructor(p) {
-    const email = String(p.clientEmail || "").toLowerCase();
-    if (!email) return false;
-    return Object.values(appData.users || {}).some(u => u.role === "instructor" && u.email && u.email.toLowerCase() === email);
+  // Un bénéficiaire membre du personnel (administrateur, gestionnaire ou moniteur — compte
+  // existant, choisi via le sélecteur de bénéficiaire ou l'assistant de réservation) n'a pas de
+  // numéro de téléphone dans sa fiche — ce champ n'existe pas pour les comptes du personnel.
+  // Reconnu par son email, qui correspond alors à celui d'un compte admin/manager/instructor.
+  function planningBeneficiaryIsStaff(p) {
+    return isStaffEmail(p.clientEmail);
   }
 
   function planningContactMissing(p) {
     if (!isValidEmail(p.clientEmail || "")) return true;
-    // Téléphone non exigé pour un bénéficiaire Moniteur : l'exiger bloquerait indéfiniment la
-    // remise du matériel, puisqu'aucun compte moniteur n'en dispose.
-    if (planningBeneficiaryIsInstructor(p)) return false;
+    // Téléphone non exigé pour un bénéficiaire membre du personnel : l'exiger bloquerait
+    // indéfiniment la remise du matériel, puisqu'aucun compte du personnel n'en dispose.
+    if (planningBeneficiaryIsStaff(p)) return false;
     return !isValidPhone(p.clientPhone || "");
   }
 
@@ -8401,7 +8679,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const bits = [];
     if (!isValidEmail(p.clientEmail || "")) bits.push(`<button onclick="promptSetPlanningEmail(${escJsAttr(bookingId)})" class="text-indigo-600 underline">➕ Ajouter l'email</button>`);
     // Téléphone non proposé pour un bénéficiaire Moniteur (aucun compte moniteur n'en a).
-    if (!planningBeneficiaryIsInstructor(p) && !isValidPhone(p.clientPhone || "")) bits.push(`<button onclick="promptSetPlanningPhone(${escJsAttr(bookingId)})" class="text-indigo-600 underline">➕ Ajouter le téléphone</button>`);
+    if (!planningBeneficiaryIsStaff(p) && !isValidPhone(p.clientPhone || "")) bits.push(`<button onclick="promptSetPlanningPhone(${escJsAttr(bookingId)})" class="text-indigo-600 underline">➕ Ajouter le téléphone</button>`);
     if (!bits.length) return "";
     return `<p class="text-rose-600 font-bold">⚠️ Coordonnées incomplètes : ${bits.join(" · ")}</p>`;
   }
@@ -8456,19 +8734,41 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const rows = Object.values(appData.planning).filter(p => p.bookingId === bookingId && planningNeedsHandover(p));
     if (!rows.length) { toast("Ce matériel n'est plus disponible pour cette réservation.", "error"); renderAll(); return; }
     const stamp = new Date().toISOString();
+    const sheets = ["history", "clients", "planning"];
     rows.forEach(p => {
+      // Sellette du stock partagé : pas de fiche équipement individuelle à faire basculer en
+      // Loué — on décrémente la quantité en rayon et on trace le prêt comme le ferait le bouton
+      // « 🤝 Prêter » du stock, afin que le retour (bouton « 📥 Retour ») fonctionne pareillement.
+      if (isStockReservationId(p.itemId)) {
+        const r = appData.stock[p.itemId];
+        if (r && stockQty(r) > 0) {
+          const loans = stockLoans(r);
+          r.qty = stockQty(r) - 1;
+          const personKey = Object.keys(loans).find(k => brandKey(k) === brandKey(p.clientName)) || p.clientName;
+          loans[personKey] = (Number(loans[personKey]) || 0) + 1;
+          r.loans = JSON.stringify(loans);
+          stockHistory(STOCK_ACTIONS.sortie.hist, r, p.clientName, `par réservation · ×1`);
+          if (!sheets.includes("stock")) sheets.push("stock");
+        }
+        p.stockHandedOver = true;
+        return;
+      }
       const it = appData.items[p.itemId];
       it.status = "Loué";
       it.borrowerName = p.clientName;
       it.borrowerEmail = p.clientEmail;
       it.borrowedAt = stamp;
       it.loanKind = "";
-      it.payment = "";
+      // Reprend le paiement déjà choisi sur la réservation (voir reservationPaymentControl),
+      // au lieu de l'effacer : il ne doit pas falloir le ressaisir juste parce que le matériel
+      // vient d'être remis physiquement.
+      it.payment = PAYMENT_STATES.includes(p.payment) ? p.payment : "";
       it.dueAt = p.end;
       addHistory("Prêt", it, p.clientName, p.clientEmail, `Mise en prêt d'une réservation (${planningTypeLabel(p)}).`);
+      if (!sheets.includes("items")) sheets.push("items");
     });
 
-    const ok = await persist(["items", "history", "clients", "planning"]);
+    const ok = await persist(sheets);
     toast(ok ? "📤 Matériel remis au client." : "Mise en prêt enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -8498,8 +8798,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     // complète au moment de la réservation (voir wizardSubmit → needsAddressAtHandover). Les autres
     // réservations (prêt tiers, prêt moniteur, anciennes données…) ne sont jamais concernées, et un
     // bénéficiaire Moniteur en est de toute façon exempté (même exemption que pour le téléphone,
-    // voir planningBeneficiaryIsInstructor).
-    if (rows.some(p => p.needsAddressAtHandover) && !planningBeneficiaryIsInstructor(rows[0])) {
+    // voir planningBeneficiaryIsStaff).
+    if (rows.some(p => p.needsAddressAtHandover) && !planningBeneficiaryIsStaff(rows[0])) {
       const client = findClientByEmail(rows[0].clientEmail);
       if (!clientAddressComplete(client)) {
         handoverPendingBookingId = bookingId;
@@ -8592,7 +8892,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       return `<div class="bg-slate-50 border ${missing ? "border-rose-400 bg-rose-50" : "border-slate-200"} rounded p-2">
         <p class="font-bold truncate">${esc(p.itemLabel)}</p>
         <p class="text-slate-500">${planningTypeLabel(p)} · ${period}</p>
-        <p class="text-slate-400">${esc(p.clientName || "")} <span class="${PLANNING_STATE_DEFS[planningDotState(p, now)].text} font-bold">· ${esc(PLANNING_STATE_DEFS[planningDotState(p, now)].label.toLowerCase())}</span>${planningPayment(p) ? ` <span class="${PAYMENT_DOT[planningPayment(p)].text} font-bold">· 💶 ${esc(planningPayment(p))}</span>` : ""}</p>
+        <p class="text-slate-400">${esc(p.clientName || "")} <span class="${PLANNING_STATE_DEFS[planningDotState(p, now)].text} font-bold">· ${esc(PLANNING_STATE_DEFS[planningDotState(p, now)].label.toLowerCase())}</span>${(!isStaffViewer() && planningPayment(p)) ? ` <span class="${PAYMENT_DOT[planningPayment(p)].text} font-bold">· 💶 ${esc(planningPayment(p))}</span>` : ""}</p>
+        ${isStaffViewer() && planningNeedsHandover(p) ? `<p class="mt-0.5">💶 Paiement : ${reservationPaymentControl(p)}</p>` : ""}
         ${missing ? planningMissingInfoHtml(p.bookingId, p) : ""}
         ${isStaffViewer() && planningNeedsHandover(p) && !missing ? `<button onclick="confirmBookingHandover('${esc(p.bookingId)}')" class="mt-1 w-full border border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold py-1 rounded text-[11px]">📤 Donner au client</button>` : ""}
       </div>`;
@@ -8720,50 +9021,200 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   const DAY_TIMELINE_START_HOUR = 7;
   const DAY_TIMELINE_END_HOUR = 20;
 
-  // Événements du jour en cours à afficher pour une heure donnée : réservations qui démarrent
-  // à cette heure-là, et matériels sortis (remis au client) à cette heure-là.
-  function dayTimelineEventsForHour(hour, now) {
-    const clamp = h => Math.min(Math.max(h, DAY_TIMELINE_START_HOUR), DAY_TIMELINE_END_HOUR);
-    const events = [];
-    Object.values(appData.planning).forEach(p => {
-      if (p.status !== "Réservé" || !isSameLocalDay(p.start, now)) return;
-      const d = new Date(p.start);
-      if (clamp(d.getHours()) !== hour) return;
-      events.push({ time: d, label: `${planningTypeLabel(p)} — ${p.itemLabel}`, person: p.clientName });
-    });
-    Object.values(appData.items).forEach(i => {
-      if (i.status !== "Loué" || !i.borrowedAt || !isSameLocalDay(i.borrowedAt, now)) return;
-      const d = new Date(i.borrowedAt);
-      if (clamp(d.getHours()) !== hour) return;
-      events.push({ time: d, label: `📤 Sorti — ${itemLabel(i)}`, person: i.borrowerName });
-    });
-    return events.sort((a, b) => a.time - b.time);
+  // Jour actuellement affiché dans le planning horaire (onglet « Prêts en cours ») : aujourd'hui
+  // par défaut, modifiable via les flèches ◀ ▶ ou le sélecteur de date (voir dayTimelineShift,
+  // dayTimelineGoToPicked). Reste tel que choisi tant que l'utilisateur ne le change pas, même
+  // quand la page se rafraîchit automatiquement en arrière-plan (pollForChanges).
+  let dayTimelineDate = new Date();
+  dayTimelineDate.setHours(0, 0, 0, 0);
+
+  function dayTimelineShift(delta) {
+    dayTimelineDate = new Date(dayTimelineDate);
+    dayTimelineDate.setDate(dayTimelineDate.getDate() + delta);
+    renderDayTimeline();
   }
 
-  // Planning horaire de la journée en cours (remplace l'ancien calendrier mensuel dans l'onglet
-  // « Prêts en cours ») : une ligne par heure (7h à 20h), avec ce qui démarre ou sort à cette heure-là.
+  function dayTimelineDateStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  // Ouvre le sélecteur de date natif (calendrier) pour sauter directement à un jour précis —
+  // au clic sur la date affichée en titre du planning horaire.
+  function openDayTimelinePicker() {
+    const inp = $("itemsDayTimelinePicker");
+    if (!inp) return;
+    inp.value = dayTimelineDateStr(dayTimelineDate);
+    if (inp.showPicker) { try { inp.showPicker(); return; } catch (e) { /* repli ci-dessous */ } }
+    inp.focus();
+  }
+
+  function dayTimelineGoToPicked() {
+    const inp = $("itemsDayTimelinePicker");
+    if (!inp || !inp.value) return;
+    const d = new Date(`${inp.value}T00:00:00`);
+    if (isNaN(d.getTime())) return;
+    dayTimelineDate = d;
+    renderDayTimeline();
+  }
+
+  // Prêts/réservations du jour affiché à représenter sous forme de barres (planning horaire
+  // façon Gantt) : réservations qui démarrent ce jour-là, et matériels sortis (remis au client)
+  // ce jour-là. Une ligne par matériel/prêt, la barre couvrant sa plage horaire réelle (début →
+  // fin, ou échéance pour un emprunt immédiat/moniteur), rognée à l'amplitude affichée (7h-20h).
+  // Nom du matériel et taille (bien visible, séparément du nom) pour une ligne du planning
+  // horaire : poids/taille via itemPoidsTailleTag pour un équipement suivi individuellement,
+  // taille de la référence de stock sinon (voir stockRowLabel, qui l'inclut dans le libellé).
+  function dayTimelineMaterialParts(itemId) {
+    if (isStockReservationId(itemId)) {
+      const r = appData.stock[itemId];
+      if (!r) return { name: "—", sizeTag: "" };
+      const name = `${[r.brand, r.model].filter(Boolean).join(" ")}${r.color ? " — " + r.color : ""} (stock)`.trim();
+      return { name, sizeTag: r.size ? `📏 ${r.size}` : "" };
+    }
+    const it = appData.items[itemId];
+    if (!it) return { name: "—", sizeTag: "" };
+    return { name: itemLabel(it), sizeTag: itemPoidsTailleTag(it) };
+  }
+
+  // Un emprunt immédiat ou moniteur crée TOUJOURS, en plus du changement de statut de
+  // l'équipement, une ligne de planning correspondante (voir confirmThirdPartyBorrow,
+  // instructorBorrowItem…) : une seule source (appData.planning) suffit donc à représenter tout
+  // le monde ici, sans quoi un même prêt apparaîtrait deux fois.
+  //
+  // Les évènements passés (statut « Terminé », matériel déjà restitué) sont désormais inclus,
+  // pour qu'ils restent visibles en remontant le temps avec les flèches/le sélecteur de date —
+  // seules les réservations annulées (« Annulé ») n'ont jamais eu lieu et restent exclues.
+  // Chaque ligne respecte en outre les catégories cochées/décochées dans la légende ci-dessous
+  // (planningVisibleTypes, partagée avec les autres plannings de l'application).
+  function dayTimelineEntries(day) {
+    const entries = [];
+    Object.values(appData.planning).forEach(p => {
+      if ((p.status !== "Réservé" && p.status !== "Terminé") || !isSameLocalDay(p.start, day)) return;
+      const category = planningTypeKey(p);
+      if (!planningVisibleTypes[category]) return;
+      const s = new Date(p.start);
+      let e = new Date(p.end);
+      if (isNaN(e.getTime()) || e.getTime() <= s.getTime()) e = new Date(s.getTime() + 3600000);
+      const parts = dayTimelineMaterialParts(p.itemId);
+      entries.push({
+        kind: "planning", bookingId: p.bookingId, itemId: p.itemId, category,
+        label: reservationItemLabel(p.itemId) || p.itemLabel, name: parts.name, sizeTag: parts.sizeTag,
+        person: p.clientName, typeLabel: planningTypeLabel(p), start: s, end: e,
+        payment: planningPayment(p), needsHandover: planningNeedsHandover(p)
+      });
+    });
+    return entries.sort((a, b) => a.start - b.start);
+  }
+
+  // Mémorise les entrées affichées lors du dernier rendu, pour que le clic sur une barre
+  // (openDayTimelineEntryInfo, qui ne reçoit qu'un index) retrouve ses informations.
+  let dayTimelineEntriesCache = [];
+
+  function fmtHM(d) { return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }
+
+  // Planning horaire du jour affiché (remplace l'ancien calendrier mensuel dans l'onglet
+  // « Prêts en cours ») : façon Gantt — une ligne par matériel/prêt, barre positionnée et
+  // dimensionnée selon sa plage horaire réelle sur l'amplitude 7h-20h, cliquable pour voir le
+  // détail de ce prêt (openDayTimelineEntryInfo). Quand le jour affiché est aujourd'hui, un
+  // encart en haut rappelle aussi les prêts déjà en cours depuis un jour précédent (sortis avant
+  // aujourd'hui, pas encore rendus) — sans quoi ils n'apparaissaient jamais dans ce planning, qui
+  // ne représente que les sorties/réservations du jour même.
   function renderDayTimeline() {
     const box = $("itemsDayTimeline");
     const titleEl = $("itemsDayTimelineTitle");
     if (!box || !titleEl) return;
+    const day = dayTimelineDate;
     const now = new Date();
-    titleEl.textContent = `📅 Aujourd'hui — ${now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}`;
-    const nowHour = now.getHours();
+    const isToday = isSameLocalDay(day.toISOString(), now);
+    const dayLabel = day.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    titleEl.textContent = isToday ? `Aujourd'hui — ${dayLabel}` : dayLabel;
     let html = "";
-    for (let h = DAY_TIMELINE_START_HOUR; h <= DAY_TIMELINE_END_HOUR; h++) {
-      const events = dayTimelineEventsForHour(h, now);
-      const isCurrent = nowHour === h;
-      html += `<div class="flex gap-2 ${isCurrent ? "bg-emerald-50 rounded-lg" : ""} p-1">
-        <div class="w-9 shrink-0 text-right font-bold ${isCurrent ? "text-emerald-700" : "text-slate-400"}">${h}h</div>
-        <div class="flex-1 min-w-0 space-y-1">
-          ${events.length ? events.map(e => `<div class="bg-white border border-slate-200 rounded px-2 py-1">
-            <span class="font-bold">${esc(e.time.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }))}</span>
-            · ${esc(e.label)}${e.person ? ` · ${esc(e.person)}` : ""}
-          </div>`).join("") : `<div class="text-slate-300">—</div>`}
-        </div>
-      </div>`;
+
+    if (isToday) {
+      const ongoing = Object.values(appData.items).filter(i => i.status === "Loué" && i.borrowedAt && !isSameLocalDay(i.borrowedAt, day));
+      if (ongoing.length) {
+        html += `<div class="bg-sky-50 border border-sky-200 rounded-lg p-2 mb-2 space-y-1">
+          <p class="text-xs font-bold text-sky-800">🔄 Prêts en cours depuis un jour précédent</p>
+          ${ongoing.map(i => `<div class="text-xs">
+            <span class="font-bold">${esc(itemLabel(i))}</span> · ${esc(i.borrowerName || "emprunteur inconnu")}
+            <span class="text-slate-400">(sorti le ${esc(new Date(i.borrowedAt).toLocaleDateString("fr-FR"))})</span>
+          </div>`).join("")}
+        </div>`;
+      }
+    }
+
+    const rangeStartMin = DAY_TIMELINE_START_HOUR * 60, rangeEndMin = DAY_TIMELINE_END_HOUR * 60;
+    const rangeSpan = rangeEndMin - rangeStartMin;
+    const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+    const minsInDay = d => (d.getTime() - dayStart.getTime()) / 60000;
+    const pct = min => Math.max(0, Math.min(100, ((min - rangeStartMin) / rangeSpan) * 100));
+
+    // Largeur de la colonne « matériel » (nom + taille) : fixe en rem, utilisée à la fois pour
+    // la règle des heures (padding-left ci-dessous) et pour chaque ligne, afin que les deux
+    // restent toujours alignées — quel que soit le jour affiché. Élargie une nouvelle fois pour
+    // rester lisible.
+    const LABEL_COL_REM = 14;
+    const LABEL_GAP_REM = 0.5;     // gap-2
+    const trackOffsetRem = LABEL_COL_REM + LABEL_GAP_REM;
+
+    // Règle des heures (7h → 20h), repère visuel au-dessus des barres.
+    const hourTicks = [];
+    for (let h = DAY_TIMELINE_START_HOUR; h <= DAY_TIMELINE_END_HOUR; h += 2) hourTicks.push(h);
+    html += `<div class="flex text-[10px] text-slate-400 font-bold mb-0.5 pl-1" style="padding-left:${trackOffsetRem}rem">
+      ${hourTicks.map((h, i) => `<span style="position:relative;${i === 0 ? "" : "margin-left:-0.6rem;"}">${h}h</span>`).join(`<span style="flex:1"></span>`)}
+    </div>`;
+
+    const entries = dayTimelineEntries(day);
+    dayTimelineEntriesCache = entries;
+
+    if (!entries.length) {
+      html += `<p class="text-slate-300 text-xs" style="padding-left:${trackOffsetRem}rem">— Rien de prévu ce jour-là —</p>`;
+    } else {
+      const nowMin = isToday ? minsInDay(now) : -1;
+      html += entries.map((e, idx) => {
+        const s = Math.max(rangeStartMin, Math.min(minsInDay(e.start), rangeEndMin));
+        const en = Math.max(rangeStartMin, Math.min(minsInDay(e.end), rangeEndMin));
+        const left = pct(s), width = Math.max(pct(en) - pct(s), 2);
+        // Couleur de la barre : le code couleur par catégorie déjà utilisé partout ailleurs dans
+        // l'application (essai/emprunt immédiat/emprunt moniteur/prêt longue durée — voir
+        // planningTypeColor, PLANNING_TYPE_DEFS), plutôt qu'un code couleur propre à cette vue.
+        const color = planningTypeColor(e.category);
+        const current = isToday && nowMin >= minsInDay(e.start) && nowMin <= minsInDay(e.end);
+        return `<div class="flex gap-2 items-center py-1">
+          <div class="shrink-0 min-w-0" style="width:${LABEL_COL_REM}rem">
+            <p class="truncate text-[12px] font-bold" title="${esc(e.name || e.label)}">${esc(e.name || e.label)}</p>
+            ${e.sizeTag ? `<p class="truncate text-[11px] font-bold text-indigo-600">${esc(e.sizeTag)}</p>` : ""}
+          </div>
+          <div class="flex-1 min-w-0 relative h-6 bg-slate-50 rounded border border-slate-100">
+            <button onclick="openDayTimelineEntryInfo(${idx})" title="${esc(e.person || "")} · ${esc(fmtHM(e.start))}–${esc(fmtHM(e.end))}"
+              class="${color} ${current ? "ring-2 ring-emerald-300" : ""} absolute top-0 h-full rounded text-white text-[10px] font-bold px-1 overflow-hidden whitespace-nowrap text-left hover:opacity-80"
+              style="left:${left}%;width:${width}%">${e.needsHandover ? "⏳ " : ""}${esc(e.person || "")}</button>
+          </div>
+        </div>`;
+      }).join("");
     }
     box.innerHTML = html;
+  }
+
+  // Détail d'un prêt/réservation, au clic sur sa barre dans le planning horaire ci-dessus.
+  function openDayTimelineEntryInfo(idx) {
+    const e = dayTimelineEntriesCache[idx];
+    if (!e) return;
+    const rows = [
+      ["Matériel", e.label],
+      ["Type", e.typeLabel],
+      ["Bénéficiaire", e.person || "—"],
+      ["Horaire", `${fmtHM(e.start)} – ${fmtHM(e.end)}`],
+    ];
+    if (e.payment) rows.push(["Paiement", `💶 ${e.payment}`]);
+    $("dayTimelineEntryContent").innerHTML = rows.map(([k, v]) =>
+      `<p><span class="font-bold text-slate-600">${esc(k)} :</span> ${esc(String(v))}</p>`
+    ).join("") + (
+      (isStaffViewer() && e.kind === "planning" && e.needsHandover)
+        ? `<button onclick="closeModal('dayTimelineEntryModal'); confirmBookingHandover('${esc(e.bookingId)}')" class="mt-2 w-full border border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold py-1.5 rounded">📤 Donner au client</button>`
+        : ""
+    );
+    openModal("dayTimelineEntryModal");
   }
 
   /* ------------------------------------------------------------------ */
@@ -8889,6 +9340,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
             <span class="shrink-0 px-2 py-1 rounded-full font-bold bg-green-100 text-green-700">${esc(first.status)}</span>
           </div>
           <ul class="text-slate-600">${items.map(i => `<li>• ${esc(i.itemLabel)}</li>`).join("")}</ul>
+          ${isStaffViewer() && items.some(planningNeedsHandover) ? `<p>💶 Paiement : ${reservationPaymentControl(first)}</p>` : ""}
           ${missing ? planningMissingInfoHtml(first.bookingId, first) : ""}
           ${isStaffViewer() && items.some(planningNeedsHandover) && !missing ? `<button onclick="confirmBookingHandover('${esc(first.bookingId)}')" class="w-full border border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold py-1.5 rounded">📤 Donner au client</button>` : ""}
           <div class="flex gap-2 mt-1">
@@ -9657,7 +10109,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-03.151";
+  const APP_VERSION = "2026-11-04.156";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -9671,6 +10123,72 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 156, title: "Historique dans le planning horaire, colonnes plus grandes, bénéficiaire en premier", aud: "staff", items: [
+      { icon: "🕰️", t: "Planning horaire : les évènements passés réapparaissent en remontant le temps", steps: [
+        "En reculant avec les flèches ou le sélecteur de date, les prêts/réservations déjà terminés ce jour-là sont désormais affichés (ils étaient masqués dès qu'ils n'étaient plus en cours).",
+        "Les réservations annulées, elles, n'apparaissent jamais : elles n'ont jamais eu lieu.",
+        "Les cases à cocher par catégorie (essai/emprunt immédiat/emprunt moniteur/prêt longue durée), déjà présentes juste en dessous, permettent de les filtrer comme ailleurs dans l'application."
+      ] },
+      { icon: "📏", t: "Planning horaire : colonnes encore plus grandes, couleur par catégorie", steps: [
+        "La colonne de chaque matériel est plus large.",
+        "La couleur de chaque barre respecte désormais le même code couleur par catégorie que le reste de l'application (essai, emprunt immédiat, emprunt moniteur, prêt longue durée), au lieu d'un code couleur propre à cette vue.",
+        "Correction d'un doublon : un emprunt immédiat ne pouvait apparaître deux fois (une barre pour la sortie, une autre pour la réservation sous-jacente)."
+      ] },
+      { icon: "👤", t: "Assistant de réservation : le bénéficiaire est désormais la toute première étape", steps: [
+        "Client existant, nouveau client ou personnel (administrateur/gestionnaire/moniteur) sont maintenant clairement distingués dès le départ, chacun avec son propre contrôle — au lieu d'être mélangés dans un seul menu déroulant.",
+        "Vient ensuite, comme avant, le choix du type puis la date et l'heure."
+      ] }
+    ] },
+    { v: 155, title: "Rupture de stock non réservable, planning horaire plus lisible", aud: "staff", items: [
+      { icon: "🚫", t: "Une référence en rupture de stock ne peut plus être réservée", steps: [
+        "Le bouton « 📅 Réserver » n'apparaît plus sur une référence de stock à 0 en rayon, et elle n'est plus proposée dans la liste générale de l'assistant de réservation."
+      ] },
+      { icon: "📏", t: "Planning horaire (« Prêts en cours ») : colonnes plus grandes, taille bien visible", steps: [
+        "La colonne de chaque matériel est plus large, avec son nom et sa taille affichés l'un sous l'autre pour rester lisibles même avec un nom long.",
+        "Correction d'un défaut d'alignement entre la règle des heures et les barres."
+      ] }
+    ] },
+    { v: 154, title: "Pas d'email pour le personnel, paiement sur réservation, planning horaire façon Gantt", aud: "staff", items: [
+      { icon: "🔇", t: "Aucun email de prise ni de retour quand le bénéficiaire est du personnel", steps: [
+        "Un emprunt (immédiat, moniteur, ou remis depuis une réservation) dont le bénéficiaire est l'administrateur, un gestionnaire ou un moniteur ne déclenche plus d'email « prise » ni « retour ».",
+        "Les emails de confirmation de réservation, de relance et de retard restent, eux, inchangés."
+      ] },
+      { icon: "💶", t: "Choisir Payé/Gratuit/À payer dès la réservation, avant la remise", steps: [
+        "Un sélecteur « 💶 Paiement » apparaît désormais sur une réservation pas encore remise au client (onglets Planning et Prêts en cours), réservé à l'administrateur et aux gestionnaires.",
+        "Le choix fait à la réservation est automatiquement repris sur la fiche matériel au moment de la remise (« 📤 Donner au client ») : plus besoin de le ressaisir."
+      ] },
+      { icon: "📊", t: "Planning horaire (« Prêts en cours ») : vue façon Gantt", steps: [
+        "Chaque prêt/réservation du jour affiché est désormais une barre positionnée sur sa plage horaire réelle, plutôt qu'une simple ligne à son heure de départ.",
+        "Cliquer sur une barre ouvre le détail de ce prêt (matériel, bénéficiaire, horaire, paiement), avec le bouton « 📤 Donner au client » directement accessible si la remise n'a pas encore eu lieu."
+      ] }
+    ] },
+    { v: 153, title: "Navigation par jour, bénéficiaire personnel, réservation du stock, sorties simplifiées", aud: "staff", items: [
+      { icon: "◀▶", t: "Planning horaire (« Prêts en cours ») : navigation par jour", steps: [
+        "Deux flèches permettent d'avancer ou reculer d'un jour.",
+        "Cliquer sur la date ouvre un calendrier pour sauter directement à un jour précis.",
+        "Un encart « 🔄 Prêts en cours depuis un jour précédent » rappelle maintenant, quand on regarde aujourd'hui, les prêts déjà sortis un autre jour et toujours en cours — ils n'apparaissaient plus nulle part dans ce planning."
+      ] },
+      { icon: "👤", t: "Assistant de réservation : le bénéficiaire peut aussi être un membre du personnel", steps: [
+        "Dans la liste déroulante (désormais intitulée « Bénéficiaire »), l'administrateur, un gestionnaire autorisé à emprunter pour lui-même, ou un moniteur peuvent être choisis directement, au même titre qu'un client.",
+        "Dans ce cas, aucune fiche client n'est créée et le téléphone/l'adresse ne sont pas exigés — comme pour un bénéficiaire Moniteur existant."
+      ] },
+      { icon: "🪑", t: "Les sellettes du stock (quantité, sans numéro de série) sont réservables", steps: [
+        "Un bouton « 📅 Réserver » apparaît sur chaque référence du stock, et les sellettes du stock apparaissent aussi dans la liste de l'assistant général.",
+        "Plusieurs réservations simultanées restent possibles tant que la quantité en stock le permet.",
+        "La remise du matériel (« 📤 Donner au client ») fonctionne pareillement : elle décrémente le stock et enregistre le prêt, comme le bouton « 🤝 Prêter »."
+      ] },
+      { icon: "📦", t: "Stock : sorties simplifiées — une seule destination « Vendu »", steps: [
+        "Les trois destinations « Vendu — site Internet », « Vendu — boutique / magasin » et « Rétrocession » sont remplacées par une seule option « 💰 Vendu ».",
+        "École et démo restent inchangées."
+      ] }
+    ] },
+    { v: 152, title: "Le bouton « Réserver » matériel par matériel est toujours disponible", aud: "staff", items: [
+      { icon: "📅", t: "Fiche matériel : « 📅 Réserver » n'est plus lié au réglage « Prêt longue durée »", steps: [
+        "Ce bouton (réservation future sur ce seul matériel, sans repasser par la liste complète) reste désormais toujours visible, même quand le prêt longue durée est désactivé dans les Réglages.",
+        "Dans ce cas, l'assistant qu'il ouvre ne propose que l'essai, pas le prêt longue durée.",
+        "Le bouton général « Réserver un créneau » en haut de l'onglet Matériel continue, lui, à suivre ce réglage comme avant."
+      ] }
+    ] },
     { v: 151, title: "Planning horaire du jour, réservation simplifiée, adresse vérifiée à la remise", aud: "staff", items: [
       { icon: "🕐", t: "Dans « Prêts en cours » : planning horaire de la journée en cours", steps: [
         "Le calendrier mensuel a été remplacé par une liste heure par heure (7h à 20h) de ce qui démarre ou sort aujourd'hui — plus simple à lire au comptoir qu'un calendrier sur tout le mois.",
