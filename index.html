@@ -642,7 +642,7 @@
       </div>
 
       <div id="adminSettingsPage" hidden class="space-y-6">
-        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+        <div id="settingsLongTermRentalCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">Réservations client</h4>
           <label class="flex items-start gap-2 text-xs">
             <input type="checkbox" id="settingsLongTermRentalEnabled" onchange="saveLongTermRentalSetting()" class="mt-0.5">
@@ -703,21 +703,21 @@
           <div id="managerPermissionsList" class="space-y-4"></div>
         </div>
 
-        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+        <div id="settingsContractCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">Contrat de prêt</h4>
           <p class="text-[10px] text-slate-500">Ce texte est celui affiché aux clients avant validation d'un prêt.</p>
           <textarea id="settingsContractText" rows="10" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
           <button onclick="saveContractSettings()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer le contrat</button>
         </div>
 
-        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+        <div id="settingsLegalNoticeCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">Mentions légales &amp; protection des données (RGPD)</h4>
           <p class="text-[10px] text-slate-500">Ce texte est accessible à tous (client ou personnel) via le lien en bas de page. Complétez les parties entre crochets [...] avec les coordonnées réelles de la structure et la durée de conservation choisie — ces informations ne peuvent pas être deviné à votre place.</p>
           <textarea id="settingsLegalNoticeText" rows="10" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
           <button onclick="saveLegalNoticeSettings()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer les mentions légales</button>
         </div>
 
-        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+        <div id="settingsMailCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">Liaison email (envoi et réception des alertes)</h4>
           <p class="text-[10px] text-slate-500">
             L'envoi réel des emails est effectué par le script Google (Apps Script) déployé côté serveur — pas
@@ -734,12 +734,37 @@
             <input type="number" id="settingsThreshold" min="1" step="0.5" class="w-full p-2 border border-slate-300 rounded text-xs">
           </div>
 
+          <div class="space-y-2 pt-2 border-t border-slate-100">
+            <h5 class="font-bold text-xs">Options d'envoi</h5>
+            <label class="flex items-start gap-2 text-xs">
+              <input type="checkbox" id="settingsMailsEnabled" class="mt-0.5">
+              <span><b>Activer l'envoi des emails.</b> Décochée, cette case coupe tous les envois ci-dessous (automatiques et manuels), y compris les copies de trace et la copie personnelle — rien ne part, quel que soit le type.</span>
+            </label>
+            <label class="flex items-start gap-2 text-xs">
+              <input type="checkbox" id="settingsMailIncludeContract" class="mt-0.5">
+              <span>Joindre le texte du contrat de prêt aux emails de prise de matériel et de confirmation de réservation.</span>
+            </label>
+            <label class="flex items-start gap-2 text-xs">
+              <input type="checkbox" id="settingsMailCcPerformer" class="mt-0.5">
+              <span>M'envoyer aussi une copie de chaque email à l'adresse du compte actuellement connecté (en plus de la copie de trace déjà envoyée à l'email d'alerte admin ci-dessus, quand il est renseigné).</span>
+            </label>
+            <p class="text-[10px] font-bold text-slate-500 pt-1">Activer/désactiver chaque type d'email individuellement :</p>
+            <div id="settingsMailKindToggles" class="space-y-1"></div>
+          </div>
+
           <div class="grid grid-cols-1 gap-3 pt-2 border-t border-slate-100">
             <div>
               <label for="settingsPickupSubject" class="block text-xs font-bold text-slate-600">Objet — email de prise de matériel</label>
               <input type="text" id="settingsPickupSubject" class="w-full p-2 border border-slate-300 rounded text-xs">
               <label for="settingsPickupBody" class="block text-xs font-bold text-slate-600 mt-1">Corps</label>
               <textarea id="settingsPickupBody" rows="3" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
+            </div>
+            <div>
+              <label for="settingsReminderSubject" class="block text-xs font-bold text-slate-600">Objet — rappel manuel (bouton « Envoyer un rappel » dans Alertes)</label>
+              <input type="text" id="settingsReminderSubject" class="w-full p-2 border border-slate-300 rounded text-xs">
+              <label for="settingsReminderBody" class="block text-xs font-bold text-slate-600 mt-1">Corps</label>
+              <textarea id="settingsReminderBody" rows="4" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
+              <p class="text-[10px] text-slate-400 mt-0.5">Variables : {name} {items} {borrowedAt} {sender}</p>
             </div>
             <div>
               <label for="settingsReturnSubject" class="block text-xs font-bold text-slate-600">Objet — email de restitution</label>
@@ -773,7 +798,7 @@
               <textarea id="settingsNewAccountBody" rows="4" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
             </div>
           </div>
-          <p class="text-[10px] text-slate-400">Variables disponibles : {name} {email} {item} {threshold} {dueAt} {borrowedAt} {type} {items} {start} {end} {contract} {role} {username} {password} {returnedAt} {flights} {hours} {note}</p>
+          <p class="text-[10px] text-slate-400">Variables disponibles : {name} {email} {item} {threshold} {dueAt} {borrowedAt} {type} {items} {start} {end} {contract} {role} {username} {password} {returnedAt} {flights} {hours} {note} {sender}</p>
           <button onclick="saveMailSettings()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer les réglages email</button>
         </div>
       </div>
@@ -1634,9 +1659,12 @@
   <!-- MODAL : modification de la date de retour d'un prêt/réservation en cours -->
   <div id="editReturnDateModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'editReturnDateModal')">
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
-      <h3 class="font-bold text-lg">✏️ Modifier la date de retour</h3>
+      <h3 class="font-bold text-lg">✏️ Modifier la réservation</h3>
       <p id="editReturnDateLabel" class="text-xs text-slate-500"></p>
-      <label class="block text-xs font-bold text-slate-600">Nouvelle date de retour
+      <label class="block text-xs font-bold text-slate-600">Nouvelle date et heure de début
+        <input type="datetime-local" id="editStartDateInput" class="w-full p-2 border border-slate-300 rounded mt-1"></label>
+      <p id="editStartLockedNote" hidden class="text-[10px] text-amber-600">Le matériel a déjà été remis : seule la date/heure de retour reste modifiable.</p>
+      <label class="block text-xs font-bold text-slate-600">Nouvelle date et heure de retour
         <input type="datetime-local" id="editReturnDateInput" class="w-full p-2 border border-slate-300 rounded mt-1"></label>
       <p class="text-[10px] text-slate-400">Le moniteur, le gestionnaire ou l'administrateur peut dépasser le délai normalement prévu en choisissant une date plus lointaine.</p>
       <div class="flex gap-2 pt-1">
@@ -2416,6 +2444,41 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
 
   /* ------------------------------------------------------------------ */
+  /*  OPTIONS D'ENVOI DES EMAILS (Réglages › Liaison email)              */
+  /* ------------------------------------------------------------------ */
+
+  // Interrupteur général : si décoché, AUCUN email automatique ni manuel ne part (court-circuite
+  // sendTransactionalMail avant même l'appel au serveur). Activé par défaut (comportement historique).
+  function mailsGloballyEnabled() { return getSetting("mailsEnabled", "true") !== "false"; }
+
+  // Un interrupteur par type d'email, en plus de l'interrupteur général ci-dessus. Les clés
+  // correspondent au premier argument de sendTransactionalMail(kind, …). Tous activés par défaut.
+  const MAIL_KIND_ENABLE_KEYS = {
+    pickup: "mailEnablePickup", "return": "mailEnableReturn", reminder: "mailEnableReminder",
+    overdueClient: "mailEnableOverdueClient", overdueAdmin: "mailEnableAdminAlert",
+    booking: "mailEnableBooking", newAccount: "mailEnableNewAccount"
+  };
+  const MAIL_KIND_TOGGLE_LABELS = {
+    pickup: "Prise de matériel", "return": "Restitution", reminder: "Rappel manuel (bouton « Envoyer un rappel » dans Alertes)",
+    overdueClient: "Rappel client en cas de retard (automatique)", overdueAdmin: "Alerte administrateur en cas de retard (automatique)",
+    booking: "Confirmation de réservation", newAccount: "Nouveau compte (moniteur/gestionnaire/administrateur)"
+  };
+  function mailKindEnabled(kind) {
+    const key = MAIL_KIND_ENABLE_KEYS[kind];
+    return !key || getSetting(key, "true") !== "false";
+  }
+
+  // Joindre le texte du contrat de prêt aux emails de prise et de réservation. Activé par défaut
+  // (comportement historique) : décocher retire {contract} des modèles ET l'ajout automatique en fin
+  // de mail, sans toucher au texte du contrat lui-même (toujours affiché avant validation en ligne).
+  function mailIncludeContractEnabled() { return getSetting("mailIncludeContract", "true") !== "false"; }
+
+  // En plus de la copie de trace déjà envoyée par le serveur à l'adresse d'alerte admin (quand elle
+  // est renseignée), envoie une copie de CHAQUE email transactionnel au compte du personnel
+  // actuellement connecté (celui qui a réalisé l'action). Décoché par défaut.
+  function mailCcPerformerEnabled() { return getSetting("mailCcPerformer", "false") === "true"; }
+
+  /* ------------------------------------------------------------------ */
   /*  PERMISSIONS DU GESTIONNAIRE (réglables par l'administrateur)      */
   /* ------------------------------------------------------------------ */
 
@@ -2432,7 +2495,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     archives: true,      // matériel vendu et statistiques (onglet Archives)
     restrictedWings: false, // réserver les voiles Acro / Speed / Parakite (soi-même ou un tiers) — accordé au cas par cas
     selfLoan: true,      // emprunter du matériel pour soi-même (bouton « 🪂 Emprunter »)
-    thirdPartyForm: true // accéder au formulaire de saisie manuelle dans « Prêt tiers » (sinon : uniquement via le QR code que la personne scanne elle-même)
+    thirdPartyForm: true, // accéder au formulaire de saisie manuelle dans « Prêt tiers » (sinon : uniquement via le QR code que la personne scanne elle-même)
+    // Par défaut à false : un compte dont « settings » est déjà activé (cas par défaut) a de toute
+    // façon accès à tout, ce réglage ne change donc rien pour lui. Il ne sert qu'à rouvrir, au cas par
+    // cas, uniquement les quatre catalogues (marques/types de voile/types particuliers/pictogrammes)
+    // pour un compte à qui l'administrateur a par ailleurs retiré « settings » (reste de Réglages verrouillé).
+    catalogSettings: false
   };
 
   const MANAGER_PERMISSION_LABELS = {
@@ -2445,7 +2513,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     archives: "Accéder à l'onglet Archives (matériel vendu, statistiques)",
     restrictedWings: "Réserver les voiles Acro / Speed / Parakite (pour soi-même ou pour un tiers)",
     selfLoan: "Emprunter du matériel pour soi-même (bouton « 🪂 Emprunter »)",
-    thirdPartyForm: "Dans « Prêt tiers », saisir le formulaire à la place de la personne (sinon : uniquement via le QR code qu'elle scanne elle-même)"
+    thirdPartyForm: "Dans « Prêt tiers », saisir le formulaire à la place de la personne (sinon : uniquement via le QR code qu'elle scanne elle-même)",
+    catalogSettings: "Gérer les constructeurs, types de voile, types particuliers et pictogrammes — même sans l'accès complet aux Réglages ci-dessus"
   };
 
   // Un moniteur n'a aucune des autres permissions : seule l'habilitation aux voiles
@@ -2488,6 +2557,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       return getManagerPermissionsFor(currentUser.id)[permKey] !== false;
     }
     return false;
+  }
+
+  // Les 4 catalogues (constructeurs, types de voile, types particuliers, pictogrammes) restent
+  // gérables via l'accès complet aux Réglages (« settings »), mais peuvent aussi être rouverts
+  // isolément via « catalogSettings » pour un compte à qui l'administrateur a retiré « settings ».
+  function canUseCatalogSettings() {
+    return canUse("settings") || canUse("catalogSettings");
   }
 
   // Habilitation à réserver les voiles Acro / Speed / Parakite : l'administrateur
@@ -3387,7 +3463,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     show("addUserCard", isFullAdmin);
     show("inviteCard", isFullAdmin);
     if (isFullAdmin) refreshInvites();
-    show("tabSettings", isFullAdmin || canUse("settings"));
+    show("tabSettings", isFullAdmin || canUse("settings") || canUse("catalogSettings"));
     // Le planning (vue visuelle des réservations) est ouvert au moniteur en
     // lecture (il n'a pas de canUse propre), en plus de l'admin/gestionnaire.
     const planningAllowed = (canManage && canUse("planning")) || role === "instructor";
@@ -3411,7 +3487,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (!clientsTabAllowed && currentAdminTab === "clients") currentAdminTab = "alerts";
     if (role === "manager" && !canUse("usersBlock") && currentAdminTab === "users") currentAdminTab = "alerts";
     if (role === "manager" && !canUse("finances") && currentAdminTab === "finances") currentAdminTab = "alerts";
-    if (role === "manager" && !canUse("settings") && currentAdminTab === "settings") currentAdminTab = "alerts";
+    if (role === "manager" && !canUseCatalogSettings() && currentAdminTab === "settings") currentAdminTab = "alerts";
     if (role === "manager" && !canUse("archives") && currentAdminTab === "archives") currentAdminTab = "alerts";
 
     [["client", "btnRoleClient"], ["instructor", "btnRoleInstructor"]].forEach(([r, id]) => {
@@ -3940,7 +4016,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // Ajoute le constructeur au réglage s'il est nouveau. Renvoie true si le réglage a changé.
   function rememberBrand(name) {
     const n = String(name || "").trim();
-    if (!n || !canUse("settings")) return false;
+    if (!n || !canUseCatalogSettings()) return false;
     const k = brandKey(n);
     if (!k || savedBrands().some(b => brandKey(b) === k)) return false;
     setSetting("brands", JSON.stringify(savedBrands().concat(n).sort((a, b) => a.localeCompare(b, "fr"))));
@@ -3958,7 +4034,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
   async function addBrandFromSettings() {
     if (busy) return;
-    if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
+    if (!canUseCatalogSettings()) { toast("Action non autorisée.", "error"); return; }
     const inp = $("settingsNewBrand"); const name = canonicalBrand(inp.value);
     if (name.length < 2) { toast("Saisissez le nom du constructeur.", "error"); return; }
     if (getBrandList().some(b => brandKey(b) === brandKey(name)) && savedBrands().some(b => brandKey(b) === brandKey(name))) { toast("Ce constructeur existe déjà.", "error"); return; }
@@ -3970,7 +4046,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     populateBrandDatalist(); renderBrandSettings();
   }
   async function removeBrandFromSettings(name) {
-    if (busy || !canUse("settings")) return;
+    if (busy || !canUseCatalogSettings()) return;
     const k = brandKey(name);
     if (brandUsage()[k]) { toast("Ce constructeur est utilisé par du matériel.", "error"); return; }
     setSetting("brands", JSON.stringify(savedBrands().filter(b => brandKey(b) !== k)));
@@ -4026,7 +4102,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
   async function addCategorieFromSettings() {
     if (busy) return;
-    if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
+    if (!canUseCatalogSettings()) { toast("Action non autorisée.", "error"); return; }
     const inp = $("settingsNewCategorie"); const name = String(inp.value || "").trim().replace(/\s+/g, " ");
     if (name.length < 2) { toast("Saisissez le type de voile.", "error"); return; }
     if (getCategorieList().some(c => categorieKey(c) === categorieKey(name))) { toast("Ce type de voile existe déjà.", "error"); return; }
@@ -4038,7 +4114,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     renderCategorieSettings(); refreshCategorieSelects();
   }
   async function removeCategorieFromSettings(name) {
-    if (busy || !canUse("settings")) return;
+    if (busy || !canUseCatalogSettings()) return;
     const k = categorieKey(name);
     if (categorieUsage()[k]) { toast("Ce type de voile est utilisé par du matériel.", "error"); return; }
     if (CATEGORIES_VOILE.map(categorieKey).includes(k)) { toast("Ce type de base ne peut pas être retiré.", "error"); return; }
@@ -4113,7 +4189,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
   async function setIconEmoji(key, value) {
     if (busy) return;
-    if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
+    if (!canUseCatalogSettings()) { toast("Action non autorisée.", "error"); return; }
     const v = String(value || "").trim();
     if (!v) { toast("Saisissez un emoji, ou utilisez « Importer une image ».", "error"); return; }
     if (v.length > 8) { toast("Ce texte est trop long pour un pictogramme.", "error"); return; }
@@ -4123,7 +4199,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
   async function resetIconCustom(key) {
     if (busy) return;
-    if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
+    if (!canUseCatalogSettings()) { toast("Action non autorisée.", "error"); return; }
     if (!isSynced()) { await ensureSynced(); return; }
     const map = customIconsMap(); delete map[key];
     await saveCustomIcons(map);
@@ -4133,7 +4209,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // l'enregistre comme pictogramme personnalisé pour ce type de matériel.
   async function importIconImage(key, inputEl) {
     if (busy) return;
-    if (!canUse("settings")) { toast("Action non autorisée.", "error"); inputEl.value = ""; return; }
+    if (!canUseCatalogSettings()) { toast("Action non autorisée.", "error"); inputEl.value = ""; return; }
     const file = inputEl.files && inputEl.files[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) { toast("Choisissez un fichier image.", "error"); inputEl.value = ""; return; }
@@ -4176,7 +4252,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
   async function addSubtypeFromSettings() {
     if (busy) return;
-    if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
+    if (!canUseCatalogSettings()) { toast("Action non autorisée.", "error"); return; }
     const sel = $("settingsSubtypeTypeSel"), type = sel ? sel.value : "Sellette";
     const inp = $("settingsNewSubtype"); const name = String(inp.value || "").trim().replace(/\s+/g, " ");
     if (name.length < 2) { toast("Saisissez le type particulier.", "error"); return; }
@@ -4190,7 +4266,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     renderSubtypeSettings(); refreshSubtypePickers();
   }
   async function removeSubtypeFromSettings(name) {
-    if (busy || !canUse("settings")) return;
+    if (busy || !canUseCatalogSettings()) return;
     const sel = $("settingsSubtypeTypeSel"), type = sel ? sel.value : "Sellette";
     const k = colorKey(name);
     if (subtypeUsage(type)[k]) { toast("Ce type particulier est utilisé par du matériel.", "error"); return; }
@@ -4229,7 +4305,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (sel.value !== "__new__") return;
     sel.value = "";
     if (busy) return;
-    if (!canUse("settings")) { toast("Votre profil ne peut pas ajouter de marque : demandez à l'administrateur (Réglages › Constructeurs).", "error"); return; }
+    if (!canUseCatalogSettings()) { toast("Votre profil ne peut pas ajouter de marque : demandez à l'administrateur (Réglages › Constructeurs).", "error"); return; }
     const raw = window.prompt("Nom de la nouvelle marque (constructeur) :", "");
     if (raw === null) return;
     const name = canonicalBrand(raw);
@@ -5513,7 +5589,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   function adminTabAllowed(tab) {
     if (currentRole === "admin") return true;
     if (currentRole === "manager") {
-      const need = { users: "usersBlock", planning: "planning", finances: "finances", archives: "archives", settings: "settings", stock: "items", items: "items", clients: "clientsBlock" }[tab];
+      if (tab === "settings") return canUseCatalogSettings();
+      const need = { users: "usersBlock", planning: "planning", finances: "finances", archives: "archives", stock: "items", items: "items", clients: "clientsBlock" }[tab];
       return !need || canUse(need);
     }
     if (currentRole === "instructor") return !["users", "finances", "archives", "settings"].includes(tab);
@@ -5678,6 +5755,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
         borrowedAt: formatFrDateTime(loanStartedAt(first)) || "—", sender: who
       });
     } finally { setBusy(false); }
+    if (res && res.skipped) { toast("Rappel non envoyé : l'envoi de ce type d'email est désactivé dans Réglages › Liaison email.", "error"); return; }
     if (!res || !res.ok) { toast(`Rappel non envoyé${res && res.error ? " : " + res.error : ""}.`, "error"); return; }
     list.forEach(i => addHistory("Rappel manuel", i, who, first.borrowerEmail, `Rappel envoyé à ${first.borrowerName || first.borrowerEmail}`));
     await persist(["history"]);
@@ -6085,7 +6163,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
         <div class="flex items-center gap-2 shrink-0">
           <span class="text-slate-400">${esc(c.createdAt || "")}</span>
           <button onclick="openClientHistoryModal('${esc(c.id)}')" title="Historique du matériel de ce client" class="px-2 py-1 border border-slate-300 text-slate-600 rounded hover:bg-slate-50">📜</button>
-          ${currentRole === "admin" ? `<button onclick="openEditClientModal('${esc(c.id)}')" title="Modifier" class="px-2 py-1 border border-green-300 text-green-700 rounded hover:bg-green-50">✎</button>` : ""}
+          ${(currentRole === "admin" || canUse("clientsBlock")) ? `<button onclick="openEditClientModal('${esc(c.id)}')" title="Modifier" class="px-2 py-1 border border-green-300 text-green-700 rounded hover:bg-green-50">✎</button>` : ""}
           ${canUse("clientsBlock") ? `<button onclick="toggleClientBlock('${esc(c.id)}')" title="${c.blocked ? "Débloquer" : "Bloquer"}" class="px-2 py-1 border ${c.blocked ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50" : "border-rose-300 text-rose-600 hover:bg-rose-50"} rounded">${c.blocked ? "✅" : "🚫"}</button>` : ""}
           ${currentRole === "admin" ? `<button onclick="deleteClient('${esc(c.id)}')" title="Supprimer" class="px-2 py-1 border border-rose-300 text-rose-600 rounded hover:bg-rose-50">✕</button>` : ""}
         </div>
@@ -7178,7 +7256,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   let editingClientId = null;
 
   function openEditClientModal(id) {
-    if (currentRole !== "admin") { toast("Action réservée à l'administrateur.", "error"); return; }
+    if (currentRole !== "admin" && !canUse("clientsBlock")) { toast("Action réservée au personnel autorisé sur l'onglet Clients.", "error"); return; }
     const client = appData.clients[id];
     if (!client) return;
     editingClientId = id;
@@ -7194,7 +7272,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
   async function saveEditedClient() {
     if (busy || !editingClientId) return;
-    if (currentRole !== "admin") { toast("Action réservée à l'administrateur.", "error"); return; }
+    if (currentRole !== "admin" && !canUse("clientsBlock")) { toast("Action réservée au personnel autorisé sur l'onglet Clients.", "error"); return; }
     const client = appData.clients[editingClientId];
     if (!client) { closeModal("editClientModal"); return; }
 
@@ -7595,6 +7673,14 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
 
   function renderSettingsForm() {
+    // Un gestionnaire n'ayant que « catalogSettings » (sans « settings ») ne voit que les 4
+    // catalogues (constructeurs, types de voile, types particuliers, pictogrammes) : le reste de
+    // l'onglet Réglages (contrat, mentions légales, emails, location longue durée) reste verrouillé.
+    const fullSettings = canUse("settings");
+    show("settingsLongTermRentalCard", fullSettings);
+    show("settingsContractCard", fullSettings);
+    show("settingsLegalNoticeCard", fullSettings);
+    show("settingsMailCard", fullSettings);
     $("settingsLongTermRentalEnabled").checked = isLongTermRentalEnabled();
     renderBrandSettings();
     renderCategorieSettings();
@@ -7606,8 +7692,14 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const m = getMailSettings();
     $("settingsAdminEmail").value = m.adminAlertEmail;
     $("settingsThreshold").value = m.thresholdHours;
+    $("settingsMailsEnabled").checked = mailsGloballyEnabled();
+    $("settingsMailIncludeContract").checked = mailIncludeContractEnabled();
+    $("settingsMailCcPerformer").checked = mailCcPerformerEnabled();
+    renderMailKindToggles();
     $("settingsPickupSubject").value = m.pickupSubject;
     $("settingsPickupBody").value = m.pickupBody;
+    $("settingsReminderSubject").value = m.reminderSubject;
+    $("settingsReminderBody").value = m.reminderBody;
     $("settingsReturnSubject").value = m.returnSubject;
     $("settingsReturnBody").value = m.returnBody;
     $("settingsOverdueSubject").value = m.overdueSubject;
@@ -7744,6 +7836,17 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     toast(ok ? "Mentions légales enregistrées." : "Mentions légales enregistrées localement (hors ligne).");
   }
 
+  // Construit les cases à cocher d'activation/désactivation, une par type d'email.
+  function renderMailKindToggles() {
+    const box = $("settingsMailKindToggles");
+    if (!box) return;
+    box.innerHTML = Object.entries(MAIL_KIND_TOGGLE_LABELS).map(([kind, label]) => `
+      <label class="flex items-start gap-2 text-xs">
+        <input type="checkbox" id="settingsMailKind_${esc(kind)}" ${mailKindEnabled(kind) ? "checked" : ""} class="mt-0.5">
+        <span>${esc(label)}</span>
+      </label>`).join("");
+  }
+
   async function saveMailSettings() {
     if (busy) return;
     if (!canUse("settings")) { toast("Action non autorisée.", "error"); return; }
@@ -7754,8 +7857,17 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     setSetting("adminAlertEmail", adminEmail);
     setSetting("thresholdHours", threshold);
+    setSetting("mailsEnabled", $("settingsMailsEnabled").checked ? "true" : "false");
+    setSetting("mailIncludeContract", $("settingsMailIncludeContract").checked ? "true" : "false");
+    setSetting("mailCcPerformer", $("settingsMailCcPerformer").checked ? "true" : "false");
+    Object.keys(MAIL_KIND_TOGGLE_LABELS).forEach(kind => {
+      const el = $("settingsMailKind_" + kind);
+      setSetting(MAIL_KIND_ENABLE_KEYS[kind], (el && el.checked) ? "true" : "false");
+    });
     setSetting("pickupSubject", $("settingsPickupSubject").value);
     setSetting("pickupBody", $("settingsPickupBody").value);
+    setSetting("reminderSubject", $("settingsReminderSubject").value);
+    setSetting("reminderBody", $("settingsReminderBody").value);
     setSetting("returnSubject", $("settingsReturnSubject").value);
     setSetting("returnBody", $("settingsReturnBody").value);
     setSetting("overdueSubject", $("settingsOverdueSubject").value);
@@ -7784,46 +7896,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // envoi « aléatoire ». On tente donc toujours l'envoi ; seule une vraie coupure
   // réseau (ou une erreur applicative renvoyée par le serveur) l'empêche, et elle
   // est alors signalée dans la console pour diagnostic.
-  async function sendTransactionalMail(kind, vars) {
-    const m = getMailSettings();
-    let subject, body;
-    if (kind === "pickup") { subject = m.pickupSubject; body = m.pickupBody; }
-    else if (kind === "return") { subject = m.returnSubject; body = m.returnBody; }
-    else if (kind === "reminder") { subject = m.reminderSubject; body = m.reminderBody; }
-    else if (kind === "overdueClient") { subject = m.overdueSubject; body = m.overdueBody; }
-    else if (kind === "overdueAdmin") { subject = m.adminAlertSubject; body = m.adminAlertBody; }
-    else if (kind === "booking") { subject = m.bookingSubject; body = m.bookingBody; }
-    else if (kind === "newAccount") { subject = m.newAccountSubject; body = m.newAccountBody; }
-    else return;
-
-    // Variables toujours renseignées : {item} (nom du matériel) et {items} (liste), quel que soit l'appelant,
-    // pour que les modèles personnalisés des réglages n'affichent jamais « {item} » tel quel.
-    vars = { ...vars };
-    const lines = String(vars.items || "").split("\n").map(x => x.replace(/^\s*-\s*/, "").trim()).filter(Boolean);
-    if (!vars.item) vars.item = lines.join(", ") || "le matériel";
-    if (!vars.items) vars.items = "- " + vars.item;
-
-    let filledBody = mailWording(fillTemplate(body, { threshold: m.thresholdHours, ...vars })).replace(/^Bonjour ,/, "Bonjour,");
-    // Le contrat de prêt doit toujours accompagner un mail de prêt (« pickup »), même si le modèle
-    // personnalisé enregistré dans Réglages a été modifié sans la variable {contract} ou sans la
-    // section "--- Contrat de prêt ---" : on l'ajoute alors systématiquement à la fin du mail,
-    // au lieu de dépendre uniquement de la présence de cette variable dans le modèle.
-    if (kind === "pickup" && vars.contract && !filledBody.includes(vars.contract)) {
-      filledBody += "\n\n--- Contrat de prêt ---\n" + vars.contract;
-    }
-
-    const payload = {
-      action: "sendMail",
-      token: API_TOKEN,
-      sid: currentSid(),
-      kind,
-      to: vars.to || vars.email || "",   // vide (prêt à un tiers sans e-mail) : le serveur n'envoie que la copie de trace
-      // Nom affiché comme expéditeur : « Les Grands Espaces », suivi du nom de la personne connectée
-      // qui a effectué l'action (moniteur/gestionnaire/administrateur), quand il y en a une.
-      senderName: currentUser && currentUser.name ? currentUser.name : "",
-      subject: mailWording(fillTemplate(subject, { threshold: m.thresholdHours, ...vars })),
-      body: filledBody
-    };
+  // Un seul appel réseau vers l'action "sendMail" du script Google, réutilisé pour l'envoi
+  // principal et, le cas échéant, pour la copie au compte du personnel connecté.
+  async function postSendMailRequest(payload, kind) {
     try {
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -7840,6 +7915,72 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       console.warn(`Envoi d'email « ${kind} » impossible :`, err);
       return { ok: false, error: "Réseau indisponible" };
     }
+  }
+
+  async function sendTransactionalMail(kind, vars) {
+    // Interrupteur général, puis interrupteur propre à ce type d'email (Réglages › Liaison email) :
+    // aucun appel réseau n'est fait si l'un des deux est désactivé.
+    if (!mailsGloballyEnabled() || !mailKindEnabled(kind)) {
+      console.info(`Envoi d'email « ${kind} » désactivé dans les réglages.`);
+      return { ok: true, error: "", skipped: true };
+    }
+    const m = getMailSettings();
+    let subject, body;
+    if (kind === "pickup") { subject = m.pickupSubject; body = m.pickupBody; }
+    else if (kind === "return") { subject = m.returnSubject; body = m.returnBody; }
+    else if (kind === "reminder") { subject = m.reminderSubject; body = m.reminderBody; }
+    else if (kind === "overdueClient") { subject = m.overdueSubject; body = m.overdueBody; }
+    else if (kind === "overdueAdmin") { subject = m.adminAlertSubject; body = m.adminAlertBody; }
+    else if (kind === "booking") { subject = m.bookingSubject; body = m.bookingBody; }
+    else if (kind === "newAccount") { subject = m.newAccountSubject; body = m.newAccountBody; }
+    else return;
+
+    // Variables toujours renseignées : {item} (nom du matériel) et {items} (liste), quel que soit l'appelant,
+    // pour que les modèles personnalisés des réglages n'affichent jamais « {item} » tel quel.
+    vars = { ...vars };
+    // Réglage « Joindre le contrat » décoché : {contract} devient vide, ce qui retire aussi bien la
+    // variable dans le modèle que l'ajout automatique en fin de mail juste en dessous.
+    if (!mailIncludeContractEnabled() && (kind === "pickup" || kind === "booking")) vars.contract = "";
+    const lines = String(vars.items || "").split("\n").map(x => x.replace(/^\s*-\s*/, "").trim()).filter(Boolean);
+    if (!vars.item) vars.item = lines.join(", ") || "le matériel";
+    if (!vars.items) vars.items = "- " + vars.item;
+
+    let filledBody = mailWording(fillTemplate(body, { threshold: m.thresholdHours, ...vars })).replace(/^Bonjour ,/, "Bonjour,");
+    // Le contrat de prêt accompagne par défaut un mail de prêt (« pickup »), même si le modèle
+    // personnalisé enregistré dans Réglages a été modifié sans la variable {contract} ou sans la
+    // section "--- Contrat de prêt ---" : on l'ajoute alors systématiquement à la fin du mail,
+    // au lieu de dépendre uniquement de la présence de cette variable dans le modèle. vars.contract
+    // est déjà vidé ci-dessus si le réglage correspondant a été désactivé.
+    if (kind === "pickup" && vars.contract && !filledBody.includes(vars.contract)) {
+      filledBody += "\n\n--- Contrat de prêt ---\n" + vars.contract;
+    }
+
+    const payload = {
+      action: "sendMail",
+      token: API_TOKEN,
+      sid: currentSid(),
+      kind,
+      to: vars.to || vars.email || "",   // vide (prêt à un tiers sans e-mail) : le serveur n'envoie que la copie de trace
+      // Nom affiché comme expéditeur : « Les Grands Espaces », suivi du nom de la personne connectée
+      // qui a effectué l'action (moniteur/gestionnaire/administrateur), quand il y en a une.
+      senderName: currentUser && currentUser.name ? currentUser.name : "",
+      subject: mailWording(fillTemplate(subject, { threshold: m.thresholdHours, ...vars })),
+      body: filledBody
+    };
+    const result = await postSendMailRequest(payload, kind);
+
+    // Copie optionnelle vers le compte du personnel actuellement connecté (en plus de la copie de
+    // trace déjà gérée côté serveur vers l'adresse d'alerte admin) : best-effort, ne bloque jamais
+    // le flux principal et n'affecte pas le résultat renvoyé à l'appelant.
+    if (mailCcPerformerEnabled() && currentUser && currentUser.email) {
+      const perfEmail = String(currentUser.email).trim();
+      const mainTo = String(payload.to || "").trim().toLowerCase();
+      if (perfEmail && perfEmail.toLowerCase() !== mainTo) {
+        postSendMailRequest({ ...payload, to: perfEmail, subject: "[Copie] " + payload.subject }, kind)
+          .catch(() => {});
+      }
+    }
+    return result;
   }
 
   // Repli côté navigateur : si la page admin reste ouverte, on détecte aussi
@@ -9345,7 +9486,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
           ${isStaffViewer() && items.some(planningNeedsHandover) && !missing ? `<button onclick="confirmBookingHandover('${esc(first.bookingId)}')" class="w-full border border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold py-1.5 rounded">📤 Donner au client</button>` : ""}
           <div class="flex gap-2 mt-1">
             <button onclick="openEditBeneficiary('${esc(first.bookingId)}')" class="flex-1 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-bold py-1.5 rounded">✏️ Modifier</button>
-            <button onclick="openEditReturnDate('${esc(first.bookingId)}')" class="flex-1 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-bold py-1.5 rounded">✏️ Date de retour</button>
+            <button onclick="openEditReturnDate('${esc(first.bookingId)}')" class="flex-1 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-bold py-1.5 rounded">✏️ Dates</button>
           </div>
           <button onclick="cancelBooking('${esc(first.bookingId)}')" class="w-full border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold py-1.5 rounded">Annuler</button>
         </div>`;
@@ -9394,20 +9535,38 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     editReturnBookingId = bookingId;
     const first = rows[0];
     $("editReturnDateLabel").textContent = `${rows.map(r => r.itemLabel).join(", ")} — ${first.clientName || ""}`;
+    // La date/heure de début ne reste modifiable que tant que le matériel n'a pas encore été
+    // remis (planningNeedsHandover) : au-delà, réécrire le début reviendrait à mentir sur le
+    // moment réel où le prêt a commencé.
+    const canEditStart = planningNeedsHandover(first);
+    $("editStartDateInput").value = toLocalInputValue(new Date(first.start));
+    $("editStartDateInput").disabled = !canEditStart;
+    show("editStartLockedNote", !canEditStart);
     $("editReturnDateInput").value = toLocalInputValue(new Date(first.end));
     openModal("editReturnDateModal");
   }
 
   async function confirmEditReturnDate() {
     if (busy || !editReturnBookingId) return;
-    const raw = $("editReturnDateInput").value;
-    const newEnd = raw && !isNaN(new Date(raw)) ? new Date(raw) : null;
-    if (!newEnd) { toast("Date de retour invalide.", "error"); return; }
     const rows = Object.values(appData.planning).filter(p => p.bookingId === editReturnBookingId);
     if (!rows.length) { closeModal("editReturnDateModal"); editReturnBookingId = null; return; }
-    if (newEnd.getTime() <= new Date(rows[0].start).getTime()) { toast("La date de retour doit être après la date de début.", "error"); return; }
+    const canEditStart = planningNeedsHandover(rows[0]);
+
+    const rawEnd = $("editReturnDateInput").value;
+    const newEnd = rawEnd && !isNaN(new Date(rawEnd)) ? new Date(rawEnd) : null;
+    if (!newEnd) { toast("Date de retour invalide.", "error"); return; }
+
+    let newStart = new Date(rows[0].start);
+    if (canEditStart) {
+      const rawStart = $("editStartDateInput").value;
+      const parsedStart = rawStart && !isNaN(new Date(rawStart)) ? new Date(rawStart) : null;
+      if (!parsedStart) { toast("Date de début invalide.", "error"); return; }
+      newStart = parsedStart;
+    }
+    if (newEnd.getTime() <= newStart.getTime()) { toast("La date de retour doit être après la date de début.", "error"); return; }
 
     rows.forEach(p => {
+      if (canEditStart) p.start = newStart.toISOString();
       p.end = newEnd.toISOString();
       // Si le matériel est actuellement prêté (et pas seulement réservé pour plus tard), l'échéance
       // personnalisée de l'équipement suit la même nouvelle date, pour que la détection de retard
@@ -9415,12 +9574,14 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       const it = appData.items[p.itemId];
       if (it && it.status === "Loué") it.dueAt = newEnd.toISOString();
     });
-    addGenericHistory("Modification date de retour", rows.map(p => p.itemLabel).join(", "), rows[0].clientName, rows[0].clientEmail, `Nouvelle date de retour : ${newEnd.toLocaleString("fr-FR")}.`);
+    const noteBits = [`Nouvelle date de retour : ${newEnd.toLocaleString("fr-FR")}.`];
+    if (canEditStart) noteBits.unshift(`Nouvelle date de début : ${newStart.toLocaleString("fr-FR")}.`);
+    addGenericHistory("Modification des dates", rows.map(p => p.itemLabel).join(", "), rows[0].clientName, rows[0].clientEmail, noteBits.join(" "));
 
     closeModal("editReturnDateModal");
     const ok = await persist(["planning", "items", "history"]);
     editReturnBookingId = null;
-    toast(ok ? "Date de retour mise à jour." : "Mise à jour enregistrée localement (hors ligne).");
+    toast(ok ? "Dates mises à jour." : "Mise à jour enregistrée localement (hors ligne).");
     renderAll();
   }
 
@@ -10109,7 +10270,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-04.156";
+  const APP_VERSION = "2026-11-09.159";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -10123,6 +10284,42 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 159, title: "Réglages email : activer/désactiver chaque type, copie personnelle, contrat joint ou non", aud: "staff", items: [
+      { icon: "🛑", t: "Interrupteur général et par type d'email", steps: [
+        "Dans Réglages › Liaison email, une case « Activer l'envoi des emails » coupe tous les envois (automatiques et manuels) en une fois.",
+        "En dessous, une case par type (prise, restitution, rappel manuel, retard client, alerte admin, réservation, nouveau compte) permet de désactiver chacun individuellement, sans toucher aux autres."
+      ] },
+      { icon: "📎", t: "Contrat de prêt joint ou non aux emails", steps: [
+        "Une case permet de ne plus joindre le texte du contrat de prêt aux emails de prise de matériel et de confirmation de réservation.",
+        "Activée par défaut (comportement inchangé) ; le contrat reste toujours affiché au client avant validation en ligne, quel que soit ce réglage."
+      ] },
+      { icon: "📨", t: "Copie personnelle de chaque email", steps: [
+        "Une case « M'envoyer aussi une copie » envoie en plus chaque email à l'adresse du compte actuellement connecté, en complément de la copie de trace déjà envoyée à l'adresse d'alerte admin.",
+        "Désactivée par défaut."
+      ] }
+    ] },
+    { v: 158, title: "Catalogues (marques, types de voile…) activables même sans l'accès complet aux Réglages", aud: "staff", items: [
+      { icon: "🔓", t: "Nouvelle permission « catalogSettings » pour le gestionnaire", steps: [
+        "Jusqu'ici, un gestionnaire sans l'accès complet aux Réglages (« settings » décoché) perdait aussi la main sur les constructeurs, types de voile, types particuliers et pictogrammes.",
+        "L'administrateur peut désormais cocher, compte par compte (Réglages › Permissions), une case dédiée qui rouvre uniquement ces 4 catalogues — sans redonner accès au contrat, aux mentions légales ou aux réglages email.",
+        "Décochée par défaut : aucun changement pour les comptes existants tant que l'administrateur ne l'active pas explicitement."
+      ] }
+    ] },
+    { v: 157, title: "Modification des dates de réservation, fiche client accessible au gestionnaire, rappel email personnalisable", aud: "staff", items: [
+      { icon: "🗓️", t: "Planning : modifier aussi la date/heure de début d'une réservation", steps: [
+        "Le bouton « ✏️ Dates » (fiche d'une réservation, onglet Planning) permet désormais de changer la date et l'heure de début, en plus de celle de retour.",
+        "La date de début reste modifiable uniquement tant que le matériel n'a pas encore été remis au bénéficiaire — une fois remis, seule la date de retour peut encore être ajustée, pour ne pas réécrire le moment réel de la remise."
+      ] },
+      { icon: "✎", t: "Fiche client modifiable par un gestionnaire autorisé", steps: [
+        "Le bouton « Modifier » d'une fiche client, dans l'onglet Clients, est désormais accessible à tout gestionnaire ayant accès à cet onglet (même droit que bloquer/débloquer un client), pas seulement à l'administrateur."
+      ] },
+      { icon: "✉️", t: "Modèle du rappel manuel enfin personnalisable", steps: [
+        "L'objet et le corps de l'email envoyé par le bouton « Envoyer un rappel » (onglet Alertes) peuvent désormais être personnalisés dans Réglages › Liaison email, comme tous les autres modèles."
+      ] },
+      { icon: "ℹ️", t: "Rappel : marques, types de voile, types particuliers et pictogrammes sont déjà personnalisables", steps: [
+        "Dans Réglages, l'administrateur et tout gestionnaire ayant accès aux Réglages peuvent déjà ajouter des constructeurs, des types de voile (Light/Montagne + les vôtres), des types particuliers par équipement, et personnaliser les pictogrammes — aucune nouvelle action n'était nécessaire pour ces quatre points."
+      ] }
+    ] },
     { v: 156, title: "Historique dans le planning horaire, colonnes plus grandes, bénéficiaire en premier", aud: "staff", items: [
       { icon: "🕰️", t: "Planning horaire : les évènements passés réapparaissent en remontant le temps", steps: [
         "En reculant avec les flèches ou le sélecteur de date, les prêts/réservations déjà terminés ce jour-là sont désormais affichés (ils étaient masqués dès qu'ils n'étaient plus en cours).",
