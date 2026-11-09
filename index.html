@@ -5917,11 +5917,18 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       return;
     }
 
+    // Le matériel « Indisponible » ne reste jamais mêlé aux voiles/sellettes/accessoires
+    // disponibles ou loués dans leurs groupes type/marque habituels : il est entièrement mis de
+    // côté ici pour rejoindre sa propre section « Indisponible », tout en fin de liste (voir
+    // unavailableBlock ci-dessous) — quel que soit son type d'origine.
+    const unavailItems = items.filter(i => i.status === "Indisponible");
+    const availItemsForGrouping = items.filter(i => i.status !== "Indisponible");
+
     // Regroupement par type puis par marque (ex. toutes les Advance ensemble
     // dans les Voiles, toutes les Advance ensemble dans les Sellettes, etc.),
     // plutôt que par étagère, pour une présentation plus lisible du parc.
     const byType = {};
-    items.forEach(i => { const t = i.type || "Autre"; (byType[t] = byType[t] || []).push(i); });
+    availItemsForGrouping.forEach(i => { const t = i.type || "Autre"; (byType[t] = byType[t] || []).push(i); });
     const typeOrder = Object.keys(byType).sort((a, b) => {
       const ia = TYPES.indexOf(a), ib = TYPES.indexOf(b);
       if (ia === -1 && ib === -1) return a.localeCompare(b, "fr");
@@ -5929,6 +5936,18 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       if (ib === -1) return -1;
       return ia - ib;
     });
+
+    // Section dédiée, toujours en tout dernier (après le matériel disponible/loué ET après le
+    // bloc des sellettes de stock) : tri par type puis marque puis modèle pour rester lisible,
+    // malgré le mélange des types au sein de cette seule section.
+    const unavailableBlock = unavailItems.length ? `<div class="space-y-2">
+        <h3 class="text-sm font-bold text-red-700 border-b border-red-200 pb-1">⛔ Indisponible · ${unavailItems.length}</h3>
+        ${unavailItems.slice().sort((a, b) =>
+          (TYPES.indexOf(a.type) - TYPES.indexOf(b.type)) ||
+          String(a.brand).localeCompare(String(b.brand), "fr") ||
+          String(a.model).localeCompare(String(b.model), "fr")
+        ).map(itemCardHtml).join("")}
+      </div>` : "";
 
     const stockBlock = stShown.length ? `<div class="space-y-2">
         <h3 class="text-sm font-bold text-slate-700 border-b border-slate-200 pb-1">🪑 Sellettes en stock · ${stShown.length}</h3>
@@ -5959,7 +5978,17 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
         ${brands.map(brand => `
         <div class="space-y-2">
           <h4 class="text-xs font-bold text-slate-500">${esc(brand)} · ${byBrand[brand].length}</h4>
-          ${byBrand[brand].map(i => { const canManageItems = canUse("items"); const revision = LIFECYCLE_TYPES.includes(i.type) ? computeNextRevisionInfo(i) : null; const wingAlerts = wingAlertReasons(i); const restrictedLocked = i.status === "Disponible" && restrictedIdsBlocked([i.id]).length > 0; return `
+          ${byBrand[brand].map(itemCardHtml).join("")}
+        </div>`).join("")}
+      </div>`;
+    }).join("") + stockBlock + unavailableBlock;
+  }
+
+  // Carte d'un équipement (onglet Matériel) : boutons et informations identiques, qu'il soit affiché
+  // dans son groupe type/marque habituel ou, une fois « Indisponible », dans la section dédiée en
+  // fin de liste (voir renderItems — regroupement par statut, pas seulement par type/marque).
+  function itemCardHtml(i) {
+    const canManageItems = canUse("items"); const revision = LIFECYCLE_TYPES.includes(i.type) ? computeNextRevisionInfo(i) : null; const wingAlerts = wingAlertReasons(i); const restrictedLocked = i.status === "Disponible" && restrictedIdsBlocked([i.id]).length > 0; return `
           <div class="${i.status === "Indisponible" ? "bg-red-50 border-red-600" : (i.pretConstructeur && isStaffViewer() && i.type === "Voile") ? "bg-orange-50 border-orange-500" : "bg-white border-slate-200"} p-3 rounded-lg border text-xs space-y-2">
           <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <div class="min-w-0 cursor-pointer" onclick="openItemTimelineModal('${esc(i.id)}')" title="Voir le planning de cet équipement">
@@ -5994,10 +6023,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
             <input type="date" id="revDate_item_${esc(i.id)}" value="${esc(today())}" class="p-1.5 border border-slate-300 rounded text-[11px]">
             <button onclick="recordRevision('${esc(i.id)}', 'revDate_item_${esc(i.id)}')" class="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold">✓ Révision effectuée</button>
           </div>` : ""}
-          </div>`; }).join("")}
-        </div>`).join("")}
-      </div>`;
-    }).join("") + stockBlock;
+          </div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -10270,7 +10296,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-09.159";
+  const APP_VERSION = "2026-11-09.160";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -10284,6 +10310,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 160, title: "Matériel indisponible regroupé en fin de liste, dans sa propre section", aud: "staff", items: [
+      { icon: "⛔", t: "Onglet Matériel : le matériel indisponible ne se mélange plus aux autres", steps: [
+        "Un équipement passé « Indisponible » n'apparaît plus dans son groupe type/marque habituel (Voiles, Sellettes, Accessoires…).",
+        "Il rejoint désormais une section unique « ⛔ Indisponible », tout en bas de la liste, tous types confondus — comme demandé, pour ne plus le laisser mélangé avec le matériel disponible ou loué.",
+        "Dès qu'il est remis disponible, il retrouve automatiquement sa place habituelle dans son groupe type/marque."
+      ] }
+    ] },
     { v: 159, title: "Réglages email : activer/désactiver chaque type, copie personnelle, contrat joint ou non", aud: "staff", items: [
       { icon: "🛑", t: "Interrupteur général et par type d'email", steps: [
         "Dans Réglages › Liaison email, une case « Activer l'envoi des emails » coupe tous les envois (automatiques et manuels) en une fois.",
