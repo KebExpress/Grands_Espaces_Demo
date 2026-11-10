@@ -119,6 +119,7 @@
         <button id="btnInstall" onclick="installApp()" hidden title="Installer l'application sur votre téléphone" class="text-[10px] bg-yellow-400 text-green-950 font-bold px-2 py-1 rounded">📲 Installer</button>
         <button id="btnInstallQr" onclick="openInstallQr()" hidden title="Afficher un QR code pour qu'un nouvel utilisateur installe l'application" class="text-[10px] bg-yellow-400 text-green-950 font-bold px-2 py-1 rounded">🔗 QR appli</button>
         <button onclick="fetchCloudData()" title="Recharger les données" class="text-[10px] bg-green-950 px-2 py-1 rounded hover:bg-green-900">↻</button>
+        <button id="btnFaq" onclick="openFaqModal()" hidden title="Aide : guide d'utilisation pour le personnel" class="text-[10px] bg-yellow-400 text-green-950 font-bold px-2 py-1 rounded">❓ Aide</button>
         <div class="flex gap-1 bg-green-950 p-1 rounded-lg text-xs font-semibold">
           <button onclick="requestRoleAccess('client')" id="btnRoleClient" class="px-3 py-1.5 rounded-md transition bg-green-700">👤 Client</button>
           <button onclick="requestRoleAccess('instructor')" id="btnRoleInstructor" class="px-3 py-1.5 rounded-md transition hover:bg-green-800">🪂 Moniteur</button>
@@ -1357,6 +1358,18 @@
       </div>
       <div id="whatsNewBody" class="space-y-3 overflow-y-auto text-xs flex-1"></div>
       <button onclick="closeWhatsNew()" class="w-full px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-xs">J'ai compris</button>
+    </div>
+  </div>
+
+  <!-- MODAL : Aide / FAQ (personnel) -->
+  <div id="faqModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'faqModal')">
+    <div class="bg-white w-full max-w-lg rounded-xl p-5 space-y-3 shadow-xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center gap-2">
+        <h3 class="font-bold text-lg">❓ Aide — Guide d'utilisation</h3>
+        <button onclick="closeModal('faqModal')" class="text-slate-400 hover:text-slate-600 text-xl leading-none shrink-0">✕</button>
+      </div>
+      <input type="text" id="faqSearch" oninput="renderFaq()" placeholder="Rechercher (ex. QR code, retard, permissions…)" class="w-full p-2 border border-slate-300 rounded text-xs">
+      <div id="faqBody" class="space-y-2 overflow-y-auto text-xs flex-1"></div>
     </div>
   </div>
 
@@ -3499,6 +3512,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (instBtn) instBtn.textContent = (currentUser && currentUser.role === "instructor") ? `🪂 ${currentUser.name}` : "🪂 Moniteur";
     const outBtn = $("btnLogout");
     if (outBtn) outBtn.hidden = !currentUser;
+    show("btnFaq", isStaffViewer());
     const staffBtn = $("btnRoleStaff");
     if (staffBtn) {
       const staffActive = role === "admin" || role === "manager";
@@ -10040,7 +10054,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
     ["loginModal", "borrowConfirmModal", "returnModal", "qrModal",
-     "qrPrintModal", "editItemModal", "editClientModal", "clientHistoryModal", "sellItemModal", "editArchiveModal", "itemTimelineModal", "thirdPartyBorrowModal", "editUserModal", "contractModal", "wizardModal", "historyDetailModal", "newClientModal", "clientRegisterQrModal", "clientRegisterModal", "editReturnDateModal", "editBeneficiaryModal", "legalNoticeModal", "handoverAddressModal"].forEach(id => closeModal(id));
+     "qrPrintModal", "editItemModal", "editClientModal", "clientHistoryModal", "sellItemModal", "editArchiveModal", "itemTimelineModal", "thirdPartyBorrowModal", "editUserModal", "contractModal", "wizardModal", "historyDetailModal", "newClientModal", "clientRegisterQrModal", "clientRegisterModal", "editReturnDateModal", "editBeneficiaryModal", "legalNoticeModal", "handoverAddressModal", "faqModal"].forEach(id => closeModal(id));
   });
 
   /* ------------------------------------------------------------------ */
@@ -10296,7 +10310,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-09.160";
+  const APP_VERSION = "2026-11-09.161";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -10310,6 +10324,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 161, title: "Nouveau bouton « ❓ Aide » : guide d'utilisation intégré pour le personnel", aud: "staff", items: [
+      { icon: "❓", t: "Un guide complet, directement dans l'app", steps: [
+        "Un bouton « ❓ Aide » apparaît désormais dans l'en-tête pour l'administrateur, le gestionnaire et le moniteur (jamais pour le client).",
+        "Il ouvre une FAQ en 11 thèmes (rôles et permissions, onglets, matériel, prêt, retours, planning, clients, alertes, finances, réglages, astuces), chaque thème dépliable.",
+        "Une barre de recherche filtre instantanément les thèmes par mot-clé (ex. « QR », « retard », « permissions »)."
+      ] }
+    ] },
     { v: 160, title: "Matériel indisponible regroupé en fin de liste, dans sa propre section", aud: "staff", items: [
       { icon: "⛔", t: "Onglet Matériel : le matériel indisponible ne se mélange plus aux autres", steps: [
         "Un équipement passé « Indisponible » n'apparaît plus dans son groupe type/marque habituel (Voiles, Sellettes, Accessoires…).",
@@ -10943,6 +10964,109 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     show("whatsNewModal", false);
     try { localStorage.setItem(whatsNewKey(), String(CURRENT_V)); } catch (e) { /* stockage indisponible : sans conséquence */ }
   }
+
+  /* ------------------------------------------------------------------ */
+  /*  AIDE / FAQ (guide d'utilisation pour le personnel)                 */
+  /* ------------------------------------------------------------------ */
+  // Contenu du bouton « ❓ Aide » (visible du personnel uniquement, voir show("btnFaq", …)
+  // dans switchRole) : guide de prise en main repris du tutoriel rédigé pour les nouveaux
+  // gestionnaires/moniteurs — une entrée par grand thème, avec recherche par mot-clé.
+  const FAQ_ENTRIES = [
+    { q: "Qui peut faire quoi ? (rôles et permissions)", a: `
+      <p>L'administrateur crée votre compte (onglet <b>Comptes</b>) et vous envoie un identifiant et un mot de passe par email.</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><b>Administrateur</b> : tous les droits, sans exception.</li>
+        <li><b>Gestionnaire</b> : les mêmes droits qu'un administrateur sur le fonctionnement courant, <i>sauf</i> ce que l'administrateur lui a explicitement retiré, compte par compte (Réglages › Permissions).</li>
+        <li><b>Moniteur</b> : peut emprunter pour lui-même et prêter à un tiers, mais n'a pas accès aux autres onglets de gestion.</li>
+        <li><b>Client</b> : accès public, sans connexion obligatoire.</li>
+      </ul>
+      <p>Si un onglet qui devrait apparaître manque pour un gestionnaire, demandez à l'administrateur de l'activer dans Réglages › Permissions.</p>` },
+    { q: "Quels sont les onglets et à quoi servent-ils ?", a: `
+      <ul class="list-disc pl-5 space-y-1">
+        <li><b>Alertes</b> : matériel actuellement prêté, retards, bouton de restitution.</li>
+        <li><b>Matériel</b> : la liste complète du parc.</li>
+        <li><b>Stock</b> : les articles gérés en quantité (ex. sellettes en rayon).</li>
+        <li><b>Planning</b> : vue calendrier/horaire des réservations et prêts.</li>
+        <li><b>Clients</b> : fiches clients, historique, blocage.</li>
+        <li><b>Comptes</b> : création des comptes administrateur/gestionnaire/moniteur.</li>
+        <li><b>Finances</b> : valeur du matériel, révisions à venir.</li>
+        <li><b>Archives</b> : matériel vendu et statistiques.</li>
+        <li><b>Historique</b> : journal de toutes les actions.</li>
+        <li><b>Réglages</b> : contrat, mentions légales, emails, catalogues, permissions.</li>
+      </ul>` },
+    { q: "Comment gérer le matériel (ajouter, modifier, indisponible) ?", a: `
+      <p><b>Ajouter</b> : onglet Matériel › bouton d'ajout. <b>Modifier/consulter</b> : cliquez sur une fiche (planning) ou ✎. Le bouton <b>QR</b> affiche le QR code à imprimer et coller sur l'équipement.</p>
+      <p><b>Rendre indisponible</b> (🚫, motif facultatif) : l'équipement n'est plus proposé à l'emprunt ni à la réservation, et rejoint une section dédiée « ⛔ Indisponible » tout en bas de la liste. Le bouton ✅ le remet disponible et le fait revenir à sa place normale.</p>
+      <p>Marques, types de voile, types particuliers et pictogrammes sont tous personnalisables dans Réglages.</p>` },
+    { q: "Comment prêter du matériel ?", a: `
+      <ol class="list-decimal pl-5 space-y-1">
+        <li><b>🪂 Emprunter</b> (pour vous-même) : sur une fiche disponible.</li>
+        <li><b>🎯 Prêt tiers (QR)</b> : la personne scanne elle-même le QR code et remplit le formulaire.</li>
+        <li><b>✍️ Prêt moniteur</b> : vous saisissez le formulaire à sa place (24 h max).</li>
+        <li><b>📅 Réserver un créneau futur</b> : assistant de réservation — bénéficiaire, type (essai/longue durée), matériel.</li>
+      </ol>
+      <p>Les voiles Acro/Speed/Parakite sont réservées aux personnes habilitées (🔒 si vous n'avez pas cette habilitation).</p>` },
+    { q: "Comment enregistrer un retour ?", a: `
+      <p>Deux façons : depuis l'onglet <b>Alertes</b> (bouton « Enregistrer la restitution » par emprunteur), ou en scannant le <b>QR code</b> de l'article loué.</p>
+      <p>Pour chaque article : vols effectués, heures de vol, deux vérifications à cocher (sec/sans dommage, complet), remarque facultative, puis validez. Le statut repasse à « Disponible ».</p>` },
+    { q: "Comment fonctionnent le planning et les réservations ?", a: `
+      <p>L'onglet <b>Planning</b> affiche un calendrier mensuel et un planning horaire. Sur la fiche d'une réservation :</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><b>✏️ Dates</b> : modifie le début ET la fin. Le début ne reste modifiable que tant que le matériel n'a pas été remis.</li>
+        <li><b>Remise du matériel</b> : une adresse peut être demandée si elle n'est pas déjà connue.</li>
+        <li><b>Annulation</b> : possible avant le début de la réservation.</li>
+      </ul>` },
+    { q: "Comment gérer les clients ?", a: `
+      <p>Onglet <b>Clients</b> : fiches créées automatiquement à chaque prêt/réservation.</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><b>📜 Historique</b> : tout le matériel emprunté/réservé par ce client.</li>
+        <li><b>✎ Modifier</b> : nom, email, téléphone, adresse.</li>
+        <li><b>🚫/✅ Bloquer/débloquer</b> : un client bloqué ne peut plus réserver ni emprunter.</li>
+      </ul>` },
+    { q: "Comment fonctionnent les alertes et les rappels ?", a: `
+      <p>L'onglet <b>Alertes</b> liste tout le matériel loué, groupé par emprunteur. Passé un délai configurable (3 h par défaut), l'emprunt est signalé en retard.</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><b>✉️ Envoyer un rappel</b> : email manuel à l'emprunteur.</li>
+        <li><b>Alerte automatique</b> : au-delà du délai, un email part aussi au client et, si renseignée, à l'adresse d'alerte admin.</li>
+      </ul>
+      <p>Tout se personnalise dans Réglages › Liaison email (objet, corps, activation par type, copie personnelle…).</p>` },
+    { q: "Où voir les finances et les archives ?", a: `
+      <p><b>Finances</b> : valeur du matériel, révisions à venir. <b>Archives</b> : matériel vendu (bouton 💰 « Vendre » sur une fiche disponible) et statistiques d'utilisation du parc.</p>` },
+    { q: "Que puis-je personnaliser dans Réglages ?", a: `
+      <ul class="list-disc pl-5 space-y-1">
+        <li><b>Catalogues</b> : constructeurs, types de voile, types particuliers, pictogrammes — un gestionnaire peut y avoir accès même sans l'accès complet aux Réglages.</li>
+        <li><b>Contrat de prêt</b> et <b>Mentions légales</b> : textes affichés au client.</li>
+        <li><b>Liaison email</b> : adresse d'alerte, délai de retard, objet/corps par type d'email, activation individuelle, contrat joint ou non, copie personnelle.</li>
+        <li><b>Permissions</b> (administrateur) : droits de chaque gestionnaire/moniteur, un par un.</li>
+      </ul>` },
+    { q: "Astuces et bonnes pratiques", a: `
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Collez systématiquement le <b>QR code</b> sur chaque équipement : c'est le moyen le plus rapide pour un prêt ou un retour.</li>
+        <li>En cas de doute, cliquez sur une fiche pour voir son <b>planning complet</b>.</li>
+        <li>Utilisez le champ <b>remarque</b> à chaque restitution pour garder une trace (retard, dommage…).</li>
+        <li>Droit manquant (Réglages, Finances, Clients…) : demandez à l'administrateur de l'activer pour votre compte.</li>
+      </ul>` }
+  ];
+
+  function renderFaq() {
+    const box = $("faqBody");
+    if (!box) return;
+    const words = searchWords($("faqSearch") ? $("faqSearch").value : "");
+    const match = e => !words.length || words.every(w => searchNormalize(e.q + " " + e.a).includes(w));
+    const list = FAQ_ENTRIES.filter(match);
+    box.innerHTML = list.length ? list.map((e, idx) => `<details ${words.length || idx === 0 ? "open" : ""} class="border border-slate-200 rounded-lg">
+        <summary class="cursor-pointer px-3 py-2 font-bold text-sm bg-slate-50 rounded-lg">${esc(e.q)}</summary>
+        <div class="p-3 pt-1 space-y-2 text-slate-600">${e.a}</div>
+      </details>`).join("")
+      : `<p class="text-slate-500 text-center p-4">Aucun résultat pour cette recherche.</p>`;
+  }
+
+  function openFaqModal() {
+    if ($("faqSearch")) $("faqSearch").value = "";
+    renderFaq();
+    show("faqModal", true);
+  }
+
   // Affichage automatique : dès que les données sont chargées et qu'aucune autre fenêtre n'est ouverte.
   let whatsNewShownFor = "";
   setInterval(() => {
