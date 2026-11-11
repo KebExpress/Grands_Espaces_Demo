@@ -1806,7 +1806,7 @@
     clients: ["id", "name", "email", "phone", "address", "postalCode", "city", "country", "createdAt", "blocked"],
     history: ["id", "date", "action", "itemId", "itemLabel", "person", "email", "note"],
     settings: ["id", "value"],
-    planning: ["id", "bookingId", "itemId", "itemLabel", "type", "start", "end", "clientName", "clientEmail", "clientPhone", "status", "createdAt"],
+    planning: ["id", "bookingId", "itemId", "itemLabel", "type", "start", "end", "clientName", "clientEmail", "clientPhone", "status", "createdAt", "payment"],
     // Matériel vendu, archivé année par année (voir onglet Archives, admin/gestionnaire).
     // "year" est l'année de la vente (calculée depuis saleDate), utilisée pour le regroupement.
     archives: ["id", "year", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "dateMiseEnService", "couleur", "taille", "prixAchat", "salePrice", "saleDate", "saleClientName", "saleNote", "destination"],
@@ -1827,7 +1827,10 @@
     users: ["blocked", "protected"],
     clients: ["address", "postalCode", "city", "country", "blocked"],
     stock: ["priceHT", "priceTTC", "pricePublic", "subtype"],
-    archives: ["destination"]
+    archives: ["destination"],
+    // Colonne ajoutée après coup (voir Code.gs, AUTO_SHEETS) : absente des tableurs déjà en
+    // place tant qu'une lecture n'a pas eu lieu depuis la mise à jour du serveur.
+    planning: ["payment"]
   };
 
   // Catégories de certification des voiles.
@@ -10467,7 +10470,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-09.165";
+  const APP_VERSION = "2026-11-09.167";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -10481,6 +10484,11 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 167, title: "Correctif : paiement d'une réservation non enregistré", aud: "staff", items: [
+      { icon: "🛠️", t: "Statut de paiement d'une réservation enfin enregistré", steps: [
+        "Poser Payé / À payer / Gratuit sur une réservation (planning) semblait fonctionner (message de succès) mais n'était jamais réellement conservé dans la base : la colonne correspondante n'existait pas encore dans cet onglet. Corrigé — elle est créée automatiquement, sans rien à faire de votre côté."
+      ] }
+    ] },
     { v: 164, title: "Correctif : paiement/montant parfois non enregistré", aud: "staff", items: [
       { icon: "🛠️", t: "Enregistrement fiabilisé du statut de paiement et du montant", steps: [
         "Le montant à payer ne s'affichait pas pour un prêt direct (prêt à une personne tierce, emprunt immédiat) : il n'était prévu que pour les réservations faites via le site. Corrigé — il s'applique maintenant à tous les prêts.",
