@@ -3119,6 +3119,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       console.error(`Réponse inattendue (${sheetName}) :`, body);
       return false;
     }
+    // DEBUG_PAYMENT (temporaire, à retirer une fois le problème de paiement résolu).
+    if (body && body.debug) { console.log("DEBUG paiement :", body.debug); showBanner("🔍 DEBUG (temporaire) : " + JSON.stringify(body.debug)); }
     return true;
   }
 
@@ -3159,6 +3161,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     }
     if (body && body.error === "Session expirée") { handleSessionExpired(); return sheets.slice(); }
     if (!body || body.error || !body.results) return sequential();   // ancien script : « Action inconnue »
+
+    // DEBUG_PAYMENT (temporaire, à retirer une fois le problème de paiement résolu) : le serveur
+    // renvoie le détail de la décision prise pour "items"/"planning" ; on l'affiche tel quel.
+    if (body.debug) { console.log("DEBUG paiement :", body.debug); showBanner("🔍 DEBUG (temporaire) : " + JSON.stringify(body.debug)); }
 
     names.forEach(name => {
       const r = body.results[name];
@@ -10461,7 +10467,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-09.164";
+  const APP_VERSION = "2026-11-09.165";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
