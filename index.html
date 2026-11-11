@@ -3189,11 +3189,39 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
         if (!done) failed.push(s);
       }
     }
+    // L'onglet "items" porte une colonne "rev" gérée par le serveur (voir reconcileItemsReplace
+    // côté Code.gs) pour détecter les écritures périmées entre appareils. Le navigateur ne la
+    // modifie jamais lui-même : après un enregistrement réussi, la révision connue localement
+    // est donc restée celle d'AVANT cette écriture, alors que le tableur vient de l'incrémenter.
+    // Sans ce réajustement, un second enregistrement rapproché sur le même article (ex. poser
+    // le paiement juste après une remise de matériel) serait à tort jugé périmé et silencieusement
+    // ignoré par le serveur — c'est ce qui explique les « soucis » de paiement/montant signalés.
+    if (sheets.includes("items") && !failed.includes("items")) await refreshItemsRev();
     setSync(online ? "☁️ Connecté" : "⚠️ Hors ligne", online ? "" : "error");
     setBusy(false);
     lastPersistFailed = failed.slice();
     if (failed.length) console.warn("Onglets non enregistrés :", failed.join(", "));
     return sheets.includes("items") ? !failed.includes("items") : failed.length === 0;
+  }
+
+  // Relit uniquement la colonne "rev" de l'onglet "items" après une écriture réussie, pour que
+  // le prochain enregistrement sur ces mêmes articles connaisse la bonne révision (voir persist()
+  // ci-dessus). On ne touche à aucun autre champ local : si un autre appareil a entre-temps modifié
+  // un article, on ne veut pas écraser l'affichage en cours avec sa version, seulement connaître sa
+  // révision actuelle pour que le prochain envoi ne soit pas rejeté à tort.
+  async function refreshItemsRev() {
+    try {
+      const rows = await fetchSheet("items");
+      rows.forEach(r => {
+        const id = String(r.id || "").trim();
+        if (id && appData.items[id] && r.rev !== undefined && r.rev !== "") appData.items[id].rev = r.rev;
+      });
+    } catch (e) {
+      // Si cette actualisation échoue (coupure réseau, script ancien sans "rev"…), on se contente
+      // de garder la révision connue avant l'écriture : au pire, le prochain enregistrement sur
+      // CET article précis pourra être jugé périmé et devra être refait après un rechargement.
+      console.warn("Actualisation de la révision « items » impossible :", e.message);
+    }
   }
 
   function seedDemoData() {
@@ -7901,27 +7929,33 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (type === "Voile" || type === "Sellette" || type === "Secours") return type;
     return "Accessoire";
   }
+  // kind : la valeur de « type » d'une ligne de planning — "essai", "location", mais aussi
+  // "immediat" (emprunt/prêt tiers immédiat, sans réservation préalable) et "moniteur" (prêt
+  // tiers saisi par le personnel). Seule une « location » longue durée a son propre tarif ;
+  // tout le reste (essai réservé, emprunt immédiat, prêt moniteur, ou absence de réservation —
+  // paiement posé directement sur un prêt en cours) retombe sur le tarif « essai », car ce sont
+  // dans tous les cas des prêts courts, non réservés à l'avance.
   function reservationTariffAmount(kind, type) {
-    if (kind !== "essai" && kind !== "location") return null;
     const cat = tariffCategoryForType(type);
-    if (kind === "essai" && !TARIFF_CATS_ESSAI.includes(cat)) return null;
-    if (kind === "location" && !TARIFF_CATS_LOCATION.includes(cat)) return null;
-    const v = Number(getSetting(`${kind}Amount_${cat}`, ""));
+    const isLocation = kind === "location";
+    if (isLocation && !TARIFF_CATS_LOCATION.includes(cat)) return null;
+    if (!isLocation && !TARIFF_CATS_ESSAI.includes(cat)) return null;
+    const v = Number(getSetting(`${isLocation ? "location" : "essai"}Amount_${cat}`, ""));
     return v > 0 ? v : null;
   }
   function formatAmount(n) {
     const v = Number(n) || 0;
     return (Math.round(v * 100) % 100 === 0) ? String(Math.round(v)) : v.toFixed(2);
   }
-  // Pour un matériel actuellement prêté (it.status === "Loué") : retrouve, s'il existe, la
-  // réservation d'origine (essai ou location) toujours ouverte pour cet équipement — la ligne de
-  // planning reste à l'état « Réservé » tant que la restitution n'a pas eu lieu (voir
-  // closePlanningForReturnedItem) — afin de savoir quel tarif appliquer. Un prêt tiers ou moniteur
-  // saisi directement (pas de réservation au préalable) n'a pas de type essai/location : null.
+  // Pour un matériel actuellement prêté (it.status === "Loué") : "location" seulement s'il existe
+  // encore une réservation « longue durée » ouverte pour cet équipement — la ligne de planning
+  // reste à l'état « Réservé » tant que la restitution n'a pas eu lieu (voir
+  // closePlanningForReturnedItem). Dans tous les autres cas (essai réservé, emprunt immédiat,
+  // prêt tiers/moniteur, ou paiement posé directement sans aucune réservation) : "essai".
   function itemLoanType(it) {
     if (!it || it.status !== "Loué") return null;
-    const p = Object.values(appData.planning).find(p => p.itemId === it.id && p.status === "Réservé" && (p.type === "essai" || p.type === "location"));
-    return p ? p.type : null;
+    const p = Object.values(appData.planning).find(p => p.itemId === it.id && p.status === "Réservé" && p.type === "location");
+    return p ? "location" : "essai";
   }
   // Équivalent pour une ligne de planning (réservation pas encore remise) : catégorie
   // d'équipement, qu'il s'agisse d'un matériel suivi par numéro de série (appData.items) ou
@@ -10427,7 +10461,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-09.163";
+  const APP_VERSION = "2026-11-09.164";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -10441,6 +10475,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 164, title: "Correctif : paiement/montant parfois non enregistré", aud: "staff", items: [
+      { icon: "🛠️", t: "Enregistrement fiabilisé du statut de paiement et du montant", steps: [
+        "Le montant à payer ne s'affichait pas pour un prêt direct (prêt à une personne tierce, emprunt immédiat) : il n'était prévu que pour les réservations faites via le site. Corrigé — il s'applique maintenant à tous les prêts.",
+        "Dans de rares cas, poser le statut de paiement (Payé / À payer / Gratuit) juste après une remise de matériel pouvait être silencieusement ignoré par la base de données, qui le considérait par erreur comme une donnée périmée. Corrigé."
+      ] }
+    ] },
     { v: 163, title: "Tarifs par type d'équipement, en-têtes sur tout le matériel", aud: "staff", items: [
       { icon: "💶", t: "Un tarif par type d'équipement, pour l'essai comme pour la location", steps: [
         "Réglages › 💶 Tarifs des prêts propose maintenant un montant séparé par type : Voile, Sellette, Parachute de secours et Accessoire pour l'essai ; Voile, Sellette et Parachute de secours pour la location longue durée.",
