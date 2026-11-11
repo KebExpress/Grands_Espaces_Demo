@@ -340,21 +340,21 @@
           <h4 class="font-bold text-sm">Ajouter une référence en stock</h4>
           <p class="text-[10px] text-slate-500">Pour le matériel suivi en quantité, sans numéro de série.</p>
           <div class="grid grid-cols-2 gap-2">
-            <select id="stockNewCat" onchange="refreshSubtypeField('stockNewCat','stockNewSubtype')" class="p-2 border border-slate-300 rounded col-span-2"></select>
-            <select id="stockNewBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
-            <input type="text" id="stockNewModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
-            <input type="text" id="stockNewSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
-            <input type="number" id="stockNewPoids" min="0" step="0.01" placeholder="Poids (kg)" class="p-2 border border-slate-300 rounded">
-            <input type="text" id="stockNewSubtype" placeholder="Type(s) particulier(s)" class="p-2 border border-slate-300 rounded col-span-2">
-            <input type="text" id="stockNewColor" placeholder="Couleur" class="p-2 border border-slate-300 rounded">
-            <input type="text" id="stockNewShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
-            <input type="number" id="stockNewQty" min="0" step="1" placeholder="Quantité en stock *" class="p-2 border border-slate-300 rounded">
-            <input type="number" id="stockNewMin" min="0" step="1" placeholder="Seuil d'alerte (stock bas)" class="p-2 border border-slate-300 rounded col-span-2">
+            <label class="text-[11px] text-slate-500 col-span-2">Catégorie *<select id="stockNewCat" onchange="refreshSubtypeField('stockNewCat','stockNewSubtype')" class="w-full p-2 border border-slate-300 rounded"></select></label>
+            <label class="text-[11px] text-slate-500">Marque *<select id="stockNewBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="w-full p-2 border border-slate-300 rounded"></select></label>
+            <label class="text-[11px] text-slate-500">Modèle *<input type="text" id="stockNewModel" placeholder="ex. Rush 6" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Taille<input type="text" id="stockNewSize" placeholder="ex. M" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Poids (kg)<input type="number" id="stockNewPoids" min="0" step="0.01" placeholder="ex. 0.45" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500 col-span-2">Type(s) particulier(s)<input type="text" id="stockNewSubtype" placeholder="ex. Light, Montagne" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Couleur<input type="text" id="stockNewColor" placeholder="Couleur" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Étagère<input type="text" id="stockNewShelf" placeholder="ex. A3" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Quantité en stock *<input type="number" id="stockNewQty" min="0" step="1" placeholder="ex. 10" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500 col-span-2">Seuil d'alerte (stock bas)<input type="number" id="stockNewMin" min="0" step="1" placeholder="ex. 2" class="w-full p-2 border border-slate-300 rounded"></label>
             <div data-stockfin="1" class="col-span-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2">
               <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">💶 Prix (non visibles du moniteur)</p>
-              <input type="number" id="stockNewHT" min="0" step="0.01" oninput="stockPriceSync('stockNew','ht')" placeholder="Prix d'achat HT (€)" class="p-2 border border-slate-300 rounded">
-              <input type="number" id="stockNewTTC" min="0" step="0.01" oninput="stockPriceSync('stockNew','ttc')" placeholder="Prix d'achat TTC (€)" class="p-2 border border-slate-300 rounded">
-              <input type="number" id="stockNewPublic" min="0" step="0.01" placeholder="Prix de vente public (€)" class="p-2 border border-slate-300 rounded col-span-2">
+              <label class="text-[11px] text-slate-500">Prix d'achat HT (€)<input type="number" id="stockNewHT" min="0" step="0.01" oninput="stockPriceSync('stockNew','ht')" placeholder="ex. 120" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500">Prix d'achat TTC (€)<input type="number" id="stockNewTTC" min="0" step="0.01" oninput="stockPriceSync('stockNew','ttc')" placeholder="ex. 144" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500 col-span-2">Prix de vente public (€)<input type="number" id="stockNewPublic" min="0" step="0.01" placeholder="ex. 180" class="w-full p-2 border border-slate-300 rounded"></label>
               <p id="stockNewPricePreview" class="col-span-2 text-[11px] text-slate-500"></p>
             </div>
           </div>
@@ -464,41 +464,41 @@
           </div>
           <div id="panelBody-addItemCard" class="space-y-3">
           <div class="grid grid-cols-2 gap-2 text-xs">
-            <select id="newItemType" onchange="toggleItemEN('newItemType', 'newItemENField'); toggleGliderLoanField('newItemType', 'newItemLoanField'); togglePTVFields('newItemType', 'newItemPTVField'); refreshSubtypeField('newItemType', 'newItemSubtype'); toggleLifecycleFields('newItemType', 'newItemLifecycleField', 'newItemHourlyField'); toggleSellettePairField('newItemType', 'newItemPairField', 'newItemPairedSecours')" class="p-2 border border-slate-300 rounded">
+            <label class="col-span-2 text-[11px] text-slate-500">Type de matériel<select id="newItemType" onchange="toggleItemEN('newItemType', 'newItemENField'); toggleGliderLoanField('newItemType', 'newItemLoanField'); togglePTVFields('newItemType', 'newItemPTVField'); refreshSubtypeField('newItemType', 'newItemSubtype'); toggleLifecycleFields('newItemType', 'newItemLifecycleField', 'newItemHourlyField'); toggleSellettePairField('newItemType', 'newItemPairField', 'newItemPairedSecours')" class="w-full p-2 border border-slate-300 rounded">
               <option value="Voile">Voile</option>
               <option value="Sellette">Sellette</option>
               <option value="Secours">Secours</option>
               <option value="Accessoire">Accessoire</option>
               <option value="Vario">Vario</option>
-            </select>
-            <input type="text" id="newItemShelf" class="p-2 border border-slate-300 rounded" placeholder="Étagère">
-            <select id="newItemBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
-            <input type="text" id="newItemModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle *">
-            <input type="text" id="newItemSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série *">
-            <input type="number" id="newItemPoids" min="0" step="0.01" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Poids (kg) (facultatif)">
-            <select id="newItemENField" class="p-2 border border-slate-300 rounded col-span-2">
+            </select></label>
+            <label class="text-[11px] text-slate-500">Étagère<input type="text" id="newItemShelf" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. A3"></label>
+            <label class="text-[11px] text-slate-500">Marque *<select id="newItemBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="w-full p-2 border border-slate-300 rounded"></select></label>
+            <label class="text-[11px] text-slate-500">Modèle *<input type="text" id="newItemModel" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Rush 6"></label>
+            <label class="text-[11px] text-slate-500 col-span-2">Numéro de série *<input type="text" id="newItemSN" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. SN123456"></label>
+            <label class="text-[11px] text-slate-500 col-span-2">Poids (kg) (facultatif)<input type="number" id="newItemPoids" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 4.2"></label>
+            <label class="text-[11px] text-slate-500 col-span-2">Catégorie EN (voile uniquement)<select id="newItemENField" class="w-full p-2 border border-slate-300 rounded">
               <option value="">Catégorie EN…</option>
-            </select>
-            <select id="newItemCategorie" class="p-2 border border-slate-300 rounded col-span-2" aria-label="Type de voile (facultatif)"></select>
+            </select></label>
+            <label class="text-[11px] text-slate-500 col-span-2">Type de voile (facultatif)<select id="newItemCategorie" class="w-full p-2 border border-slate-300 rounded" aria-label="Type de voile (facultatif)"></select></label>
             <label id="newItemLoanField" hidden class="col-span-2 flex items-center gap-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">
               <input type="checkbox" id="newItemPretConstructeur">
               <span>Prêt constructeur : cette voile ne nous appartient pas, elle est prêtée par la marque.</span>
             </label>
             <div id="newItemPTVField" class="grid grid-cols-2 gap-2 col-span-2">
-              <input type="number" id="newItemPTVMin" min="0" step="1" class="p-2 border border-slate-300 rounded" placeholder="PTV mini (kg)">
-              <input type="number" id="newItemPTVMax" min="0" step="1" class="p-2 border border-slate-300 rounded" placeholder="PTV maxi (kg)">
+              <label class="text-[11px] text-slate-500">PTV mini (kg)<input type="number" id="newItemPTVMin" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 70"></label>
+              <label class="text-[11px] text-slate-500">PTV maxi (kg)<input type="number" id="newItemPTVMax" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 95"></label>
             </div>
             <div id="newItemLifecycleField" class="grid grid-cols-2 gap-2 col-span-2 border-t border-slate-100 pt-2 mt-1">
               <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Données admin (non visibles du client) — tous les champs * sont obligatoires</p>
               <label class="col-span-2 text-[11px] text-slate-500 -mb-1">Date d'achat *</label>
               <input type="date" id="newItemDateMES" class="p-2 border border-slate-300 rounded" title="Date d'achat * (obligatoire)" aria-label="Date d'achat (obligatoire)">
-              <input type="text" id="newItemTaille" class="p-2 border border-slate-300 rounded" placeholder="Taille *">
-              <input data-fin="1" type="number" id="newItemPrixAchat" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€) *">
-              <input data-fin="1" type="number" id="newItemCoefVente" min="0" step="0.01" value="1.4" class="p-2 border border-slate-300 rounded" placeholder="Coefficient (ex : 1,4)">
-              <input type="text" id="newItemCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur *">
-              <input type="text" id="newItemSubtype" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Type(s) particulier(s) (facultatif)">
+              <label class="text-[11px] text-slate-500">Taille *<input type="text" id="newItemTaille" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. M"></label>
+              <label class="text-[11px] text-slate-500">Prix d'achat (€) *<input data-fin="1" type="number" id="newItemPrixAchat" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 2500"></label>
+              <label class="text-[11px] text-slate-500">Coefficient de vente<input data-fin="1" type="number" id="newItemCoefVente" min="0" step="0.01" value="1.4" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1.4"></label>
+              <label class="text-[11px] text-slate-500">Couleur *<input type="text" id="newItemCouleur" class="w-full p-2 border border-slate-300 rounded" placeholder="Couleur *"></label>
+              <label class="text-[11px] text-slate-500 col-span-2">Type(s) particulier(s) (facultatif)<input type="text" id="newItemSubtype" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Light, Montagne"></label>
               <div id="newItemHourlyField" class="grid grid-cols-2 gap-2 col-span-2 contents">
-                <input data-fin="1" type="number" id="newItemPrixHeureVol" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Prix / heure de vol (€)">
+                <label class="text-[11px] text-slate-500">Prix / heure de vol (€)<input data-fin="1" type="number" id="newItemPrixHeureVol" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 3"></label>
               </div>
               <div id="newItemPairField" hidden class="col-span-2">
                 <label for="newItemPairedSecours" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Secours associé (ensemble)</label>
@@ -509,7 +509,7 @@
               <label class="text-[11px] text-slate-500">ou toutes les (heures de vol)<input type="number" id="newItemRevisionHours" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="100 par défaut"></label>
               <p class="col-span-2 text-[10px] text-slate-400">Vide = valeur par défaut (12 mois ; 100 h pour voile et sellette, aucune pour un secours). 0 = critère désactivé.</p>
             </div>
-            <input data-fin="1" type="number" id="newItemSalePriceManual" min="0" step="0.01" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Prix de vente conseillé (manuel, facultatif — remplace le calcul si renseigné)">
+            <label class="text-[11px] text-slate-500 col-span-2">Prix de vente conseillé (manuel, facultatif — remplace le calcul si renseigné)<input data-fin="1" type="number" id="newItemSalePriceManual" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1800"></label>
             </div>
           </div>
           <button onclick="addNewItem()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded text-xs">+ Ajouter</button>
@@ -651,6 +651,31 @@
           </label>
           <p id="longTermRentalSettingStatus" class="text-[10px] text-slate-400"></p>
           <button onclick="saveLongTermRentalSetting()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer</button>
+        </div>
+
+        <div id="settingsTariffCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+          <h4 class="font-bold text-sm">💶 Tarifs des prêts</h4>
+          <p class="text-[10px] text-slate-500">Montant affiché automatiquement dès qu'un prêt (en cours ou réservé) est marqué « À payer », selon le type d'équipement concerné. Laissez à 0 ou vide pour ne rien afficher.</p>
+          <div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Essai</p>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="text-[11px] text-slate-500">Voile (€)<input type="number" id="settingsEssaiAmount_Voile" min="0" step="0.01" placeholder="ex. 15" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500">Sellette (€)<input type="number" id="settingsEssaiAmount_Sellette" min="0" step="0.01" placeholder="ex. 5" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500">Parachute de secours (€)<input type="number" id="settingsEssaiAmount_Secours" min="0" step="0.01" placeholder="ex. 5" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500">Accessoire (€)<input type="number" id="settingsEssaiAmount_Accessoire" min="0" step="0.01" placeholder="ex. 2" class="w-full p-2 border border-slate-300 rounded"></label>
+            </div>
+          </div>
+          <div class="border-t border-slate-100 pt-2">
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Location longue durée</p>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="text-[11px] text-slate-500">Voile (€)<input type="number" id="settingsLocationAmount_Voile" min="0" step="0.01" placeholder="ex. 50" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500">Sellette (€)<input type="number" id="settingsLocationAmount_Sellette" min="0" step="0.01" placeholder="ex. 30" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500 col-span-2">Parachute de secours (€)<input type="number" id="settingsLocationAmount_Secours" min="0" step="0.01" placeholder="ex. 20" class="w-full p-2 border border-slate-300 rounded"></label>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1">Les accessoires (casque compris) ne sont pas concernés par la location longue durée.</p>
+          </div>
+          <p id="settingsTariffStatus" class="text-[10px] text-slate-400"></p>
+          <button onclick="saveTariffSettings()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer</button>
         </div>
 
         <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
@@ -1030,42 +1055,42 @@
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
       <h3 class="font-bold text-lg">Modifier l'équipement</h3>
       <div class="grid grid-cols-2 gap-2 text-xs">
-        <select id="editItemType" onchange="toggleItemEN('editItemType', 'editItemENField'); toggleGliderLoanField('editItemType', 'editItemLoanField'); togglePTVFields('editItemType', 'editItemPTVField'); refreshSubtypeField('editItemType', 'editItemSubtype'); toggleLifecycleFields('editItemType', 'editItemLifecycleField', 'editItemHourlyField'); toggleSellettePairField('editItemType', 'editItemPairField', 'editItemPairedSecours', editingItemId); refreshEditItemComputed()" class="p-2 border border-slate-300 rounded">
+        <label class="col-span-2 text-[11px] text-slate-500">Type de matériel<select id="editItemType" onchange="toggleItemEN('editItemType', 'editItemENField'); toggleGliderLoanField('editItemType', 'editItemLoanField'); togglePTVFields('editItemType', 'editItemPTVField'); refreshSubtypeField('editItemType', 'editItemSubtype'); toggleLifecycleFields('editItemType', 'editItemLifecycleField', 'editItemHourlyField'); toggleSellettePairField('editItemType', 'editItemPairField', 'editItemPairedSecours', editingItemId); refreshEditItemComputed()" class="w-full p-2 border border-slate-300 rounded">
           <option value="Voile">Voile</option>
           <option value="Sellette">Sellette</option>
           <option value="Secours">Secours</option>
           <option value="Accessoire">Accessoire</option>
           <option value="Vario">Vario</option>
-        </select>
-        <input type="text" id="editItemShelf" class="p-2 border border-slate-300 rounded" placeholder="Étagère">
-        <select id="editItemBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
-        <input type="text" id="editItemModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle">
-        <input type="text" id="editItemSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série">
-        <input type="number" id="editItemPoids" min="0" step="0.01" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Poids (kg) (facultatif)">
-        <select id="editItemENField" class="p-2 border border-slate-300 rounded col-span-2">
+        </select></label>
+        <label class="text-[11px] text-slate-500">Étagère<input type="text" id="editItemShelf" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. A3"></label>
+        <label class="text-[11px] text-slate-500">Marque<select id="editItemBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="w-full p-2 border border-slate-300 rounded"></select></label>
+        <label class="text-[11px] text-slate-500">Modèle<input type="text" id="editItemModel" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Rush 6"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Numéro de série<input type="text" id="editItemSN" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. SN123456"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Poids (kg) (facultatif)<input type="number" id="editItemPoids" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 4.2"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Catégorie EN (voile uniquement)<select id="editItemENField" class="w-full p-2 border border-slate-300 rounded">
           <option value="">Catégorie EN…</option>
-        </select>
-        <select id="editItemCategorie" class="p-2 border border-slate-300 rounded col-span-2" aria-label="Type de voile (facultatif)"></select>
+        </select></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Type de voile (facultatif)<select id="editItemCategorie" class="w-full p-2 border border-slate-300 rounded" aria-label="Type de voile (facultatif)"></select></label>
         <label id="editItemLoanField" hidden class="col-span-2 flex items-center gap-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">
           <input type="checkbox" id="editItemPretConstructeur">
           <span>Prêt constructeur : cette voile ne nous appartient pas, elle est prêtée par la marque.</span>
         </label>
         <div id="editItemPTVField" class="grid grid-cols-2 gap-2 col-span-2">
-          <input type="number" id="editItemPTVMin" min="0" step="1" class="p-2 border border-slate-300 rounded" placeholder="PTV mini (kg)">
-          <input type="number" id="editItemPTVMax" min="0" step="1" class="p-2 border border-slate-300 rounded" placeholder="PTV maxi (kg)">
+          <label class="text-[11px] text-slate-500">PTV mini (kg)<input type="number" id="editItemPTVMin" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 70"></label>
+          <label class="text-[11px] text-slate-500">PTV maxi (kg)<input type="number" id="editItemPTVMax" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 95"></label>
         </div>
-        <input type="number" id="editItemHours" min="0" step="0.1" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Heures">
-        <input type="number" id="editItemFlights" min="0" class="p-2 border border-slate-300 rounded" placeholder="Vols">
+        <label class="text-[11px] text-slate-500">Heures<input type="number" id="editItemHours" min="0" step="0.1" oninput="refreshEditItemComputed()" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 120"></label>
+        <label class="text-[11px] text-slate-500">Vols<input type="number" id="editItemFlights" min="0" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 80"></label>
         <div id="editItemLifecycleField" class="grid grid-cols-2 gap-2 col-span-2 border-t border-slate-100 pt-2 mt-1">
           <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Données admin (non visibles du client)</p>
-          <input type="date" id="editItemDateMES" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Date mise en service">
-          <input type="text" id="editItemTaille" class="p-2 border border-slate-300 rounded" placeholder="Taille">
-          <input data-fin="1" type="number" id="editItemPrixAchat" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€)">
-          <input data-fin="1" type="number" id="editItemCoefVente" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Coefficient (ex : 1,4)">
-          <input type="text" id="editItemCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur">
-          <input type="text" id="editItemSubtype" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Type(s) particulier(s) (facultatif)">
+          <label class="text-[11px] text-slate-500">Date mise en service<input type="date" id="editItemDateMES" oninput="refreshEditItemComputed()" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Taille<input type="text" id="editItemTaille" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. M"></label>
+          <label class="text-[11px] text-slate-500">Prix d'achat (€)<input data-fin="1" type="number" id="editItemPrixAchat" min="0" step="0.01" oninput="refreshEditItemComputed()" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 2500"></label>
+          <label class="text-[11px] text-slate-500">Coefficient de vente<input data-fin="1" type="number" id="editItemCoefVente" min="0" step="0.01" oninput="refreshEditItemComputed()" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1.4"></label>
+          <label class="text-[11px] text-slate-500">Couleur<input type="text" id="editItemCouleur" class="w-full p-2 border border-slate-300 rounded" placeholder="Couleur"></label>
+          <label class="text-[11px] text-slate-500 col-span-2">Type(s) particulier(s) (facultatif)<input type="text" id="editItemSubtype" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Light, Montagne"></label>
           <div id="editItemHourlyField" class="grid grid-cols-2 gap-2 col-span-2 contents">
-            <input data-fin="1" type="number" id="editItemPrixHeureVol" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded" placeholder="Prix / heure de vol (€)">
+            <label class="text-[11px] text-slate-500">Prix / heure de vol (€)<input data-fin="1" type="number" id="editItemPrixHeureVol" min="0" step="0.01" oninput="refreshEditItemComputed()" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 3"></label>
           </div>
           <div id="editItemPairField" hidden class="col-span-2">
             <label for="editItemPairedSecours" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Secours associé (ensemble)</label>
@@ -1076,7 +1101,7 @@
               <label class="text-[11px] text-slate-500">ou toutes les (heures de vol)<input type="number" id="editItemRevisionHours" oninput="refreshEditItemComputed()" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="100 par défaut"></label>
               <p class="col-span-2 text-[10px] text-slate-400">Vide = valeur par défaut (12 mois ; 100 h pour voile et sellette, aucune pour un secours). 0 = critère désactivé.</p>
             </div>
-            <input data-fin="1" type="number" id="editItemSalePriceManual" min="0" step="0.01" oninput="refreshEditItemComputed()" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Prix de vente conseillé (manuel, facultatif — remplace le calcul si renseigné)">
+            <label class="text-[11px] text-slate-500 col-span-2">Prix de vente conseillé (manuel, facultatif — remplace le calcul si renseigné)<input data-fin="1" type="number" id="editItemSalePriceManual" min="0" step="0.01" oninput="refreshEditItemComputed()" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1800"></label>
           <p id="editItemComputedInfo" class="col-span-2 text-[11px] text-slate-600 bg-slate-50 rounded p-2"></p>
         </div>
       </div>
@@ -1172,9 +1197,9 @@
       <h3 class="font-bold text-lg">Vendre cet équipement</h3>
       <p id="sellItemLabel" class="text-xs text-slate-500 font-bold"></p>
       <div class="space-y-2 text-xs">
-        <input type="text" id="sellItemClientName" class="w-full p-2 border border-slate-300 rounded" placeholder="Nom du client acheteur *">
-        <input type="number" id="sellItemPrice" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="Prix de vente (€)">
-        <input type="date" id="sellItemDate" class="w-full p-2 border border-slate-300 rounded">
+        <label class="text-[11px] text-slate-500 block">Nom du client acheteur *<input type="text" id="sellItemClientName" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Jean Dupont"></label>
+        <label class="text-[11px] text-slate-500 block">Prix de vente (€)<input type="number" id="sellItemPrice" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1200"></label>
+        <label class="text-[11px] text-slate-500 block">Date de vente<input type="date" id="sellItemDate" class="w-full p-2 border border-slate-300 rounded"></label>
       </div>
       <p class="text-[10px] text-slate-500">L'équipement sera retiré du matériel actif et déplacé dans l'onglet Archives, avec ses heures/vols au moment de la vente.</p>
       <div class="flex justify-end gap-2">
@@ -1189,24 +1214,24 @@
     <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
       <h3 class="font-bold text-lg">Modifier l'article archivé</h3>
       <div class="grid grid-cols-2 gap-2 text-xs">
-        <select id="editArchiveBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
-        <input type="text" id="editArchiveModel" class="p-2 border border-slate-300 rounded" placeholder="Modèle">
-        <input type="text" id="editArchiveSN" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Numéro de série">
-        <select id="editArchiveEN" class="p-2 border border-slate-300 rounded col-span-2">
+        <label class="text-[11px] text-slate-500">Marque<select id="editArchiveBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="w-full p-2 border border-slate-300 rounded"></select></label>
+        <label class="text-[11px] text-slate-500">Modèle<input type="text" id="editArchiveModel" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Rush 6"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Numéro de série<input type="text" id="editArchiveSN" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. SN123456"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Catégorie EN<select id="editArchiveEN" class="w-full p-2 border border-slate-300 rounded">
           <option value="">Catégorie EN…</option>
-        </select>
-        <input type="number" id="editArchivePTVMin" min="0" step="1" class="p-2 border border-slate-300 rounded" placeholder="PTV mini (kg)">
-        <input type="number" id="editArchivePTVMax" min="0" step="1" class="p-2 border border-slate-300 rounded" placeholder="PTV maxi (kg)">
-        <input type="number" id="editArchiveHours" min="0" step="0.1" class="p-2 border border-slate-300 rounded" placeholder="Heures">
-        <input type="number" id="editArchiveFlights" min="0" class="p-2 border border-slate-300 rounded" placeholder="Vols">
-        <input type="date" id="editArchiveDateMES" class="p-2 border border-slate-300 rounded" placeholder="Date mise en service">
-        <input type="text" id="editArchiveCouleur" class="p-2 border border-slate-300 rounded" placeholder="Couleur">
-        <input type="text" id="editArchiveTaille" class="p-2 border border-slate-300 rounded" placeholder="Taille">
-        <input type="number" id="editArchivePrixAchat" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Prix d'achat (€)">
-        <input type="number" id="editArchiveSalePrice" min="0" step="0.01" class="p-2 border border-slate-300 rounded" placeholder="Prix de vente (€)">
-        <input type="date" id="editArchiveSaleDate" class="p-2 border border-slate-300 rounded" placeholder="Date de vente">
-        <input type="text" id="editArchiveClientName" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Nom du client acheteur *">
-        <input type="text" id="editArchiveNote" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Remarque">
+        </select></label>
+        <label class="text-[11px] text-slate-500">PTV mini (kg)<input type="number" id="editArchivePTVMin" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 70"></label>
+        <label class="text-[11px] text-slate-500">PTV maxi (kg)<input type="number" id="editArchivePTVMax" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 95"></label>
+        <label class="text-[11px] text-slate-500">Heures<input type="number" id="editArchiveHours" min="0" step="0.1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 120"></label>
+        <label class="text-[11px] text-slate-500">Vols<input type="number" id="editArchiveFlights" min="0" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 80"></label>
+        <label class="text-[11px] text-slate-500">Date mise en service<input type="date" id="editArchiveDateMES" class="w-full p-2 border border-slate-300 rounded"></label>
+        <label class="text-[11px] text-slate-500">Couleur<input type="text" id="editArchiveCouleur" class="w-full p-2 border border-slate-300 rounded" placeholder="Couleur"></label>
+        <label class="text-[11px] text-slate-500">Taille<input type="text" id="editArchiveTaille" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. M"></label>
+        <label class="text-[11px] text-slate-500">Prix d'achat (€)<input type="number" id="editArchivePrixAchat" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 2500"></label>
+        <label class="text-[11px] text-slate-500">Prix de vente (€)<input type="number" id="editArchiveSalePrice" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1200"></label>
+        <label class="text-[11px] text-slate-500">Date de vente<input type="date" id="editArchiveSaleDate" class="w-full p-2 border border-slate-300 rounded"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Nom du client acheteur *<input type="text" id="editArchiveClientName" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Jean Dupont"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Remarque<input type="text" id="editArchiveNote" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Révisé avant la vente"></label>
       </div>
       <div class="flex justify-end gap-2">
         <button onclick="closeModal('editArchiveModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
@@ -1237,9 +1262,9 @@
           <select id="thirdPartyInstructorSelect" hidden class="w-full p-2 border border-slate-300 rounded bg-white"></select>
           <select id="thirdPartyClientSelect" hidden onchange="thirdPartyClientChanged()" class="w-full p-2 border border-slate-300 rounded bg-white"></select>
           <div id="thirdPartyManualFields" class="space-y-2">
-            <input type="text" id="thirdPartyName" class="w-full p-2 border border-slate-300 rounded" placeholder="Nom du bénéficiaire *">
-            <input type="email" id="thirdPartyEmail" class="w-full p-2 border border-slate-300 rounded" placeholder="Email *">
-            <input type="tel" id="thirdPartyPhone" class="w-full p-2 border border-slate-300 rounded" placeholder="Téléphone *">
+            <label class="text-[11px] text-slate-500 block">Nom du bénéficiaire *<input type="text" id="thirdPartyName" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Jean Dupont"></label>
+            <label class="text-[11px] text-slate-500 block">Email<input type="email" id="thirdPartyEmail" class="w-full p-2 border border-slate-300 rounded" placeholder="Email *"></label>
+            <label class="text-[11px] text-slate-500 block">Téléphone<input type="tel" id="thirdPartyPhone" class="w-full p-2 border border-slate-300 rounded" placeholder="Téléphone *"></label>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <label class="block text-[10px] font-bold text-slate-600">Date de début
@@ -1424,37 +1449,37 @@
         <div id="stockEditRow" hidden class="grid grid-cols-2 gap-2">
           <div class="col-span-2"><label for="stockEditCat" class="block font-bold text-slate-600">Catégorie</label>
             <select id="stockEditCat" onchange="refreshSubtypeField('stockEditCat','stockEditSubtype')" class="w-full p-2 border border-slate-300 rounded"></select></div>
-          <select id="stockEditBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
-          <input type="text" id="stockEditModel" placeholder="Modèle" class="p-2 border border-slate-300 rounded">
-          <input type="text" id="stockEditSize" placeholder="Taille" class="p-2 border border-slate-300 rounded">
-          <input type="number" id="stockEditPoids" min="0" step="0.01" placeholder="Poids (kg)" class="p-2 border border-slate-300 rounded">
-          <input type="text" id="stockEditSubtype" placeholder="Type(s) particulier(s)" class="p-2 border border-slate-300 rounded col-span-2">
-          <input type="text" id="stockEditColor" placeholder="Couleur" class="p-2 border border-slate-300 rounded">
-          <input type="text" id="stockEditShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
-          <input type="number" id="stockEditMin" min="0" step="1" placeholder="Seuil d'alerte" class="p-2 border border-slate-300 rounded">
-          <input type="text" id="stockEditNote" placeholder="Note permanente" class="p-2 border border-slate-300 rounded col-span-2">
+          <label class="text-[11px] text-slate-500">Marque<select id="stockEditBrand" data-brand-select data-ph="Marque" onchange="brandSelectChanged(this)" aria-label="Marque" class="w-full p-2 border border-slate-300 rounded"></select></label>
+          <label class="text-[11px] text-slate-500">Modèle<input type="text" id="stockEditModel" placeholder="ex. Rush 6" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Taille<input type="text" id="stockEditSize" placeholder="ex. M" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Poids (kg)<input type="number" id="stockEditPoids" min="0" step="0.01" placeholder="ex. 0.45" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500 col-span-2">Type(s) particulier(s)<input type="text" id="stockEditSubtype" placeholder="ex. Light, Montagne" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Couleur<input type="text" id="stockEditColor" placeholder="Couleur" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Étagère<input type="text" id="stockEditShelf" placeholder="ex. A3" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Seuil d'alerte<input type="number" id="stockEditMin" min="0" step="1" placeholder="ex. 2" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500 col-span-2">Note permanente<input type="text" id="stockEditNote" placeholder="ex. Révision prévue en mars" class="w-full p-2 border border-slate-300 rounded"></label>
           <div data-stockfin="1" class="col-span-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2">
             <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">💶 Prix</p>
-            <input type="number" id="stockEditHT" min="0" step="0.01" oninput="stockPriceSync('stockEdit','ht')" placeholder="Achat HT (€)" class="p-2 border border-slate-300 rounded">
-            <input type="number" id="stockEditTTC" min="0" step="0.01" oninput="stockPriceSync('stockEdit','ttc')" placeholder="Achat TTC (€)" class="p-2 border border-slate-300 rounded">
-            <input type="number" id="stockEditPublic" min="0" step="0.01" placeholder="Vente public (€)" class="p-2 border border-slate-300 rounded col-span-2">
+            <label class="text-[11px] text-slate-500">Achat HT (€)<input type="number" id="stockEditHT" min="0" step="0.01" oninput="stockPriceSync('stockEdit','ht')" placeholder="ex. 120" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500">Achat TTC (€)<input type="number" id="stockEditTTC" min="0" step="0.01" oninput="stockPriceSync('stockEdit','ttc')" placeholder="ex. 144" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500 col-span-2">Vente public (€)<input type="number" id="stockEditPublic" min="0" step="0.01" placeholder="ex. 180" class="w-full p-2 border border-slate-300 rounded"></label>
             <p id="stockEditPricePreview" class="col-span-2 text-[11px] text-slate-500"></p>
           </div>
         </div>
         <div id="stockDemoRow" hidden class="grid grid-cols-2 gap-2">
           <p class="col-span-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">1 unité sort du stock (quantité en rayon −1) et devient un article de démo suivi par numéro de série. Tous les champs * sont obligatoires (pour un accessoire : marque, modèle et numéro de série).</p>
-          <select id="stockDemoType" onchange="toggleDemoFields()" aria-label="Type de matériel" class="col-span-2 p-2 border border-slate-300 rounded">
+          <label class="text-[11px] text-slate-500 col-span-2">Type de matériel<select id="stockDemoType" onchange="toggleDemoFields()" aria-label="Type de matériel" class="w-full p-2 border border-slate-300 rounded">
             <option value="Sellette">Sellette</option><option value="Secours">Secours</option><option value="Accessoire">Accessoire</option><option value="Vario">Vario</option>
-          </select>
-          <select id="stockDemoBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="p-2 border border-slate-300 rounded"></select>
-          <input type="text" id="stockDemoModel" placeholder="Modèle *" class="p-2 border border-slate-300 rounded">
-          <input type="text" id="stockDemoSN" placeholder="Numéro de série *" class="col-span-2 p-2 border border-slate-300 rounded">
-          <input type="text" id="stockDemoSize" placeholder="Taille *" data-lc="1" class="p-2 border border-slate-300 rounded">
-          <input type="number" id="stockDemoPoids" min="0" step="0.01" placeholder="Poids (kg)" class="p-2 border border-slate-300 rounded">
-          <input type="text" id="stockDemoShelf" placeholder="Étagère" class="p-2 border border-slate-300 rounded">
-          <input type="text" id="stockDemoColor" placeholder="Couleur *" data-lc="1" class="p-2 border border-slate-300 rounded">
+          </select></label>
+          <label class="text-[11px] text-slate-500">Marque *<select id="stockDemoBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="w-full p-2 border border-slate-300 rounded"></select></label>
+          <label class="text-[11px] text-slate-500">Modèle *<input type="text" id="stockDemoModel" placeholder="ex. Delight 3" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500 col-span-2">Numéro de série *<input type="text" id="stockDemoSN" placeholder="ex. SN123456" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Taille<input type="text" id="stockDemoSize" placeholder="Taille *" data-lc="1" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Poids (kg)<input type="number" id="stockDemoPoids" min="0" step="0.01" placeholder="ex. 4.2" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Étagère<input type="text" id="stockDemoShelf" placeholder="ex. A3" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Couleur<input type="text" id="stockDemoColor" placeholder="Couleur *" data-lc="1" class="w-full p-2 border border-slate-300 rounded"></label>
           <label id="stockDemoDateLbl" class="text-[11px] text-slate-500">Date d'achat *<input type="date" id="stockDemoDate" class="w-full p-2 border border-slate-300 rounded"></label>
-          <input data-fin="1" data-lc="1" type="number" id="stockDemoPrix" min="0" step="0.01" placeholder="Prix d'achat (€) *" class="p-2 border border-slate-300 rounded self-end">
+          <label id="stockDemoPrixLbl" class="text-[11px] text-slate-500">Prix d'achat (€) *<input data-fin="1" data-lc="1" type="number" id="stockDemoPrix" min="0" step="0.01" placeholder="ex. 350" class="w-full p-2 border border-slate-300 rounded"></label>
         </div>
         <p id="stockModalError" hidden class="text-rose-600 font-bold"></p>
       </div>
@@ -2393,19 +2418,23 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // Vocabulaire du contrat : « prêt » et non « location ». Appliqué aussi au texte
   // déjà enregistré dans les réglages, pour que l'ancien libellé ne réapparaisse pas.
   const PAYMENT_STATES = ["Gratuit", "À payer", "Payé"];
-  function paymentBadge(it) {
+  // amount (facultatif) : montant à faire apparaître à côté de « À payer », voir
+  // reservationTariffAmount — réglable dans Réglages › 💶 Tarifs des prêts.
+  function paymentBadge(it, amount) {
     const v = it && it.payment;
     if (!v) return "";
     const cls = v === "À payer" ? "bg-red-100 text-red-700" : v === "Payé" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-800";
-    return `<span class="px-1.5 py-0.5 rounded-full font-bold text-[10px] ${cls}">💶 ${esc(v)}</span>`;
+    const extra = (v === "À payer" && amount) ? ` · ${esc(formatAmount(amount))} €` : "";
+    return `<span class="px-1.5 py-0.5 rounded-full font-bold text-[10px] ${cls}">💶 ${esc(v)}${extra}</span>`;
   }
   // Admin / gestionnaire peuvent corriger le paiement d'un prêt en cours (ex. « À payer » devenu « Payé »).
   function paymentControl(it) {
-    if (currentRole !== "admin" && currentRole !== "manager") return paymentBadge(it);
+    const amount = it && it.payment === "À payer" ? reservationTariffAmount(itemLoanType(it), it.type) : null;
+    if (currentRole !== "admin" && currentRole !== "manager") return paymentBadge(it, amount);
     return `<select onchange="setLoanPayment('${esc(String(it.id)).replace(/'/g, "&#39;")}', this.value)" class="ml-1 p-0.5 border border-slate-300 rounded text-[10px] bg-white">
       <option value=""${it.payment ? "" : " selected"}>💶 non précisé</option>
       ${PAYMENT_STATES.map(v => `<option value="${v}"${it.payment === v ? " selected" : ""}>💶 ${v}</option>`).join("")}
-    </select>`;
+    </select>${amount ? `<span class="ml-1 text-[10px] font-bold text-red-700">${esc(formatAmount(amount))} €</span>` : ""}`;
   }
   async function setLoanPayment(id, value) {
     if (currentRole !== "admin" && currentRole !== "manager") return;
@@ -5113,7 +5142,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     $("stockDemoSize").placeholder = "Taille" + star;
     $("stockDemoColor").placeholder = "Couleur" + star;
     $("stockDemoDateLbl").hidden = !lc;
-    const prix = $("stockDemoPrix"); prix.hidden = !lc || !canSeeFinances();
+    $("stockDemoPrixLbl").hidden = !lc || !canSeeFinances();
   }
 
   // Affiche les champs de la destination choisie : la démo demande en plus les infos d'un article suivi (n° de série…).
@@ -7718,10 +7747,14 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     // l'onglet Réglages (contrat, mentions légales, emails, location longue durée) reste verrouillé.
     const fullSettings = canUse("settings");
     show("settingsLongTermRentalCard", fullSettings);
+    show("settingsTariffCard", fullSettings);
     show("settingsContractCard", fullSettings);
     show("settingsLegalNoticeCard", fullSettings);
     show("settingsMailCard", fullSettings);
     $("settingsLongTermRentalEnabled").checked = isLongTermRentalEnabled();
+    TARIFF_CATS_ESSAI.forEach(cat => { if ($("settingsEssaiAmount_" + cat)) $("settingsEssaiAmount_" + cat).value = getSetting("essaiAmount_" + cat, "") || ""; });
+    TARIFF_CATS_LOCATION.forEach(cat => { if ($("settingsLocationAmount_" + cat)) $("settingsLocationAmount_" + cat).value = getSetting("locationAmount_" + cat, "") || ""; });
+    if ($("settingsTariffStatus")) $("settingsTariffStatus").textContent = "";
     renderBrandSettings();
     renderCategorieSettings();
     renderSubtypeSettings();
@@ -7852,6 +7885,89 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
         ? `✅ Enregistré dans la base de données — ${enabled ? "prêt longue durée autorisé" : "prêt longue durée verrouillé"}.`
         : `⚠️ Hors ligne : ce changement n'est pour l'instant que sur cet appareil, il n'a pas atteint le tableur. Rechargez la page une fois reconnecté pour vérifier.`;
     }
+  }
+
+  // Montant à afficher dès qu'un prêt de ce type (essai ou location longue durée) est marqué
+  // « À payer », selon la catégorie d'équipement concernée. Réglable dans Réglages › 💶 Tarifs
+  // des prêts (0 ou vide = rien à afficher). Les accessoires (casque compris) n'ont pas de tarif
+  // de location longue durée, seulement d'essai — voir TARIFF_CATS_LOCATION.
+  const TARIFF_CATS_ESSAI = ["Voile", "Sellette", "Secours", "Accessoire"];
+  const TARIFF_CATS_LOCATION = ["Voile", "Sellette", "Secours"];
+  // Regroupe les types/catégories réels (matériel : Voile/Sellette/Secours/Accessoire/Vario ;
+  // stock : Sellette/Secours/Casque/Vario/Accessoire/« Accessoire sellette ») sur les 4 familles
+  // de tarif ci-dessus. Tout ce qui n'est ni voile, ni sellette, ni secours (casque, vario,
+  // accessoire, accessoire sellette…) rejoint la famille « Accessoire ».
+  function tariffCategoryForType(type) {
+    if (type === "Voile" || type === "Sellette" || type === "Secours") return type;
+    return "Accessoire";
+  }
+  function reservationTariffAmount(kind, type) {
+    if (kind !== "essai" && kind !== "location") return null;
+    const cat = tariffCategoryForType(type);
+    if (kind === "essai" && !TARIFF_CATS_ESSAI.includes(cat)) return null;
+    if (kind === "location" && !TARIFF_CATS_LOCATION.includes(cat)) return null;
+    const v = Number(getSetting(`${kind}Amount_${cat}`, ""));
+    return v > 0 ? v : null;
+  }
+  function formatAmount(n) {
+    const v = Number(n) || 0;
+    return (Math.round(v * 100) % 100 === 0) ? String(Math.round(v)) : v.toFixed(2);
+  }
+  // Pour un matériel actuellement prêté (it.status === "Loué") : retrouve, s'il existe, la
+  // réservation d'origine (essai ou location) toujours ouverte pour cet équipement — la ligne de
+  // planning reste à l'état « Réservé » tant que la restitution n'a pas eu lieu (voir
+  // closePlanningForReturnedItem) — afin de savoir quel tarif appliquer. Un prêt tiers ou moniteur
+  // saisi directement (pas de réservation au préalable) n'a pas de type essai/location : null.
+  function itemLoanType(it) {
+    if (!it || it.status !== "Loué") return null;
+    const p = Object.values(appData.planning).find(p => p.itemId === it.id && p.status === "Réservé" && (p.type === "essai" || p.type === "location"));
+    return p ? p.type : null;
+  }
+  // Équivalent pour une ligne de planning (réservation pas encore remise) : catégorie
+  // d'équipement, qu'il s'agisse d'un matériel suivi par numéro de série (appData.items) ou
+  // d'une référence du stock partagé réservée en quantité (ex. sellette sans S/N).
+  function reservationEquipmentType(p) {
+    if (isStockReservationId(p.itemId)) {
+      const r = appData.stock[p.itemId];
+      return r ? r.category : null;
+    }
+    const it = appData.items[p.itemId];
+    return it ? it.type : null;
+  }
+
+  async function saveTariffSettings() {
+    if (busy) return;
+    const statusEl = $("settingsTariffStatus");
+    const reload = () => {
+      TARIFF_CATS_ESSAI.forEach(cat => { if ($("settingsEssaiAmount_" + cat)) $("settingsEssaiAmount_" + cat).value = getSetting("essaiAmount_" + cat, "") || ""; });
+      TARIFF_CATS_LOCATION.forEach(cat => { if ($("settingsLocationAmount_" + cat)) $("settingsLocationAmount_" + cat).value = getSetting("locationAmount_" + cat, "") || ""; });
+    };
+    if (!canUse("settings")) {
+      toast("Action non autorisée.", "error");
+      if (statusEl) statusEl.textContent = "";
+      reload();
+      return;
+    }
+    const summary = [];
+    TARIFF_CATS_ESSAI.forEach(cat => {
+      const v = $("settingsEssaiAmount_" + cat).value.trim();
+      setSetting("essaiAmount_" + cat, v);
+      summary.push(`Essai ${cat} : ${v || "—"} €`);
+    });
+    TARIFF_CATS_LOCATION.forEach(cat => {
+      const v = $("settingsLocationAmount_" + cat).value.trim();
+      setSetting("locationAmount_" + cat, v);
+      summary.push(`Location ${cat} : ${v || "—"} €`);
+    });
+    addGenericHistory("Modification réglages", "Tarifs des prêts", "", "", summary.join(" · ") + ".");
+    const ok = await persist(["settings", "history"]);
+    toast(ok ? "Tarifs enregistrés." : "Tarifs enregistrés localement (hors ligne).");
+    if (statusEl) {
+      statusEl.textContent = ok
+        ? "✅ Enregistré dans la base de données."
+        : "⚠️ Hors ligne : ce changement n'est pour l'instant que sur cet appareil, il n'a pas atteint le tableur. Rechargez la page une fois reconnecté pour vérifier.";
+    }
+    renderAll();
   }
 
   async function saveContractSettings() {
@@ -8754,11 +8870,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // qui n'a pas encore été remise au client (bouton « 📤 Donner au client » pas encore utilisé) —
   // la même valeur est ensuite reprise automatiquement lors de la remise (voir doHandover).
   function reservationPaymentControl(p) {
-    if (currentRole !== "admin" && currentRole !== "manager") return paymentBadge(p);
+    const amount = p && p.payment === "À payer" ? reservationTariffAmount(p.type, reservationEquipmentType(p)) : null;
+    if (currentRole !== "admin" && currentRole !== "manager") return paymentBadge(p, amount);
     return `<select onchange="setReservationPayment('${esc(String(p.bookingId)).replace(/'/g, "&#39;")}', this.value)" class="ml-1 p-0.5 border border-slate-300 rounded text-[10px] bg-white">
       <option value=""${p.payment ? "" : " selected"}>💶 non précisé</option>
       ${PAYMENT_STATES.map(v => `<option value="${v}"${p.payment === v ? " selected" : ""}>💶 ${v}</option>`).join("")}
-    </select>`;
+    </select>${amount ? `<span class="ml-1 text-[10px] font-bold text-red-700">${esc(formatAmount(amount))} €</span>` : ""}`;
   }
   async function setReservationPayment(bookingId, value) {
     if (currentRole !== "admin" && currentRole !== "manager") return;
@@ -9937,7 +10054,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   function initColorPickers() {
     COLOR_INPUT_IDS.forEach(id => {
       const el = $(id); if (!el || document.querySelector(`[data-colorpicker="${id}"]`)) return;
-      el.classList.add("col-span-2");
+      (el.closest("label") || el).classList.add("col-span-2");
       el.placeholder = "Couleur(s)" + (/\*/.test(el.placeholder || "") ? " *" : "") + " — ex. Bleu / Blanc";
       const box = document.createElement("div");
       box.setAttribute("data-colorpicker", id);
@@ -10310,7 +10427,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-09.161";
+  const APP_VERSION = "2026-11-09.163";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -10324,6 +10441,28 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 163, title: "Tarifs par type d'équipement, en-têtes sur tout le matériel", aud: "staff", items: [
+      { icon: "💶", t: "Un tarif par type d'équipement, pour l'essai comme pour la location", steps: [
+        "Réglages › 💶 Tarifs des prêts propose maintenant un montant séparé par type : Voile, Sellette, Parachute de secours et Accessoire pour l'essai ; Voile, Sellette et Parachute de secours pour la location longue durée.",
+        "Les accessoires (casque compris) n'ont pas de tarif de location longue durée, seulement d'essai.",
+        "Le bon montant s'affiche automatiquement selon le type de l'équipement concerné, dans Alertes comme dans le Planning."
+      ] },
+      { icon: "🏷️", t: "En-têtes permanents aussi sur le matériel (pas seulement le Stock)", steps: [
+        "« Ajouter du matériel », « Modifier l'équipement », « Vendre cet équipement », « Modifier l'article archivé » et « Prêter à une personne tierce » affichent maintenant le nom de chaque champ en permanence au-dessus, au lieu d'un exemple qui disparaissait dès la saisie.",
+        "Plus besoin d'effacer une valeur déjà enregistrée pour savoir à quoi correspond le champ. Aucune donnée existante n'est modifiée."
+      ] }
+    ] },
+    { v: 162, title: "Tarifs des prêts (essai / location) et en-têtes dans le Stock et la Démo", aud: "staff", items: [
+      { icon: "💶", t: "Réglages › 💶 Tarifs des prêts : montant de l'essai et de la location longue durée", steps: [
+        "Deux montants réglables (en €) : un pour un essai, un pour un prêt longue durée.",
+        "Dès qu'un prêt — en cours ou réservé à l'avance — est marqué « À payer », ce montant s'affiche automatiquement à côté, dans l'onglet Alertes comme dans le Planning.",
+        "Laisser à 0 ou vide pour ne rien afficher ; un prêt tiers ou moniteur saisi directement (hors réservation) n'est pas concerné."
+      ] },
+      { icon: "🏷️", t: "Formulaires Stock et Démo : des en-têtes permanents sur chaque champ", steps: [
+        "Dans « Ajouter une référence en stock », « Modifier » une référence et « Passer en démo », chaque champ affiche maintenant son nom en permanence au-dessus (ex. « Modèle », « Poids (kg) »), au lieu d'un simple exemple qui disparaissait dès la saisie.",
+        "Aucune donnée déjà enregistrée n'est touchée par ce changement, purement visuel."
+      ] }
+    ] },
     { v: 161, title: "Nouveau bouton « ❓ Aide » : guide d'utilisation intégré pour le personnel", aud: "staff", items: [
       { icon: "❓", t: "Un guide complet, directement dans l'app", steps: [
         "Un bouton « ❓ Aide » apparaît désormais dans l'en-tête pour l'administrateur, le gestionnaire et le moniteur (jamais pour le client).",
