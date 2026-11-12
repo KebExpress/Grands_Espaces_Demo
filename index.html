@@ -524,22 +524,26 @@
             <button type="button" onclick="togglePanel('packsManageCard')" id="panelToggle-packsManageCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">▾</button>
           </div>
           <div id="panelBody-packsManageCard" class="space-y-3">
-          <p class="text-[11px] text-slate-500">Composez un pack en choisissant, dans la liste, la voile, la sellette et le secours précis qui le composent (laissez « Aucun(e) » pour un pack sans cet élément). Le ou les accessoires restent toujours au libre choix du client, quel que soit le pack. Choisir une sellette associée à un ensemble (voir ci-dessus) présélectionne automatiquement son secours.</p>
+          <p class="text-[11px] text-slate-500">Composez un pack en choisissant, dans la liste, la voile, la sellette, le secours et le casque précis qui le composent (laissez « Aucun(e) » pour un pack sans cet élément). Le ou les accessoires restent toujours au libre choix du client, quel que soit le pack. Choisir une sellette associée à un ensemble (voir ci-dessus) présélectionne automatiquement son secours. Si le matériel voulu n'existe pas encore, choisissez « ➕ Nouveau… » dans la liste pour l'enregistrer sans quitter ce formulaire.</p>
           <div id="packsList" class="space-y-2 text-xs"></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3">
             <input type="text" id="packName" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Nom du pack (ex : Découverte)">
             <input type="text" id="packDescriptionInput" class="p-2 border border-slate-300 rounded col-span-2" placeholder="Description courte">
             <div>
               <label for="packVoileId" class="block font-bold text-slate-500 mb-1">🪂 Voile</label>
-              <select id="packVoileId" class="w-full p-2 border border-slate-300 rounded"></select>
+              <select id="packVoileId" onchange="onPackSlotSelectChange('packVoileId', 'Voile')" class="w-full p-2 border border-slate-300 rounded"></select>
             </div>
             <div>
               <label for="packSelletteId" class="block font-bold text-slate-500 mb-1">🪑 Sellette</label>
-              <select id="packSelletteId" onchange="onPackSelletteChange()" class="w-full p-2 border border-slate-300 rounded"></select>
+              <select id="packSelletteId" onchange="onPackSelletteChange(); onPackSlotSelectChange('packSelletteId', 'Sellette')" class="w-full p-2 border border-slate-300 rounded"></select>
             </div>
-            <div class="col-span-2">
+            <div>
               <label for="packSecoursId" class="block font-bold text-slate-500 mb-1">🛟 Secours</label>
-              <select id="packSecoursId" class="w-full p-2 border border-slate-300 rounded"></select>
+              <select id="packSecoursId" onchange="onPackSlotSelectChange('packSecoursId', 'Secours')" class="w-full p-2 border border-slate-300 rounded"></select>
+            </div>
+            <div>
+              <label for="packCasqueId" class="block font-bold text-slate-500 mb-1">⛑️ Casque</label>
+              <select id="packCasqueId" onchange="onPackSlotSelectChange('packCasqueId', 'Casque')" class="w-full p-2 border border-slate-300 rounded"></select>
             </div>
           </div>
           <button onclick="savePack()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded text-xs">+ Créer / enregistrer le pack</button>
@@ -654,14 +658,20 @@
         <div id="ltAbonnementsPage" class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
             <h4 class="font-bold text-sm">Nouveau contrat d'abonnement</h4>
+            <div class="flex gap-2 text-[11px]">
+              <button type="button" onclick="switchLtNewMode('item')" id="ltModeItemBtn" class="flex-1 py-1.5 border border-green-500 bg-green-50 text-green-800 font-bold rounded">Matériel seul</button>
+              <button type="button" onclick="switchLtNewMode('pack')" id="ltModePackBtn" class="flex-1 py-1.5 border border-slate-300 rounded">📦 Pack</button>
+            </div>
             <select id="ltNewItemSelect" onchange="ltOnItemSelectChange()" class="w-full p-2 border border-slate-300 rounded text-xs"><option value="">— Choisir un matériel disponible —</option></select>
+            <select id="ltNewPackSelect" hidden onchange="ltOnPackSelectChange()" class="w-full p-2 border border-slate-300 rounded text-xs"><option value="">— Choisir un pack —</option></select>
+            <p id="ltNewPackPreview" class="text-[11px] text-slate-500"></p>
             <div class="grid grid-cols-2 gap-2">
               <input type="text" id="ltNewClientName" placeholder="Nom du client" class="p-2 border border-slate-300 rounded">
               <input type="email" id="ltNewClientEmail" placeholder="E-mail" class="p-2 border border-slate-300 rounded">
               <input type="tel" id="ltNewClientPhone" placeholder="Téléphone" class="p-2 border border-slate-300 rounded">
               <input type="date" id="ltNewStartDate" class="p-2 border border-slate-300 rounded">
             </div>
-            <label class="text-[11px] text-slate-500 block">Tarif mensuel (€)<input type="number" id="ltNewMonthlyAmount" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded"></label>
+            <label class="text-[11px] text-slate-500 block">Tarif mensuel (€) — un seul tarif pour tout le pack si « 📦 Pack » est choisi<input type="number" id="ltNewMonthlyAmount" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded"></label>
             <button onclick="createLongTermContract()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Créer le contrat</button>
             <p id="ltNewStatus" class="text-[10px] text-slate-400"></p>
           </div>
@@ -675,17 +685,22 @@
         <div id="ltForfaitsPage" hidden class="space-y-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
             <h4 class="font-bold text-sm">Vendre un forfait</h4>
+            <div class="flex gap-2 text-[11px]">
+              <button type="button" onclick="switchFtNewMode('type')" id="ftModeTypeBtn" class="flex-1 py-1.5 border border-green-500 bg-green-50 text-green-800 font-bold rounded">Type seul</button>
+              <button type="button" onclick="switchFtNewMode('pack')" id="ftModePackBtn" class="flex-1 py-1.5 border border-slate-300 rounded">📦 Pack</button>
+            </div>
             <div class="grid grid-cols-2 gap-2">
               <select id="ftNewType" onchange="ftRefreshPrice()" class="p-2 border border-slate-300 rounded">
                 <option value="Voile">Voile</option><option value="Sellette">Sellette</option><option value="Secours">Parachute de secours</option>
               </select>
+              <select id="ftNewPackSelect" hidden onchange="ftOnPackSelectChange()" class="p-2 border border-slate-300 rounded"><option value="">— Choisir un pack —</option></select>
               <select id="ftNewTier" onchange="ftRefreshPrice()" class="p-2 border border-slate-300 rounded">
                 <option value="5">5 jours</option><option value="10">10 jours</option><option value="20">20 jours</option>
               </select>
               <input type="text" id="ftNewClientName" placeholder="Nom du client" class="p-2 border border-slate-300 rounded">
               <input type="email" id="ftNewClientEmail" placeholder="E-mail" class="p-2 border border-slate-300 rounded">
               <input type="tel" id="ftNewClientPhone" placeholder="Téléphone" class="p-2 border border-slate-300 rounded">
-              <input type="number" id="ftNewAmount" min="0" step="0.01" placeholder="Prix (€)" class="p-2 border border-slate-300 rounded">
+              <input type="number" id="ftNewAmount" min="0" step="0.01" placeholder="Prix (€) — un seul prix pour tout le pack si « 📦 Pack »" class="p-2 border border-slate-300 rounded col-span-2">
             </div>
             <button onclick="createForfait()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Vendre le forfait</button>
             <p id="ftNewStatus" class="text-[10px] text-slate-400"></p>
@@ -1237,6 +1252,90 @@
       <div class="flex justify-end gap-2">
         <button onclick="closeModal('editItemModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
         <button onclick="saveEditedItem()" class="px-4 py-2 bg-green-700 text-white font-bold rounded text-xs">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : création de matériel (voile/sellette/secours) à la volée pour un pack, sans
+       quitter le formulaire de pack — mêmes champs que « Ajouter du matériel » (Items). -->
+  <div id="packNewItemModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'packNewItemModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl max-h-[92vh] overflow-y-auto">
+      <h3 class="font-bold text-lg">Nouveau matériel pour le pack</h3>
+      <p id="packNewItemTypeLabel" class="text-xs font-bold text-emerald-700"></p>
+      <select id="packNewItemType" hidden>
+        <option value="Voile">Voile</option>
+        <option value="Sellette">Sellette</option>
+        <option value="Secours">Secours</option>
+      </select>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <label class="text-[11px] text-slate-500">Étagère<input type="text" id="packNewItemShelf" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. A3"></label>
+        <label class="text-[11px] text-slate-500">Marque *<select id="packNewItemBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="w-full p-2 border border-slate-300 rounded"></select></label>
+        <label class="text-[11px] text-slate-500">Modèle *<input type="text" id="packNewItemModel" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Rush 6"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Numéro de série *<input type="text" id="packNewItemSN" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. SN123456"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Poids (kg) (facultatif)<input type="number" id="packNewItemPoids" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 4.2"></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Catégorie EN (voile uniquement)<select id="packNewItemENField" class="w-full p-2 border border-slate-300 rounded"><option value="">Catégorie EN…</option></select></label>
+        <label class="text-[11px] text-slate-500 col-span-2">Type de voile (facultatif)<select id="packNewItemCategorie" class="w-full p-2 border border-slate-300 rounded" aria-label="Type de voile (facultatif)"></select></label>
+        <label id="packNewItemLoanField" hidden class="col-span-2 flex items-center gap-2 text-[11px] bg-amber-50 border border-amber-200 rounded p-2">
+          <input type="checkbox" id="packNewItemPretConstructeur">
+          <span>Prêt constructeur : cette voile ne nous appartient pas, elle est prêtée par la marque.</span>
+        </label>
+        <div id="packNewItemPTVField" class="grid grid-cols-2 gap-2 col-span-2">
+          <label class="text-[11px] text-slate-500">PTV mini (kg)<input type="number" id="packNewItemPTVMin" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 70"></label>
+          <label class="text-[11px] text-slate-500">PTV maxi (kg)<input type="number" id="packNewItemPTVMax" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 95"></label>
+        </div>
+        <div id="packNewItemLifecycleField" class="grid grid-cols-2 gap-2 col-span-2 border-t border-slate-100 pt-2 mt-1">
+          <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Données admin (non visibles du client) — tous les champs * sont obligatoires</p>
+          <label class="col-span-2 text-[11px] text-slate-500 -mb-1">Date d'achat *</label>
+          <input type="date" id="packNewItemDateMES" class="p-2 border border-slate-300 rounded" title="Date d'achat * (obligatoire)" aria-label="Date d'achat (obligatoire)">
+          <label class="text-[11px] text-slate-500">Taille *<input type="text" id="packNewItemTaille" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. M"></label>
+          <label class="text-[11px] text-slate-500">Prix d'achat (€) *<input data-fin="1" type="number" id="packNewItemPrixAchat" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 2500"></label>
+          <label class="text-[11px] text-slate-500">Coefficient de vente<input data-fin="1" type="number" id="packNewItemCoefVente" min="0" step="0.01" value="1.4" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1.4"></label>
+          <label class="text-[11px] text-slate-500">Couleur *<input type="text" id="packNewItemCouleur" class="w-full p-2 border border-slate-300 rounded" placeholder="Couleur *"></label>
+          <label class="text-[11px] text-slate-500 col-span-2">Type(s) particulier(s) (facultatif)<input type="text" id="packNewItemSubtype" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. Light, Montagne"></label>
+          <div id="packNewItemHourlyField" class="grid grid-cols-2 gap-2 col-span-2 contents">
+            <label class="text-[11px] text-slate-500">Prix / heure de vol (€)<input data-fin="1" type="number" id="packNewItemPrixHeureVol" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 3"></label>
+          </div>
+          <div id="packNewItemPairField" hidden class="col-span-2">
+            <label for="packNewItemPairedSecours" class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Secours associé (ensemble)</label>
+            <select id="packNewItemPairedSecours" class="w-full p-2 border border-slate-300 rounded"></select>
+          </div>
+          <div class="col-span-2 grid grid-cols-2 gap-2">
+            <label class="text-[11px] text-slate-500">Révision tous les (mois)<input type="number" id="packNewItemRevisionMonths" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="12 par défaut"></label>
+            <label class="text-[11px] text-slate-500">ou toutes les (heures de vol)<input type="number" id="packNewItemRevisionHours" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="100 par défaut"></label>
+          </div>
+          <label class="text-[11px] text-slate-500 col-span-2">Prix de vente conseillé (manuel, facultatif — remplace le calcul si renseigné)<input data-fin="1" type="number" id="packNewItemSalePriceManual" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1800"></label>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('packNewItemModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+        <button onclick="savePackNewItem()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded text-xs">Créer et utiliser</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : création d'une référence de stock (casque) à la volée pour un pack. -->
+  <div id="packNewStockModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'packNewStockModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl max-h-[92vh] overflow-y-auto">
+      <h3 class="font-bold text-lg">Nouvelle référence de casque pour le pack</h3>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <label class="text-[11px] text-slate-500">Marque *<select id="packNewStockBrand" data-brand-select data-ph="Marque *" onchange="brandSelectChanged(this)" aria-label="Marque" class="w-full p-2 border border-slate-300 rounded"></select></label>
+        <label class="text-[11px] text-slate-500">Modèle *<input type="text" id="packNewStockModel" placeholder="ex. Charly Air" class="w-full p-2 border border-slate-300 rounded"></label>
+        <label class="text-[11px] text-slate-500">Taille<input type="text" id="packNewStockSize" placeholder="ex. M" class="w-full p-2 border border-slate-300 rounded"></label>
+        <label class="text-[11px] text-slate-500">Poids (kg)<input type="number" id="packNewStockPoids" min="0" step="0.01" placeholder="ex. 0.45" class="w-full p-2 border border-slate-300 rounded"></label>
+        <label class="text-[11px] text-slate-500">Couleur<input type="text" id="packNewStockColor" placeholder="Couleur" class="w-full p-2 border border-slate-300 rounded"></label>
+        <label class="text-[11px] text-slate-500">Étagère<input type="text" id="packNewStockShelf" placeholder="ex. A3" class="w-full p-2 border border-slate-300 rounded"></label>
+        <label class="text-[11px] text-slate-500">Quantité en stock *<input type="number" id="packNewStockQty" min="0" step="1" placeholder="ex. 10" class="w-full p-2 border border-slate-300 rounded"></label>
+        <label class="text-[11px] text-slate-500">Seuil d'alerte (stock bas)<input type="number" id="packNewStockMin" min="0" step="1" placeholder="ex. 2" class="w-full p-2 border border-slate-300 rounded"></label>
+        <div data-stockfin="1" class="grid grid-cols-2 gap-2 col-span-2 border-t border-slate-100 pt-2 mt-1">
+          <p class="col-span-2 text-[10px] font-bold text-slate-400 uppercase">💶 Prix (non visibles du moniteur)</p>
+          <label class="text-[11px] text-slate-500">Prix d'achat HT (€)<input type="number" id="packNewStockHT" min="0" step="0.01" oninput="stockPriceSync('packNewStock','ht')" placeholder="ex. 120" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500">Prix d'achat TTC (€)<input type="number" id="packNewStockTTC" min="0" step="0.01" oninput="stockPriceSync('packNewStock','ttc')" placeholder="ex. 144" class="w-full p-2 border border-slate-300 rounded"></label>
+          <label class="text-[11px] text-slate-500 col-span-2">Prix de vente public (€)<input type="number" id="packNewStockPublic" min="0" step="0.01" placeholder="ex. 180" class="w-full p-2 border border-slate-300 rounded"></label>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('packNewStockModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+        <button onclick="savePackNewStock()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded text-xs">Créer et utiliser</button>
       </div>
     </div>
   </div>
@@ -1940,19 +2039,26 @@
     archives: ["id", "year", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "dateMiseEnService", "couleur", "taille", "prixAchat", "salePrice", "saleDate", "saleClientName", "saleNote", "destination"],
     // Packs prédéfinis créés par l'administrateur/le gestionnaire (remplace l'ancienne
     // constante PACKS codée en dur). Chaque pack est une association d'articles PRÉCIS
-    // choisis dans le listing (id de la voile / sellette / secours, "" si absent du pack) ;
-    // l'accessoire reste toujours au libre choix du client, quel que soit le pack, donc
-    // jamais fixé ici.
-    packs: ["id", "name", "description", "voileId", "selletteId", "secoursId", "createdAt"],
+    // choisis dans le listing (id de la voile / sellette / secours, "" si absent du pack),
+    // plus une ligne de stock précise pour le casque (casqueId, référence appData.stock —
+    // le casque n'est jamais un article suivi individuellement, voir STOCK_CATS) ;
+    // l'accessoire (checkbox client) reste toujours au libre choix, donc jamais fixé ici.
+    packs: ["id", "name", "description", "voileId", "selletteId", "secoursId", "casqueId", "createdAt"],
     stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic", "subtype"],
     // Location longue durée (abonnement mensuel) : un contrat par matériel assigné à un client
     // sur une période prolongée, distinct du planning (essai / prêt / location courte).
-    subscriptions: ["id", "itemId", "itemLabel", "itemType", "clientId", "clientName", "clientEmail", "clientPhone", "monthlyAmount", "startDate", "status", "createdAt", "endedAt"],
+    // packId : renseigné à la place d'itemId/itemType quand le contrat porte sur un pack
+    // entier (voile + sellette + secours + casque) plutôt que sur un seul article — un seul
+    // tarif mensuel pour l'ensemble, voir composePackItemIds/composePackStockSlot.
+    subscriptions: ["id", "itemId", "itemLabel", "itemType", "packId", "clientId", "clientName", "clientEmail", "clientPhone", "monthlyAmount", "startDate", "status", "createdAt", "endedAt"],
     // Suivi mensuel des paiements d'un contrat ci-dessus : une ligne par mois (AAAA-MM) facturé.
     subscriptionPayments: ["id", "contractId", "month", "amount", "payment", "paidAt"],
     // Location longue durée (forfait prépayé) : solde de jours acheté par un client, décompté à
     // chaque utilisation (voir forfaitUsages).
-    forfaits: ["id", "itemType", "tier", "daysTotal", "daysUsed", "amount", "clientId", "clientName", "clientEmail", "clientPhone", "purchaseDate", "expiresAt", "status", "createdAt"],
+    // packId : renseigné à la place d'itemType quand le forfait porte sur un pack entier —
+    // un seul solde de jours partagé pour l'ensemble du pack (pas de réservation physique,
+    // comme pour tout forfait : voir forfaitUsageDays).
+    forfaits: ["id", "itemType", "tier", "daysTotal", "daysUsed", "amount", "packId", "clientId", "clientName", "clientEmail", "clientPhone", "purchaseDate", "expiresAt", "status", "createdAt"],
     // Historique des décomptes d'un forfait ci-dessus.
     forfaitUsages: ["id", "forfaitId", "date", "label", "daysDeducted", "createdAt"]
   };
@@ -6358,12 +6464,20 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // Un pack est une association d'articles PRÉCIS (pas de types génériques) : chaque
   // slot (voile/sellette/secours) pointe vers un id d'article précis, ou "" si ce
   // pack n'inclut pas ce type de matériel.
+  // Emplacements d'un pack suivis individuellement (appData.items) : voile/sellette/secours.
+  // Le casque (jamais un article suivi individuellement, voir STOCK_CATS) est à part — voir
+  // packStockSlot ci-dessous — puisqu'il référence une ligne de appData.stock, pas un item.
   function packSlots(pack) {
     return [
       { key: "voileId", type: "Voile", icon: "🪂" },
       { key: "selletteId", type: "Sellette", icon: "🪑" },
       { key: "secoursId", type: "Secours", icon: "🛟" }
     ].filter(slot => pack && pack[slot.key]);
+  }
+
+  // Emplacement "casque" d'un pack (ligne de stock précise), le cas échéant.
+  function packStockSlot(pack) {
+    return (pack && pack.casqueId) ? { key: "casqueId", type: "Casque", icon: "⛑️" } : null;
   }
 
   function renderPacks() {
@@ -6375,10 +6489,14 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       box.innerHTML = `<p class="text-slate-500">Aucun pack créé pour l'instant.</p>`;
     } else {
       box.innerHTML = packs.map(p => {
-        const slotsHtml = packSlots(p).map(slot => {
+        const itemSlotsHtml = packSlots(p).map(slot => {
           const item = appData.items[p[slot.key]];
           return item ? `${slot.icon} ${esc(itemLabelWithSN(item))}` : "";
-        }).filter(Boolean).join(" + ") || "Aucun article associé";
+        }).filter(Boolean);
+        const stockSlot = packStockSlot(p);
+        const stockRow = stockSlot ? appData.stock[p[stockSlot.key]] : null;
+        if (stockRow) itemSlotsHtml.push(`${stockSlot.icon} ${esc(stockLabel(stockRow))}`);
+        const slotsHtml = itemSlotsHtml.join(" + ") || "Aucun article associé";
         return `
       <div class="flex justify-between items-center gap-2 bg-slate-50 border border-slate-200 rounded p-2">
         <div class="min-w-0">
@@ -6396,10 +6514,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     fillPackFormOptions();
   }
 
-  // Remplit les 3 sélecteurs du formulaire (voile/sellette/secours) avec tous les
-  // articles du type concerné (quel que soit leur statut actuel — un pack décrit une
-  // association fixe, pas une disponibilité ponctuelle), en conservant la sélection
-  // en cours (édition) ou déjà saisie par l'administrateur.
+  // Remplit les 4 sélecteurs du formulaire (voile/sellette/secours/casque) avec tous les
+  // articles (ou, pour le casque, toutes les lignes de stock) du type concerné, quel que
+  // soit leur statut actuel — un pack décrit une association fixe, pas une disponibilité
+  // ponctuelle — en conservant la sélection en cours (édition) ou déjà saisie. Chaque liste
+  // propose aussi « ➕ Nouveau… » (sentinel __new__) pour enregistrer du matériel à la volée
+  // s'il n'existe pas encore (voir openPackNewItemModal/openPackNewStockModal).
   function fillPackFormOptions() {
     [["packVoileId", "Voile", "Aucune voile"], ["packSelletteId", "Sellette", "Aucune sellette"], ["packSecoursId", "Secours", "Aucun secours"]]
       .forEach(([selectId, type, emptyLabel]) => {
@@ -6408,9 +6528,30 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
         const list = Object.values(appData.items).filter(i => i.type === type)
           .sort((a, b) => itemLabel(a).localeCompare(itemLabel(b), "fr"));
         const options = `<option value="">${esc(emptyLabel)}</option>` +
-          list.map(i => `<option value="${esc(i.id)}">${esc(itemLabelWithSN(i))}</option>`).join("");
+          list.map(i => `<option value="${esc(i.id)}">${esc(itemLabelWithSN(i))}</option>`).join("") +
+          `<option value="__new__">➕ Nouveau(elle) ${esc(type.toLowerCase())}…</option>`;
         fillSelect(sel, options);
       });
+    const casqueSel = $("packCasqueId");
+    if (casqueSel) {
+      const list = Object.values(appData.stock).filter(r => r.category === "Casque")
+        .sort((a, b) => stockLabel(a).localeCompare(stockLabel(b), "fr"));
+      const options = `<option value="">Aucun casque</option>` +
+        list.map(r => `<option value="${esc(r.id)}">${esc(stockLabel(r))} (${stockQty(r)} en rayon)</option>`).join("") +
+        `<option value="__new__">➕ Nouvelle référence casque…</option>`;
+      fillSelect(casqueSel, options);
+    }
+  }
+
+  // Un sélecteur du formulaire pack vient de recevoir « ➕ Nouveau… » : ouvre le formulaire
+  // de création correspondant (matériel suivi ou ligne de stock) au lieu de choisir une valeur.
+  // Le sélecteur revient sur sa valeur précédente tant que la création n'est pas validée.
+  function onPackSlotSelectChange(selectId, type) {
+    const sel = $(selectId);
+    if (!sel || sel.value !== "__new__") return;
+    sel.value = "";
+    if (type === "Casque") openPackNewStockModal(selectId);
+    else openPackNewItemModal(selectId, type);
   }
 
   // Présélectionne automatiquement le secours associé (ensemble) quand l'administrateur
@@ -6432,6 +6573,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     $("packVoileId").value = pack.voileId || "";
     $("packSelletteId").value = pack.selletteId || "";
     $("packSecoursId").value = pack.secoursId || "";
+    if ($("packCasqueId")) $("packCasqueId").value = pack.casqueId || "";
   }
 
   function resetPackForm() {
@@ -6442,6 +6584,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     $("packVoileId").value = "";
     $("packSelletteId").value = "";
     $("packSecoursId").value = "";
+    if ($("packCasqueId")) $("packCasqueId").value = "";
   }
 
   async function savePack() {
@@ -6452,15 +6595,16 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const voileId = $("packVoileId").value;
     const selletteId = $("packSelletteId").value;
     const secoursId = $("packSecoursId").value;
-    if (!voileId && !selletteId && !secoursId) {
-      toast("Choisissez au moins une voile, une sellette ou un secours pour le pack.", "error"); return;
+    const casqueId = $("packCasqueId") ? $("packCasqueId").value : "";
+    if (!voileId && !selletteId && !secoursId && !casqueId) {
+      toast("Choisissez au moins une voile, une sellette, un secours ou un casque pour le pack.", "error"); return;
     }
     const description = $("packDescriptionInput").value.trim();
 
     const id = editingPackId || `PACK-${Date.now()}`;
     const previous = appData.packs[id];
     appData.packs[id] = {
-      id, name, description, voileId, selletteId, secoursId,
+      id, name, description, voileId, selletteId, secoursId, casqueId,
       createdAt: (previous && previous.createdAt) || new Date().toISOString()
     };
 
@@ -6489,6 +6633,151 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   function composePackItemIds(pack) {
     if (!pack) return [];
     return packSlots(pack).map(slot => pack[slot.key]).filter(Boolean);
+  }
+
+  // Ligne de stock du casque d'un pack (le cas échéant), ou null.
+  function composePackStockRow(pack) {
+    const slot = packStockSlot(pack);
+    return slot ? (appData.stock[pack[slot.key]] || null) : null;
+  }
+
+  // Sélecteur du formulaire pack (packVoileId/packSelletteId/packSecoursId) qui recevra
+  // l'id du matériel qu'on est en train de créer à la volée (voir openPackNewItemModal).
+  let packNewItemTargetSelectId = null;
+
+  // Ouvre le formulaire complet de création de matériel (mêmes champs que « Ajouter du
+  // matériel », voir addNewItem) sans quitter le formulaire de pack. Le type est fixé par
+  // l'emplacement depuis lequel on l'a ouvert (voile/sellette/secours) — pas de resaisie.
+  function openPackNewItemModal(targetSelectId, type) {
+    if (!canUse("items")) { toast("Action non autorisée.", "error"); return; }
+    packNewItemTargetSelectId = targetSelectId;
+    $("packNewItemType").value = type;
+    $("packNewItemTypeLabel").textContent = `Nouveau/nouvelle ${type.toLowerCase()} — une fois créé(e), sera automatiquement choisi(e) pour ce pack.`;
+    ["packNewItemShelf", "packNewItemModel", "packNewItemSN", "packNewItemPoids", "packNewItemPTVMin", "packNewItemPTVMax",
+     "packNewItemDateMES", "packNewItemTaille", "packNewItemPrixAchat", "packNewItemCouleur", "packNewItemSubtype",
+     "packNewItemPrixHeureVol", "packNewItemSalePriceManual", "packNewItemRevisionMonths", "packNewItemRevisionHours"]
+      .forEach(id => { const el = $(id); if (el) el.value = ""; });
+    $("packNewItemCoefVente").value = "1.4";
+    $("packNewItemBrand").value = "";
+    $("packNewItemPretConstructeur").checked = false;
+    fillBrandSelects();
+    fillENOptions("packNewItemENField");
+    fillCategorieOptions("packNewItemCategorie");
+    toggleItemEN("packNewItemType", "packNewItemENField");
+    toggleGliderLoanField("packNewItemType", "packNewItemLoanField");
+    togglePTVFields("packNewItemType", "packNewItemPTVField");
+    refreshSubtypeField("packNewItemType", "packNewItemSubtype");
+    toggleLifecycleFields("packNewItemType", "packNewItemLifecycleField", "packNewItemHourlyField");
+    toggleSellettePairField("packNewItemType", "packNewItemPairField", "packNewItemPairedSecours");
+    openModal("packNewItemModal");
+  }
+
+  // Crée le matériel (mêmes règles de validation qu'addNewItem) puis le sélectionne
+  // immédiatement dans l'emplacement de pack d'où la création a été lancée.
+  async function savePackNewItem() {
+    if (busy) return;
+    if (!canUse("items")) { toast("Action non autorisée.", "error"); return; }
+    const type = $("packNewItemType").value;
+    const brand = canonicalBrand($("packNewItemBrand").value);
+    const model = $("packNewItemModel").value.trim();
+    const sn = $("packNewItemSN").value.trim();
+    const shelf = $("packNewItemShelf").value.trim();
+    if (!brand || !model) { toast("Marque et modèle sont obligatoires.", "error"); return; }
+    const missing = [];
+    if (!sn) missing.push("numéro de série");
+    if (!$("packNewItemCouleur").value.trim()) missing.push("couleur");
+    if (!$("packNewItemTaille").value.trim()) missing.push("taille");
+    if (canSeeFinances() && $("packNewItemPrixAchat").value === "") missing.push("prix d'achat");
+    if (!$("packNewItemDateMES").value) missing.push("date d'achat");
+    if (missing.length) { toast("Champs obligatoires manquants : " + missing.join(", ") + ".", "error"); return; }
+    const duplicate = sn && Object.values(appData.items).some(i => i.sn && i.sn.toLowerCase() === sn.toLowerCase());
+    if (duplicate) { toast("Ce numéro de série existe déjà.", "error"); return; }
+
+    const en = type === "Voile" ? $("packNewItemENField").value : "";
+    const categorie = type === "Voile" ? $("packNewItemCategorie").value : "";
+    const pretConstructeur = type === "Voile" ? $("packNewItemPretConstructeur").checked : false;
+    const ptvMin = PTV_TYPES.includes(type) ? $("packNewItemPTVMin").value : "";
+    const ptvMax = PTV_TYPES.includes(type) ? $("packNewItemPTVMax").value : "";
+    if (ptvMin !== "" && ptvMax !== "" && Number(ptvMin) > Number(ptvMax)) {
+      toast("Le PTV mini doit être inférieur ou égal au PTV maxi.", "error"); return;
+    }
+    const lifecycle = LIFECYCLE_TYPES.includes(type);
+    const hourly = LIFECYCLE_HOURLY_TYPES.includes(type);
+    const dateMiseEnService = lifecycle ? $("packNewItemDateMES").value : "";
+    const taille = lifecycle ? $("packNewItemTaille").value.trim() : "";
+    const poids = $("packNewItemPoids").value;
+    const prixAchat = lifecycle ? $("packNewItemPrixAchat").value : "";
+    const coefVente = lifecycle ? $("packNewItemCoefVente").value : "";
+    const couleur = lifecycle ? $("packNewItemCouleur").value.trim() : "";
+    const subtype = lifecycle ? $("packNewItemSubtype").value.trim() : "";
+    const prixHeureVol = hourly ? $("packNewItemPrixHeureVol").value : "";
+    const salePriceManual = lifecycle ? $("packNewItemSalePriceManual").value : "";
+    const revisionMonths = lifecycle ? $("packNewItemRevisionMonths").value : "";
+    const revisionHours = lifecycle ? $("packNewItemRevisionHours").value : "";
+    const pairedSecoursId = type === "Sellette" ? $("packNewItemPairedSecours").value : "";
+
+    const id = `ITEM-${Date.now()}`;
+    appData.items[id] = normalizeItem({
+      id, shelf, type, brand, model, sn, en, categorie, ptvMin, ptvMax,
+      hours: 0, flights: 0, status: "Disponible", borrowerName: "", borrowerEmail: "",
+      dateMiseEnService, couleur, subtype, prixAchat, prixHeureVol, taille, poids, coefVente, pretConstructeur, salePriceManual, pairedSecoursId, revisionMonths, revisionHours
+    });
+    addHistory("Ajout matériel", appData.items[id], "", "", "Équipement créé (depuis un pack).");
+    const brandAdded = rememberBrand(brand);
+    const ok = await persist(brandAdded ? ["items", "settings", "history"] : ["items", "history"]);
+    toast(ok ? "Équipement créé." : "⚠️ Équipement NON enregistré dans la base (connexion ou droits) : il disparaîtra à la prochaine synchronisation.", ok ? undefined : "error");
+
+    closeModal("packNewItemModal");
+    fillPackFormOptions();
+    if (packNewItemTargetSelectId && $(packNewItemTargetSelectId)) $(packNewItemTargetSelectId).value = id;
+    renderAll();
+  }
+
+  // Même principe que ci-dessus, pour une ligne de stock de casque (mêmes règles qu'addStockRef).
+  function openPackNewStockModal(targetSelectId) {
+    if (!stockAllowed() || currentRole === "instructor") { toast("Action non autorisée.", "error"); return; }
+    packNewItemTargetSelectId = targetSelectId;
+    ["packNewStockModel", "packNewStockSize", "packNewStockPoids", "packNewStockColor", "packNewStockShelf",
+     "packNewStockQty", "packNewStockMin", "packNewStockHT", "packNewStockTTC", "packNewStockPublic"]
+      .forEach(id => { const el = $(id); if (el) el.value = ""; });
+    $("packNewStockBrand").value = "";
+    fillBrandSelects();
+    applyFinanceVisibility();
+    stockPricePreview("packNewStock");
+    openModal("packNewStockModal");
+  }
+
+  async function savePackNewStock() {
+    if (busy) return;
+    if (!stockAllowed() || currentRole === "instructor") { toast("Action non autorisée.", "error"); return; }
+    if (!isSynced()) { await ensureSynced(); return; }
+    const category = "Casque";
+    const brand = canonicalBrand($("packNewStockBrand").value), model = $("packNewStockModel").value.trim();
+    const size = $("packNewStockSize").value.trim(), color = $("packNewStockColor").value.trim(), shelf = $("packNewStockShelf").value.trim();
+    const poidsStr = $("packNewStockPoids").value;
+    const poids = (poidsStr !== "" && !isNaN(Number(poidsStr))) ? Number(poidsStr) : "";
+    const qtyStr = $("packNewStockQty").value, minStr = $("packNewStockMin").value;
+    if (!brand || !model) { toast("Marque et modèle sont obligatoires.", "error"); return; }
+    if (qtyStr === "" || !(Number(qtyStr) >= 0) || !Number.isInteger(Number(qtyStr))) { toast("Indiquez une quantité entière (0 ou plus).", "error"); return; }
+    if (minStr !== "" && (!(Number(minStr) >= 0) || !Number.isInteger(Number(minStr)))) { toast("Le seuil d'alerte doit être un nombre entier.", "error"); return; }
+    const key = stockKey(category, brand, model, size, color);
+    if (Object.values(appData.stock).some(r => stockKey(r.category, r.brand, r.model, r.size, r.color) === key)) {
+      toast("Cette référence existe déjà : choisissez-la directement dans la liste.", "error"); return;
+    }
+    const pr = canSeeStockPrices() ? readStockPrices("packNewStock") : { ht: "", ttc: "", pub: "" };
+    if (pr.error) { toast(pr.error, "error"); return; }
+    const id = `STK-${Date.now()}`;
+    const rec = { id, category, brand, model, size, color, shelf, poids, subtype: "", qty: Number(qtyStr), loans: "{}", min: minStr === "" ? 0 : Number(minStr), note: "", createdAt: new Date().toISOString(), priceHT: pr.ht, priceTTC: pr.ttc, pricePublic: pr.pub };
+    appData.stock[id] = rec;
+    if (Number(qtyStr) > 0) stockHistory(STOCK_ACTIONS.entree.hist, rec, currentUser ? currentUser.name : "", `×${qtyStr} · création de la référence (depuis un pack)`);
+    const brandAdded = rememberBrand(brand);
+    const ok = await persist(brandAdded ? ["stock", "history", "settings"] : ["stock", "history"]);
+    toast(ok ? "Référence ajoutée au stock." : "Ajout non enregistré.", ok ? undefined : "error");
+
+    closeModal("packNewStockModal");
+    fillPackFormOptions();
+    if (packNewItemTargetSelectId && $(packNewItemTargetSelectId)) $(packNewItemTargetSelectId).value = id;
+    renderAll();
   }
 
   function renderClients() {
@@ -8353,6 +8642,42 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (added) persist(["subscriptionPayments"]);
   }
 
+  // Réserve/libère une unité de stock pour un client nommé (même logique que les sorties/
+  // retours de prêt du Stock, voir openStockAction kind "sortie"/"retour") : qty en rayon
+  // décrémentée/incrémentée, loans (JSON {personne: n}) tient le compte par personne.
+  function reserveStockForClient(r, clientName, n) {
+    const loans = stockLoans(r);
+    r.qty = stockQty(r) - n;
+    const existing = Object.keys(loans).find(k => brandKey(k) === brandKey(clientName)) || clientName;
+    loans[existing] = (Number(loans[existing]) || 0) + n;
+    r.loans = JSON.stringify(loans);
+  }
+  function releaseStockForClient(r, clientName, n) {
+    const loans = stockLoans(r);
+    const key = Object.keys(loans).find(k => brandKey(k) === brandKey(clientName));
+    const has = key ? Number(loans[key]) || 0 : 0;
+    r.qty = stockQty(r) + Math.min(n, has || n);
+    if (key) { if (has - n > 0) loans[key] = has - n; else delete loans[key]; r.loans = JSON.stringify(loans); }
+  }
+
+  // Mode de création d'un contrat d'abonnement : "item" (un seul matériel, comportement
+  // historique) ou "pack" (plusieurs articles + éventuellement un casque, un seul tarif
+  // mensuel pour l'ensemble — voir createLongTermContract).
+  let ltNewMode = "item";
+  function switchLtNewMode(mode) {
+    ltNewMode = mode === "pack" ? "pack" : "item";
+    show("ltNewItemSelect", ltNewMode === "item");
+    show("ltNewPackSelect", ltNewMode === "pack");
+    show("ltNewPackPreview", ltNewMode === "pack");
+    $("ltModeItemBtn").classList.toggle("border-green-500", ltNewMode === "item");
+    $("ltModeItemBtn").classList.toggle("bg-green-50", ltNewMode === "item");
+    $("ltModeItemBtn").classList.toggle("text-green-800", ltNewMode === "item");
+    $("ltModePackBtn").classList.toggle("border-green-500", ltNewMode === "pack");
+    $("ltModePackBtn").classList.toggle("bg-green-50", ltNewMode === "pack");
+    $("ltModePackBtn").classList.toggle("text-green-800", ltNewMode === "pack");
+    if (ltNewMode === "pack") ltOnPackSelectChange(); else $("ltNewMonthlyAmount").value = "";
+  }
+
   function ltOnItemSelectChange() {
     const id = $("ltNewItemSelect").value;
     const it = appData.items[id];
@@ -8362,22 +8687,66 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     }
   }
 
+  // Choix d'un pack pour l'abonnement : pas de tarif pré-rempli (un pack combine plusieurs
+  // types, un seul tarif global est à saisir manuellement) — juste un aperçu de son contenu
+  // et de sa disponibilité.
+  function ltOnPackSelectChange() {
+    const pack = appData.packs[$("ltNewPackSelect").value];
+    const prev = $("ltNewPackPreview");
+    if (!prev) return;
+    if (!pack) { prev.textContent = ""; return; }
+    const parts = packSlots(pack).map(slot => {
+      const item = appData.items[pack[slot.key]];
+      if (!item) return "";
+      const ok = item.status === "Disponible";
+      return `${slot.icon} ${itemLabel(item)}${ok ? "" : " (indisponible)"}`;
+    }).filter(Boolean);
+    const stockRow = composePackStockRow(pack);
+    if (stockRow) parts.push(`⛑️ ${stockLabel(stockRow)}${stockQty(stockRow) > 0 ? ` (${stockQty(stockRow)} en rayon)` : " (en rupture)"}`);
+    prev.textContent = parts.join(" + ") || "Ce pack n'a aucun article associé.";
+  }
+
   function renderLtItemSelect() {
     const sel = $("ltNewItemSelect");
-    if (!sel) return;
-    const cur = sel.value;
-    const items = longTermEligibleItems();
-    sel.innerHTML = `<option value="">— Choisir un matériel disponible —</option>` +
-      items.map(it => `<option value="${esc(it.id)}">${esc(itemLabel(it))}</option>`).join("");
-    if (cur && items.some(it => it.id === cur)) sel.value = cur;
+    if (sel) {
+      const cur = sel.value;
+      const items = longTermEligibleItems();
+      sel.innerHTML = `<option value="">— Choisir un matériel disponible —</option>` +
+        items.map(it => `<option value="${esc(it.id)}">${esc(itemLabel(it))}</option>`).join("");
+      if (cur && items.some(it => it.id === cur)) sel.value = cur;
+    }
+    const packSel = $("ltNewPackSelect");
+    if (packSel) {
+      const cur = packSel.value;
+      const packs = Object.values(appData.packs).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
+      packSel.innerHTML = `<option value="">— Choisir un pack —</option>` +
+        packs.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+      if (cur && packs.some(p => p.id === cur)) packSel.value = cur;
+    }
   }
 
   async function createLongTermContract() {
     if (busy) return;
     if (!canUse("planning")) { toast("Action non autorisée.", "error"); return; }
-    const itemId = $("ltNewItemSelect").value;
-    const it = appData.items[itemId];
-    if (!it || it.status !== "Disponible") { toast("Choisissez un matériel disponible.", "error"); renderLongTerm(); return; }
+
+    let itemId = "", itemLbl = "", itemType = "", packId = "", pack = null, packItems = [], packStockRow = null;
+    if (ltNewMode === "pack") {
+      pack = appData.packs[$("ltNewPackSelect").value];
+      if (!pack) { toast("Choisissez un pack.", "error"); return; }
+      packItems = composePackItemIds(pack).map(id => appData.items[id]).filter(Boolean);
+      packStockRow = composePackStockRow(pack);
+      if (!packItems.length && !packStockRow) { toast("Ce pack n'a aucun article associé.", "error"); return; }
+      const unavailable = packItems.filter(it => it.status !== "Disponible");
+      if (unavailable.length) { toast(`Indisponible dans ce pack : ${unavailable.map(itemLabel).join(", ")}.`, "error"); renderLongTerm(); return; }
+      if (packStockRow && stockQty(packStockRow) < 1) { toast(`Le casque du pack (${stockLabel(packStockRow)}) est en rupture de stock.`, "error"); renderLongTerm(); return; }
+      packId = pack.id; itemLbl = `📦 ${pack.name}`;
+    } else {
+      itemId = $("ltNewItemSelect").value;
+      const it = appData.items[itemId];
+      if (!it || it.status !== "Disponible") { toast("Choisissez un matériel disponible.", "error"); renderLongTerm(); return; }
+      itemLbl = itemLabel(it); itemType = it.type;
+    }
+
     const name = $("ltNewClientName").value.trim();
     const email = $("ltNewClientEmail").value.trim();
     const phone = $("ltNewClientPhone").value.trim();
@@ -8394,16 +8763,24 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     const id = `SUB-${Date.now()}`;
     appData.subscriptions[id] = {
-      id, itemId, itemLabel: itemLabel(it), itemType: it.type,
+      id, itemId, itemLabel: itemLbl, itemType, packId,
       clientId: clientRecord ? clientRecord.id : "", clientName: name, clientEmail: email, clientPhone: phone,
       monthlyAmount, startDate, status: "Actif", createdAt: new Date().toISOString(), endedAt: ""
     };
-    it.status = "Loué";
+    const sheetsToSave = ["subscriptions", "subscriptionPayments", "clients", "history"];
+    if (ltNewMode === "pack") {
+      packItems.forEach(it => { it.status = "Loué"; });
+      if (packStockRow) reserveStockForClient(packStockRow, name, 1);
+      sheetsToSave.push("items", "stock");
+    } else {
+      appData.items[itemId].status = "Loué";
+      sheetsToSave.push("items");
+    }
     const payId = `SUBP-${id}-${monthKey(new Date(startDate))}`;
     appData.subscriptionPayments[payId] = { id: payId, contractId: id, month: monthKey(new Date(startDate)), amount: monthlyAmount, payment: "À payer", paidAt: "" };
-    addHistory("Location longue durée", it, name, email, `Contrat d'abonnement créé : ${formatAmount(monthlyAmount)} €/mois à partir du ${startDate}.`);
+    addGenericHistory("Location longue durée", itemLbl, name, email, `Contrat d'abonnement créé : ${formatAmount(monthlyAmount)} €/mois à partir du ${startDate}.`);
 
-    const ok = await persist(["items", "subscriptions", "subscriptionPayments", "clients", "history"]);
+    const ok = await persist(sheetsToSave);
     toast(ok ? "Contrat créé." : "Contrat enregistré localement (hors ligne).");
     $("ltNewClientName").value = ""; $("ltNewClientEmail").value = ""; $("ltNewClientPhone").value = ""; $("ltNewMonthlyAmount").value = "";
     renderAll();
@@ -8430,13 +8807,31 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (!confirm(`Terminer le contrat de ${c.clientName} (${c.itemLabel}) ? Le matériel repassera disponible.`)) return;
     c.status = "Terminé";
     c.endedAt = new Date().toISOString();
-    const it = appData.items[c.itemId];
-    // Le matériel ne repasse disponible que s'il n'est pas retenu par un autre engagement
-    // actif (un seul contrat à la fois par matériel en pratique, ce garde-fou coûte peu).
-    const stillHeld = Object.values(appData.subscriptions).some(o => o.id !== c.id && o.itemId === c.itemId && o.status === "Actif");
-    if (it && it.status === "Loué" && !stillHeld) it.status = "Disponible";
-    addHistory("Location longue durée", it || { id: c.itemId }, c.clientName, c.clientEmail, "Contrat d'abonnement terminé.");
-    const ok = await persist(["items", "subscriptions", "history"]);
+    const sheetsToSave = ["subscriptions", "history"];
+    if (c.packId) {
+      const pack = appData.packs[c.packId];
+      // Chaque article du pack ne repasse disponible que s'il n'est pas retenu par un autre
+      // engagement actif (même garde-fou que pour un contrat sur matériel seul).
+      composePackItemIds(pack).forEach(itemId => {
+        const it = appData.items[itemId];
+        const stillHeld = Object.values(appData.subscriptions).some(o => o.id !== c.id && o.status === "Actif" &&
+          (o.itemId === itemId || (o.packId && composePackItemIds(appData.packs[o.packId]).includes(itemId))));
+        if (it && it.status === "Loué" && !stillHeld) it.status = "Disponible";
+      });
+      const packStockRow = composePackStockRow(pack);
+      if (packStockRow) releaseStockForClient(packStockRow, c.clientName, 1);
+      sheetsToSave.push("items", "stock");
+      addGenericHistory("Location longue durée", c.itemLabel, c.clientName, c.clientEmail, "Contrat d'abonnement (pack) terminé.");
+    } else {
+      const it = appData.items[c.itemId];
+      // Le matériel ne repasse disponible que s'il n'est pas retenu par un autre engagement
+      // actif (un seul contrat à la fois par matériel en pratique, ce garde-fou coûte peu).
+      const stillHeld = Object.values(appData.subscriptions).some(o => o.id !== c.id && o.itemId === c.itemId && o.status === "Actif");
+      if (it && it.status === "Loué" && !stillHeld) it.status = "Disponible";
+      sheetsToSave.push("items");
+      addHistory("Location longue durée", it || { id: c.itemId }, c.clientName, c.clientEmail, "Contrat d'abonnement terminé.");
+    }
+    const ok = await persist(sheetsToSave);
     toast(ok ? "Contrat terminé." : "Modification enregistrée localement (hors ligne).");
     renderAll();
   }
@@ -8475,13 +8870,52 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
   function ftRefreshPrice() {
     const type = $("ftNewType").value, tier = $("ftNewTier").value;
+    if (ftNewMode === "pack") return; // prix libre pour un pack, pas d'auto-remplissage
     if ($("ftNewAmount")) $("ftNewAmount").value = forfaitPrice(type, tier) || "";
+  }
+
+  let ftNewMode = "type";
+  function switchFtNewMode(mode) {
+    ftNewMode = mode === "pack" ? "pack" : "type";
+    show("ftNewType", ftNewMode === "type");
+    show("ftNewPackSelect", ftNewMode === "pack");
+    $("ftModeTypeBtn").classList.toggle("border-green-500", ftNewMode === "type");
+    $("ftModeTypeBtn").classList.toggle("bg-green-50", ftNewMode === "type");
+    $("ftModeTypeBtn").classList.toggle("text-green-800", ftNewMode === "type");
+    $("ftModePackBtn").classList.toggle("border-green-500", ftNewMode === "pack");
+    $("ftModePackBtn").classList.toggle("bg-green-50", ftNewMode === "pack");
+    $("ftModePackBtn").classList.toggle("text-green-800", ftNewMode === "pack");
+    if (ftNewMode === "pack") { $("ftNewAmount").value = ""; ftOnPackSelectChange(); } else ftRefreshPrice();
+  }
+
+  function ftOnPackSelectChange() {
+    // Pas d'aperçu dédié dans ce formulaire compact : le prix reste toujours en saisie libre
+    // pour un pack (un seul prix pour tout le pack, confirmé par l'utilisateur).
+  }
+
+  function renderFtPackSelect() {
+    const sel = $("ftNewPackSelect");
+    if (!sel) return;
+    const cur = sel.value;
+    const packs = Object.values(appData.packs).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr"));
+    sel.innerHTML = `<option value="">— Choisir un pack —</option>` +
+      packs.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+    if (cur && packs.some(p => p.id === cur)) sel.value = cur;
   }
 
   async function createForfait() {
     if (busy) return;
     if (!canUse("planning")) { toast("Action non autorisée.", "error"); return; }
-    const type = $("ftNewType").value;
+
+    let itemType = "", packId = "", label = "", pack = null;
+    if (ftNewMode === "pack") {
+      pack = appData.packs[$("ftNewPackSelect").value];
+      if (!pack) { toast("Choisissez un pack.", "error"); return; }
+      packId = pack.id; label = `📦 ${pack.name}`;
+    } else {
+      itemType = $("ftNewType").value;
+      label = `Forfait ${$("ftNewTier").value}j ${itemType}`;
+    }
     const tier = Number($("ftNewTier").value);
     const name = $("ftNewClientName").value.trim();
     const email = $("ftNewClientEmail").value.trim();
@@ -8499,11 +8933,11 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const purchaseDate = today();
     const expires = new Date(purchaseDate); expires.setMonth(expires.getMonth() + 12);
     appData.forfaits[id] = {
-      id, itemType: type, tier, daysTotal: tier, daysUsed: 0, amount,
+      id, itemType, tier, daysTotal: tier, daysUsed: 0, amount, packId,
       clientId: clientRecord ? clientRecord.id : "", clientName: name, clientEmail: email, clientPhone: phone,
       purchaseDate, expiresAt: expires.toISOString().slice(0, 10), status: "Actif", createdAt: new Date().toISOString()
     };
-    addGenericHistory("Location longue durée", `Forfait ${tier}j ${type}`, name, email, `Forfait de ${tier} jours vendu (${formatAmount(amount)} €).`);
+    addGenericHistory("Location longue durée", label, name, email, `Forfait de ${tier} jours vendu (${formatAmount(amount)} €).`);
     const ok = await persist(["forfaits", "clients", "history"]);
     toast(ok ? "Forfait vendu." : "Forfait enregistré localement (hors ligne).");
     $("ftNewClientName").value = ""; $("ftNewClientEmail").value = ""; $("ftNewClientPhone").value = ""; $("ftNewAmount").value = "";
@@ -8565,6 +8999,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
   function renderForfaits() {
     expireForfaitsIfNeeded();
+    renderFtPackSelect();
     const active = Object.values(appData.forfaits).filter(f => f.status === "Actif").sort((a, b) => a.purchaseDate < b.purchaseDate ? 1 : -1);
     const ended = Object.values(appData.forfaits).filter(f => f.status !== "Actif").sort((a, b) => a.purchaseDate < b.purchaseDate ? 1 : -1);
     const canEdit = canUse("planning");
@@ -8574,9 +9009,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       const rows = usages.map(u => `<div class="flex items-center justify-between text-[11px] py-0.5">
         <span>${esc(u.date)} — ${esc(u.label)}</span><span class="font-bold">−${esc(String(u.daysDeducted))} j</span>
       </div>`).join("") || `<p class="text-[11px] text-slate-400">Aucune utilisation enregistrée.</p>`;
+      const titleLabel = f.packId ? `📦 ${esc((appData.packs[f.packId] || {}).name || "Pack")}` : esc(f.itemType);
       return `<div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-1">
         <div class="flex items-center justify-between">
-          <p class="font-bold">Forfait ${esc(String(f.tier))}j ${esc(f.itemType)} — ${esc(f.clientName)}</p>
+          <p class="font-bold">Forfait ${esc(String(f.tier))}j ${titleLabel} — ${esc(f.clientName)}</p>
           ${isActive && canEdit ? `<button onclick="cancelForfait('${esc(f.id)}')" class="text-[11px] text-rose-600 hover:underline">Annuler</button>` : `<span class="text-[11px] text-slate-400">${esc(f.status)}</span>`}
         </div>
         <p class="text-[11px] text-slate-500">${esc(f.clientEmail)}${f.clientPhone ? " · " + esc(f.clientPhone) : ""} — acheté le ${esc(f.purchaseDate)} · ${esc(formatAmount(f.amount))} € · valable jusqu'au ${esc(f.expiresAt)}</p>
@@ -11183,7 +11619,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-12.172";
+  const APP_VERSION = "2026-11-12.173";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -11197,6 +11633,19 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 173, title: "Packs complets (voile+sellette+secours+casque) pour abonnements et forfaits", aud: "staff", items: [
+      { icon: "⛑️", t: "Les packs peuvent maintenant inclure un casque", steps: [
+        "Dans Matériel › Packs, un 4e emplacement « Casque » complète voile/sellette/secours. Le casque est choisi parmi les références de stock existantes (il n'est jamais numéroté individuellement, comme le reste du stock de casques)."
+      ] },
+      { icon: "➕", t: "Créer le matériel manquant sans quitter le formulaire de pack", steps: [
+        "Si la voile, la sellette, le secours ou le casque voulu n'existe pas encore, choisir « ➕ Nouveau… » dans la liste déroulante ouvre directement le formulaire complet de création (les mêmes champs que dans Matériel/Stock). Une fois créé, l'article est automatiquement sélectionné dans le pack."
+      ] },
+      { icon: "📦", t: "Location longue durée : un abonnement ou un forfait peut désormais porter sur un pack entier", steps: [
+        "Dans « 🔁 Location longue durée », les formulaires « Nouveau contrat » (Abonnements) et « Vendre un forfait » (Forfaits) proposent un choix « Matériel seul » ou « 📦 Pack ».",
+        "En mode pack, un seul prix (ou solde de jours, pour un forfait) couvre l'ensemble voile+sellette+secours+casque — pas de tarification par article.",
+        "À la création, tous les articles du pack passent « Loué » et le casque est réservé en stock (le compteur de stock diminue, comme pour une sortie classique) ; à la fin du contrat, tout repasse disponible automatiquement."
+      ] }
+    ] },
     { v: 172, title: "Location longue durée : correctifs", aud: "staff", items: [
       { icon: "🐛", t: "L'onglet apparaissait seulement après reconnexion", steps: [
         "Cocher « Location longue durée » dans Réglages affiche désormais immédiatement l'onglet « 🔁 Location longue durée », sans avoir à se déconnecter/reconnecter."
