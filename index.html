@@ -1947,12 +1947,12 @@
     stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic", "subtype"],
     // Location longue durée (abonnement mensuel) : un contrat par matériel assigné à un client
     // sur une période prolongée, distinct du planning (essai / prêt / location courte).
-    subscriptions: ["id", "itemId", "itemLabel", "itemType", "clientName", "clientEmail", "clientPhone", "monthlyAmount", "startDate", "status", "createdAt", "endedAt"],
+    subscriptions: ["id", "itemId", "itemLabel", "itemType", "clientId", "clientName", "clientEmail", "clientPhone", "monthlyAmount", "startDate", "status", "createdAt", "endedAt"],
     // Suivi mensuel des paiements d'un contrat ci-dessus : une ligne par mois (AAAA-MM) facturé.
     subscriptionPayments: ["id", "contractId", "month", "amount", "payment", "paidAt"],
     // Location longue durée (forfait prépayé) : solde de jours acheté par un client, décompté à
     // chaque utilisation (voir forfaitUsages).
-    forfaits: ["id", "itemType", "tier", "daysTotal", "daysUsed", "amount", "clientName", "clientEmail", "clientPhone", "purchaseDate", "expiresAt", "status", "createdAt"],
+    forfaits: ["id", "itemType", "tier", "daysTotal", "daysUsed", "amount", "clientId", "clientName", "clientEmail", "clientPhone", "purchaseDate", "expiresAt", "status", "createdAt"],
     // Historique des décomptes d'un forfait ci-dessus.
     forfaitUsages: ["id", "forfaitId", "date", "label", "daysDeducted", "createdAt"]
   };
@@ -4260,6 +4260,25 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     return Object.values(appData.clients).find(c => String(c.email || "").toLowerCase() === email.toLowerCase());
   }
 
+  // Réutilise la fiche client existante si l'email correspond déjà (même logique que
+  // confirmThirdPartyBorrow et l'assistant de réservation), sinon en crée une nouvelle avec sa
+  // fiche complète (adresse postale comprise). Utilisé par la Location longue durée (abonnements
+  // et forfaits) pour qu'un client y soit traité comme n'importe quel autre client de la fiche
+  // matériel — pas de recherche externe, uniquement une vérification dans la base KebLoc.
+  function findOrCreateClientRecord(name, email, phone) {
+    if (!name) return null;
+    const existing = email ? findClientByEmail(email) : null;
+    if (existing) {
+      existing.name = name;
+      if (phone) existing.phone = phone;
+      return existing;
+    }
+    const clientId = `CLI-${Date.now()}`;
+    const rec = { id: clientId, name, email: email || "", phone: phone || "", address: "", postalCode: "", city: "", country: "", createdAt: today(), blocked: false };
+    appData.clients[clientId] = rec;
+    return rec;
+  }
+
   // Recherche un client existant par nom exact (insensible à la casse/espaces).
   function findClientByName(name) {
     const key = String(name || "").trim().toLowerCase();
@@ -5929,6 +5948,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     renderFinances();
     renderArchives();
     renderStock();
+    // L'onglet "🔁 Location longue durée" doit rester synchronisé avec le réglage même quand
+    // celui-ci change sans repasser par switchRole() (ex : on coche la case dans Réglages puis
+    // renderAll() est appelé directement, ou la synchronisation cloud apporte un changement fait
+    // depuis un autre appareil) — show("tabLongTerm", …) ne doit donc pas dépendre uniquement
+    // du login.
+    const canManageLt = currentRole === "admin" || currentRole === "manager";
+    show("tabLongTerm", longTermSubscriptionsEnabled() && canManageLt && canUse("planning"));
     renderLongTerm();
     renderAllPlanningCalendars();
     syncColorPickers();
@@ -8360,10 +8386,16 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const monthlyAmount = Number($("ltNewMonthlyAmount").value) || 0;
     if (monthlyAmount <= 0) { toast("Le tarif mensuel doit être supérieur à 0.", "error"); return; }
 
+    // Comme pour un emprunt/une réservation classique : on réutilise la fiche client existante si
+    // l'email correspond déjà (même logique que confirmThirdPartyBorrow et l'assistant de
+    // réservation), sinon on en crée une nouvelle — un client d'abonnement est un client comme
+    // les autres, avec sa fiche complète (adresse postale comprise).
+    const clientRecord = findOrCreateClientRecord(name, email, phone);
+
     const id = `SUB-${Date.now()}`;
     appData.subscriptions[id] = {
       id, itemId, itemLabel: itemLabel(it), itemType: it.type,
-      clientName: name, clientEmail: email, clientPhone: phone,
+      clientId: clientRecord ? clientRecord.id : "", clientName: name, clientEmail: email, clientPhone: phone,
       monthlyAmount, startDate, status: "Actif", createdAt: new Date().toISOString(), endedAt: ""
     };
     it.status = "Loué";
@@ -8371,7 +8403,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     appData.subscriptionPayments[payId] = { id: payId, contractId: id, month: monthKey(new Date(startDate)), amount: monthlyAmount, payment: "À payer", paidAt: "" };
     addHistory("Location longue durée", it, name, email, `Contrat d'abonnement créé : ${formatAmount(monthlyAmount)} €/mois à partir du ${startDate}.`);
 
-    const ok = await persist(["items", "subscriptions", "subscriptionPayments", "history"]);
+    const ok = await persist(["items", "subscriptions", "subscriptionPayments", "clients", "history"]);
     toast(ok ? "Contrat créé." : "Contrat enregistré localement (hors ligne).");
     $("ltNewClientName").value = ""; $("ltNewClientEmail").value = ""; $("ltNewClientPhone").value = ""; $("ltNewMonthlyAmount").value = "";
     renderAll();
@@ -8457,16 +8489,22 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const amount = Number($("ftNewAmount").value) || 0;
     if (!name) { toast("Le nom du client est obligatoire.", "error"); return; }
     if (amount <= 0) { toast("Le prix du forfait doit être supérieur à 0.", "error"); return; }
+
+    // Un client de forfait est un client comme les autres : on réutilise sa fiche existante si
+    // l'email correspond déjà (même logique que confirmThirdPartyBorrow et createLongTermContract),
+    // sinon on en crée une nouvelle, avec sa fiche complète (adresse postale comprise).
+    const clientRecord = findOrCreateClientRecord(name, email, phone);
+
     const id = `FOR-${Date.now()}`;
     const purchaseDate = today();
     const expires = new Date(purchaseDate); expires.setMonth(expires.getMonth() + 12);
     appData.forfaits[id] = {
       id, itemType: type, tier, daysTotal: tier, daysUsed: 0, amount,
-      clientName: name, clientEmail: email, clientPhone: phone,
+      clientId: clientRecord ? clientRecord.id : "", clientName: name, clientEmail: email, clientPhone: phone,
       purchaseDate, expiresAt: expires.toISOString().slice(0, 10), status: "Actif", createdAt: new Date().toISOString()
     };
     addGenericHistory("Location longue durée", `Forfait ${tier}j ${type}`, name, email, `Forfait de ${tier} jours vendu (${formatAmount(amount)} €).`);
-    const ok = await persist(["forfaits", "history"]);
+    const ok = await persist(["forfaits", "clients", "history"]);
     toast(ok ? "Forfait vendu." : "Forfait enregistré localement (hors ligne).");
     $("ftNewClientName").value = ""; $("ftNewClientEmail").value = ""; $("ftNewClientPhone").value = ""; $("ftNewAmount").value = "";
     renderAll();
@@ -11145,7 +11183,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-12.171";
+  const APP_VERSION = "2026-11-12.172";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -11159,6 +11197,14 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 172, title: "Location longue durée : correctifs", aud: "staff", items: [
+      { icon: "🐛", t: "L'onglet apparaissait seulement après reconnexion", steps: [
+        "Cocher « Location longue durée » dans Réglages affiche désormais immédiatement l'onglet « 🔁 Location longue durée », sans avoir à se déconnecter/reconnecter."
+      ] },
+      { icon: "🧑‍💼", t: "Abonnements et forfaits : même fiche client que le reste de l'application", steps: [
+        "À la création d'un abonnement ou d'un forfait, KebLoc vérifie si une fiche client existe déjà (par email) et la réutilise — sinon une nouvelle fiche client complète est créée, exactement comme pour un prêt ou une réservation."
+      ] }
+    ] },
     { v: 171, title: "Nouveau : Location longue durée (abonnements + forfaits)", aud: "staff", items: [
       { icon: "🔁", t: "Nouvel onglet « 🔁 Location longue durée » (facultatif)", steps: [
         "Entièrement désactivé par défaut : à activer dans Réglages (« Location longue durée » — case à cocher). Tant qu'elle n'est pas activée, rien ne change dans l'application : l'onglet reste invisible et aucune autre fonctionnalité n'est affectée.",
