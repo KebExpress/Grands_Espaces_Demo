@@ -152,7 +152,7 @@
     <!-- INTERFACE CLIENT / MONITEUR -->
     <section id="viewUser" class="space-y-6">
       <button onclick="openReservationWizard()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-xl text-sm shadow flex items-center justify-center gap-2">
-        📅 <span id="reservationWizardBtnLabel">Réserver un créneau (essai ou prêt longue durée)</span>
+        📅 <span id="reservationWizardBtnLabel">Réserver un créneau (essai ou location journalière ou hebdomadaire)</span>
       </button>
       <p class="text-center text-xs text-slate-500 -mt-4">Pour un emprunt immédiat au comptoir, utilisez la sélection ci-dessous.</p>
 
@@ -281,6 +281,7 @@
         <button onclick="switchAdminTab('users')" id="tabUsers" hidden class="py-2 px-3 font-bold text-sm tab-off">👤 Comptes</button>
         <button onclick="switchAdminTab('finances')" id="tabFinances" hidden class="py-2 px-3 font-bold text-sm tab-off">📊 Finances</button>
         <button onclick="switchAdminTab('archives')" id="tabArchives" hidden class="py-2 px-3 font-bold text-sm tab-off">🗄 Archives</button>
+        <button onclick="switchAdminTab('longterm')" id="tabLongTerm" hidden class="py-2 px-3 font-bold text-sm tab-off">🔁 Location longue durée</button>
         <button onclick="switchAdminTab('settings')" id="tabSettings" hidden class="py-2 px-3 font-bold text-sm tab-off">⚙️ Réglages</button>
         </div>
         <button onclick="scrollAdminTabs(1)" title="Défiler vers la droite" class="hidden sm:flex items-center px-1 text-slate-400 hover:text-slate-700 border-b border-slate-300">▶</button>
@@ -643,15 +644,79 @@
         <div id="historyList" class="space-y-2 text-xs"></div>
       </div>
 
+      <div id="adminLongTermPage" hidden class="space-y-4 text-xs">
+        <p class="text-[11px] text-slate-500">🔁 Location longue durée : matériel réservé à un client sur une période prolongée — abonnement mensuel ou forfait de jours prépayés. Distinct des essais et des locations journalière/hebdomadaire du planning.</p>
+        <div class="flex border-b border-slate-200 gap-2">
+          <button onclick="switchLongTermSubTab('abonnements')" id="ltSubTabAbonnements" class="py-1.5 px-3 font-bold text-xs tab-on">🔁 Abonnements</button>
+          <button onclick="switchLongTermSubTab('forfaits')" id="ltSubTabForfaits" class="py-1.5 px-3 font-bold text-xs tab-off">🎫 Forfaits</button>
+        </div>
+
+        <div id="ltAbonnementsPage" class="space-y-4">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+            <h4 class="font-bold text-sm">Nouveau contrat d'abonnement</h4>
+            <select id="ltNewItemSelect" onchange="ltOnItemSelectChange()" class="w-full p-2 border border-slate-300 rounded text-xs"><option value="">— Choisir un matériel disponible —</option></select>
+            <div class="grid grid-cols-2 gap-2">
+              <input type="text" id="ltNewClientName" placeholder="Nom du client" class="p-2 border border-slate-300 rounded">
+              <input type="email" id="ltNewClientEmail" placeholder="E-mail" class="p-2 border border-slate-300 rounded">
+              <input type="tel" id="ltNewClientPhone" placeholder="Téléphone" class="p-2 border border-slate-300 rounded">
+              <input type="date" id="ltNewStartDate" class="p-2 border border-slate-300 rounded">
+            </div>
+            <label class="text-[11px] text-slate-500 block">Tarif mensuel (€)<input type="number" id="ltNewMonthlyAmount" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded"></label>
+            <button onclick="createLongTermContract()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Créer le contrat</button>
+            <p id="ltNewStatus" class="text-[10px] text-slate-400"></p>
+          </div>
+          <div id="ltActiveList" class="space-y-2"></div>
+          <details>
+            <summary class="cursor-pointer text-xs font-bold text-slate-500">Contrats terminés</summary>
+            <div id="ltEndedList" class="space-y-2 mt-2"></div>
+          </details>
+        </div>
+
+        <div id="ltForfaitsPage" hidden class="space-y-4">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+            <h4 class="font-bold text-sm">Vendre un forfait</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <select id="ftNewType" onchange="ftRefreshPrice()" class="p-2 border border-slate-300 rounded">
+                <option value="Voile">Voile</option><option value="Sellette">Sellette</option><option value="Secours">Parachute de secours</option>
+              </select>
+              <select id="ftNewTier" onchange="ftRefreshPrice()" class="p-2 border border-slate-300 rounded">
+                <option value="5">5 jours</option><option value="10">10 jours</option><option value="20">20 jours</option>
+              </select>
+              <input type="text" id="ftNewClientName" placeholder="Nom du client" class="p-2 border border-slate-300 rounded">
+              <input type="email" id="ftNewClientEmail" placeholder="E-mail" class="p-2 border border-slate-300 rounded">
+              <input type="tel" id="ftNewClientPhone" placeholder="Téléphone" class="p-2 border border-slate-300 rounded">
+              <input type="number" id="ftNewAmount" min="0" step="0.01" placeholder="Prix (€)" class="p-2 border border-slate-300 rounded">
+            </div>
+            <button onclick="createForfait()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Vendre le forfait</button>
+            <p id="ftNewStatus" class="text-[10px] text-slate-400"></p>
+          </div>
+          <div id="ftActiveList" class="space-y-2"></div>
+          <details>
+            <summary class="cursor-pointer text-xs font-bold text-slate-500">Forfaits épuisés / expirés / annulés</summary>
+            <div id="ftEndedList" class="space-y-2 mt-2"></div>
+          </details>
+        </div>
+      </div>
+
       <div id="adminSettingsPage" hidden class="space-y-6">
         <div id="settingsLongTermRentalCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">Réservations client</h4>
           <label class="flex items-start gap-2 text-xs">
             <input type="checkbox" id="settingsLongTermRentalEnabled" onchange="saveLongTermRentalSetting()" class="mt-0.5">
-            <span>Autoriser le « Prêt longue durée » dans l'assistant de réservation côté client. Si décochée, seul l'essai (3 heures) reste proposable ; les réservations longue durée déjà enregistrées ne sont pas affectées.</span>
+            <span>Autoriser la « Location journalière ou hebdomadaire » dans l'assistant de réservation côté client. Si décochée, seul l'essai (3 heures) reste proposable ; les réservations longue durée déjà enregistrées ne sont pas affectées.</span>
           </label>
           <p id="longTermRentalSettingStatus" class="text-[10px] text-slate-400"></p>
           <button onclick="saveLongTermRentalSetting()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer</button>
+        </div>
+
+        <div id="settingsSubscriptionsCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+          <h4 class="font-bold text-sm">🔁 Location longue durée</h4>
+          <label class="flex items-start gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 p-2 rounded cursor-pointer">
+            <input type="checkbox" id="settingsSubscriptionsEnabled" onchange="saveSubscriptionsEnabledSetting()" class="mt-0.5">
+            <span>Activer la location longue durée (abonnements mensuels et forfaits prépayés)</span>
+          </label>
+          <p class="text-[10px] text-slate-500">Ajoute l'onglet « 🔁 Location longue durée » (abonnements et forfaits). Désactivée, cette partie n'apparaît nulle part et rien d'autre dans l'application n'est modifié : les prêts, essais et locations journalière/hebdomadaire fonctionnent exactement comme avant.</p>
+          <p id="settingsSubscriptionsStatus" class="text-[10px] text-slate-400"></p>
         </div>
 
         <div id="settingsTariffCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
@@ -679,7 +744,7 @@
             </div>
           </div>
           <div class="border-t border-slate-100 pt-2">
-            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Location longue durée</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Location journalière ou hebdomadaire</p>
             <div class="grid grid-cols-2 gap-2">
               <label class="text-[11px] text-slate-500">Voile (€)<input type="number" id="settingsLocationAmount_Voile" min="0" step="0.01" placeholder="ex. 50" class="w-full p-2 border border-slate-300 rounded"></label>
               <label class="text-[11px] text-slate-500">Sellette (€)<input type="number" id="settingsLocationAmount_Sellette" min="0" step="0.01" placeholder="ex. 30" class="w-full p-2 border border-slate-300 rounded"></label>
@@ -693,7 +758,48 @@
               <p class="text-[10px] text-slate-400">Par type de sellette (vide = utilise le tarif Sellette ci-dessus)</p>
               <div class="grid grid-cols-2 gap-2" id="settingsLocationSelletteStGrid"></div>
             </div>
-            <p class="text-[10px] text-slate-400 mt-1">Les accessoires (casque compris) ne sont pas concernés par la location longue durée.</p>
+            <p class="text-[10px] text-slate-400 mt-1">Les accessoires (casque compris) ne sont pas concernés par la location journalière ou hebdomadaire.</p>
+          </div>
+          <div id="settingsSubscriptionTariffBox" class="border-t border-slate-100 pt-2">
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Location longue durée (abonnement mensuel — onglet 🔁 Location longue durée)</p>
+            <p class="text-[10px] text-slate-500 mb-1">Tarif par mois d'un contrat d'abonnement longue durée — différent du tarif « Location journalière ou hebdomadaire » ci-dessus, qui concerne un prêt réservé pour une période déterminée dans le planning.</p>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="text-[11px] text-slate-500">Voile (€ / mois)<input type="number" id="settingsAbonnementAmount_Voile" min="0" step="0.01" placeholder="ex. 90" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500">Sellette (€ / mois)<input type="number" id="settingsAbonnementAmount_Sellette" min="0" step="0.01" placeholder="ex. 25" class="w-full p-2 border border-slate-300 rounded"></label>
+              <label class="text-[11px] text-slate-500 col-span-2">Parachute de secours (€ / mois)<input type="number" id="settingsAbonnementAmount_Secours" min="0" step="0.01" placeholder="ex. 15" class="w-full p-2 border border-slate-300 rounded"></label>
+            </div>
+          </div>
+          <div id="settingsForfaitTariffBox" class="border-t border-slate-100 pt-2">
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Forfaits prépayés (onglet 🔁 Location longue durée)</p>
+            <p class="text-[10px] text-slate-500 mb-1">Prix de chaque palier de jours prépayés, par type de matériel.</p>
+            <div class="space-y-2">
+              <div>
+                <p class="text-[10px] text-slate-400">Voile</p>
+                <div class="grid grid-cols-3 gap-2">
+                  <label class="text-[11px] text-slate-500">5 j (€)<input type="number" id="settingsForfaitPrice_Voile_5" min="0" step="0.01" placeholder="ex. 200" class="w-full p-2 border border-slate-300 rounded"></label>
+                  <label class="text-[11px] text-slate-500">10 j (€)<input type="number" id="settingsForfaitPrice_Voile_10" min="0" step="0.01" placeholder="ex. 380" class="w-full p-2 border border-slate-300 rounded"></label>
+                  <label class="text-[11px] text-slate-500">20 j (€)<input type="number" id="settingsForfaitPrice_Voile_20" min="0" step="0.01" placeholder="ex. 720" class="w-full p-2 border border-slate-300 rounded"></label>
+                </div>
+              </div>
+              <div>
+                <p class="text-[10px] text-slate-400">Sellette</p>
+                <div class="grid grid-cols-3 gap-2">
+                  <label class="text-[11px] text-slate-500">5 j (€)<input type="number" id="settingsForfaitPrice_Sellette_5" min="0" step="0.01" placeholder="ex. 100" class="w-full p-2 border border-slate-300 rounded"></label>
+                  <label class="text-[11px] text-slate-500">10 j (€)<input type="number" id="settingsForfaitPrice_Sellette_10" min="0" step="0.01" placeholder="ex. 190" class="w-full p-2 border border-slate-300 rounded"></label>
+                  <label class="text-[11px] text-slate-500">20 j (€)<input type="number" id="settingsForfaitPrice_Sellette_20" min="0" step="0.01" placeholder="ex. 360" class="w-full p-2 border border-slate-300 rounded"></label>
+                </div>
+              </div>
+              <div>
+                <p class="text-[10px] text-slate-400">Parachute de secours</p>
+                <div class="grid grid-cols-3 gap-2">
+                  <label class="text-[11px] text-slate-500">5 j (€)<input type="number" id="settingsForfaitPrice_Secours_5" min="0" step="0.01" placeholder="ex. 60" class="w-full p-2 border border-slate-300 rounded"></label>
+                  <label class="text-[11px] text-slate-500">10 j (€)<input type="number" id="settingsForfaitPrice_Secours_10" min="0" step="0.01" placeholder="ex. 110" class="w-full p-2 border border-slate-300 rounded"></label>
+                  <label class="text-[11px] text-slate-500">20 j (€)<input type="number" id="settingsForfaitPrice_Secours_20" min="0" step="0.01" placeholder="ex. 200" class="w-full p-2 border border-slate-300 rounded"></label>
+                </div>
+              </div>
+              <label class="text-[11px] text-slate-500 block">Jours décomptés par heure de vol<input type="number" id="settingsForfaitHourRatio" min="0" step="0.01" placeholder="ex. 0.5" class="w-full p-2 border border-slate-300 rounded"></label>
+              <p class="text-[10px] text-slate-400">Une journée complète décompte toujours 1 jour, une semaine 4,5 jours. Pour une utilisation en heures de vol, le nombre de jours décomptés est calculé automatiquement (heures × ce ratio).</p>
+            </div>
           </div>
           <p id="settingsTariffStatus" class="text-[10px] text-slate-400"></p>
           <button onclick="saveTariffSettings()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 rounded text-xs">Enregistrer</button>
@@ -1640,13 +1746,13 @@
 
       <!-- Étape 1 : type -->
       <div id="wizardStep1" hidden class="space-y-3">
-        <p id="wizardStep1Question" class="text-sm font-bold">Souhaitez-vous un essai ou un prêt longue durée ?</p>
+        <p id="wizardStep1Question" class="text-sm font-bold">Souhaitez-vous un essai ou une location journalière ou hebdomadaire ?</p>
         <button onclick="wizardChooseType('essai')" class="w-full text-left p-4 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
           <span class="block font-bold text-sm">⏱️ Essai</span>
           <span class="block text-xs text-slate-500 mt-1">Un créneau court, sur un jour précis, pour tester le matériel.</span>
         </button>
         <button id="wizardLocationTypeBtn" onclick="wizardChooseType('location')" class="w-full text-left p-4 border-2 border-slate-200 rounded-xl hover:border-green-500 hover:bg-green-50">
-          <span class="block font-bold text-sm">📅 Prêt longue durée</span>
+          <span class="block font-bold text-sm">📅 Location journalière ou hebdomadaire</span>
           <span class="block text-xs text-slate-500 mt-1">Du matériel réservé sur plusieurs jours.</span>
         </button>
         <div class="pt-1">
@@ -1838,7 +1944,17 @@
     // l'accessoire reste toujours au libre choix du client, quel que soit le pack, donc
     // jamais fixé ici.
     packs: ["id", "name", "description", "voileId", "selletteId", "secoursId", "createdAt"],
-    stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic", "subtype"]
+    stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic", "subtype"],
+    // Location longue durée (abonnement mensuel) : un contrat par matériel assigné à un client
+    // sur une période prolongée, distinct du planning (essai / prêt / location courte).
+    subscriptions: ["id", "itemId", "itemLabel", "itemType", "clientName", "clientEmail", "clientPhone", "monthlyAmount", "startDate", "status", "createdAt", "endedAt"],
+    // Suivi mensuel des paiements d'un contrat ci-dessus : une ligne par mois (AAAA-MM) facturé.
+    subscriptionPayments: ["id", "contractId", "month", "amount", "payment", "paidAt"],
+    // Location longue durée (forfait prépayé) : solde de jours acheté par un client, décompté à
+    // chaque utilisation (voir forfaitUsages).
+    forfaits: ["id", "itemType", "tier", "daysTotal", "daysUsed", "amount", "clientName", "clientEmail", "clientPhone", "purchaseDate", "expiresAt", "status", "createdAt"],
+    // Historique des décomptes d'un forfait ci-dessus.
+    forfaitUsages: ["id", "forfaitId", "date", "label", "daysDeducted", "createdAt"]
   };
 
   // Colonnes facultatives : écrites seulement si elles existent réellement
@@ -1948,7 +2064,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /*  ÉTAT                                                               */
   /* ------------------------------------------------------------------ */
 
-  let appData = { users: {}, clients: {}, items: {}, history: {}, settings: {}, planning: {}, archives: {}, packs: {}, stock: {} };
+  let appData = { users: {}, clients: {}, items: {}, history: {}, settings: {}, planning: {}, archives: {}, packs: {}, stock: {}, subscriptions: {}, subscriptionPayments: {}, forfaits: {}, forfaitUsages: {} };
   let currentRole = "client";
   let currentUser = null;
   let currentUserMode = "item";
@@ -2794,6 +2910,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       appData.archives = parsed.archives || {};
       appData.packs = parsed.packs || {};
       appData.stock = parsed.stock || {};
+      appData.subscriptions = parsed.subscriptions || {};
+      appData.subscriptionPayments = parsed.subscriptionPayments || {};
+      appData.forfaits = parsed.forfaits || {};
+      appData.forfaitUsages = parsed.forfaitUsages || {};
       return Object.keys(appData.items).length > 0;
     } catch (e) { return false; }
   }
@@ -2905,11 +3025,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     // Repli : ancien script.
     const items = await fetchSheet("items");
-    const [users, clients, history, settings, planning, archives, packs, stock] = await Promise.all([
+    const [users, clients, history, settings, planning, archives, packs, stock, subscriptions, subscriptionPayments, forfaits, forfaitUsages] = await Promise.all([
       fetchSheetOptional("users"), fetchSheetOptional("clients"), fetchSheetOptional("history"),
-      fetchSheetOptional("settings"), fetchSheetOptional("planning"), fetchSheetOptional("archives"), fetchSheetOptional("packs"), fetchSheetOptional("stock")
+      fetchSheetOptional("settings"), fetchSheetOptional("planning"), fetchSheetOptional("archives"), fetchSheetOptional("packs"), fetchSheetOptional("stock"),
+      fetchSheetOptional("subscriptions"), fetchSheetOptional("subscriptionPayments"), fetchSheetOptional("forfaits"), fetchSheetOptional("forfaitUsages")
     ]);
-    return { items, users, clients, history, settings, planning, archives, packs, stock };
+    return { items, users, clients, history, settings, planning, archives, packs, stock, subscriptions, subscriptionPayments, forfaits, forfaitUsages };
   }
 
   async function fetchSheet(name) {
@@ -2987,11 +3108,11 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       // (le chargement ne laisse plus l'écran vide pendant plusieurs secondes).
       if (loadLocalCache()) renderAll();
     }
-    const snapshot = silent ? JSON.stringify([appData.items, appData.users, appData.clients, appData.history, appData.settings, appData.planning, appData.archives, appData.packs, appData.stock]) : "";
+    const snapshot = silent ? JSON.stringify([appData.items, appData.users, appData.clients, appData.history, appData.settings, appData.planning, appData.archives, appData.packs, appData.stock, appData.subscriptions, appData.subscriptionPayments, appData.forfaits, appData.forfaitUsages]) : "";
     try {
       // Lecture complète demandée sans cache serveur (actualisation manuelle ou de
       // sécurité) ; sinon le cache serveur est utilisé tant que les données n'ont pas changé.
-      const { items, users, clients, history, settings, planning, archives, packs, stock } = await fetchBundle(!silent || silentFresh);
+      const { items, users, clients, history, settings, planning, archives, packs, stock, subscriptions, subscriptionPayments, forfaits, forfaitUsages } = await fetchBundle(!silent || silentFresh);
 
       // Une action de l'utilisateur a démarré pendant la lecture : on jette cette lecture.
       if (silent && busy) return;
@@ -3004,6 +3125,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       if (!missingSheets.includes("archives")) appData.archives = indexBy(archives);
       if (!missingSheets.includes("packs")) appData.packs = indexBy(packs);
       if (!missingSheets.includes("stock")) appData.stock = indexBy(stock || []);
+      if (!missingSheets.includes("subscriptions")) appData.subscriptions = indexBy(subscriptions || []);
+      if (!missingSheets.includes("subscriptionPayments")) appData.subscriptionPayments = indexBy(subscriptionPayments || []);
+      if (!missingSheets.includes("forfaits")) appData.forfaits = indexBy(forfaits || []);
+      if (!missingSheets.includes("forfaitUsages")) appData.forfaitUsages = indexBy(forfaitUsages || []);
 
       online = true;
       syncLost = false;
@@ -3011,7 +3136,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       setSync("☁️ Connecté");
       lastFullRefresh = Date.now();
       if (silent) {
-        const unchanged = snapshot === JSON.stringify([appData.items, appData.users, appData.clients, appData.history, appData.settings, appData.planning, appData.archives, appData.packs, appData.stock]);
+        const unchanged = snapshot === JSON.stringify([appData.items, appData.users, appData.clients, appData.history, appData.settings, appData.planning, appData.archives, appData.packs, appData.stock, appData.subscriptions, appData.subscriptionPayments, appData.forfaits, appData.forfaitUsages]);
         if (unchanged) return;
         saveLocalCache();
         renderAll();
@@ -3633,6 +3758,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     show("tabPlanning", planningAllowed);
     show("tabFinances", canManage && canUse("finances"));
     show("tabArchives", canManage && canUse("archives"));
+    // Location longue durée (abonnements + forfaits) : entièrement masquée tant que l'administrateur
+    // ne l'a pas activée dans Réglages (voir longTermSubscriptionsEnabled) ; jamais pour le moniteur.
+    show("tabLongTerm", longTermSubscriptionsEnabled() && canManage && canUse("planning"));
     show("tabStock", stockAllowed());
     // Matériel et Clients : lecture ouverte à l'administrateur et au moniteur (consultation faisant
     // partie du cœur de son rôle), mais masqués au gestionnaire auquel l'administrateur a retiré la
@@ -5753,13 +5881,14 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
 
   function adminTabAllowed(tab) {
+    if (tab === "longterm" && !longTermSubscriptionsEnabled()) return false;
     if (currentRole === "admin") return true;
     if (currentRole === "manager") {
       if (tab === "settings") return canUseCatalogSettings();
-      const need = { users: "usersBlock", planning: "planning", finances: "finances", archives: "archives", stock: "items", items: "items", clients: "clientsBlock" }[tab];
+      const need = { users: "usersBlock", planning: "planning", finances: "finances", archives: "archives", stock: "items", items: "items", clients: "clientsBlock", longterm: "planning" }[tab];
       return !need || canUse(need);
     }
-    if (currentRole === "instructor") return !["users", "finances", "archives", "settings"].includes(tab);
+    if (currentRole === "instructor") return !["users", "finances", "archives", "settings", "longterm"].includes(tab);
     return false;
   }
 
@@ -5775,6 +5904,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
                   ["users", "tabUsers", "adminUsersPage"],
                   ["finances", "tabFinances", "adminFinancesPage"],
                   ["archives", "tabArchives", "adminArchivesPage"],
+                  ["longterm", "tabLongTerm", "adminLongTermPage"],
                   ["settings", "tabSettings", "adminSettingsPage"]];
     tabs.forEach(([t, btnId, pageId]) => {
       show(pageId, t === tab);
@@ -5799,6 +5929,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     renderFinances();
     renderArchives();
     renderStock();
+    renderLongTerm();
     renderAllPlanningCalendars();
     syncColorPickers();
   }
@@ -7873,13 +8004,18 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     // l'onglet Réglages (contrat, mentions légales, emails, location longue durée) reste verrouillé.
     const fullSettings = canUse("settings");
     show("settingsLongTermRentalCard", fullSettings);
+    show("settingsSubscriptionsCard", fullSettings);
     show("settingsTariffCard", fullSettings);
     show("settingsContractCard", fullSettings);
     show("settingsLegalNoticeCard", fullSettings);
     show("settingsMailCard", fullSettings);
     $("settingsLongTermRentalEnabled").checked = isLongTermRentalEnabled();
+    if ($("settingsSubscriptionsEnabled")) $("settingsSubscriptionsEnabled").checked = longTermSubscriptionsEnabled();
     TARIFF_CATS_ESSAI.forEach(cat => { if ($("settingsEssaiAmount_" + cat)) $("settingsEssaiAmount_" + cat).value = getSetting("essaiAmount_" + cat, "") || ""; });
     TARIFF_CATS_LOCATION.forEach(cat => { if ($("settingsLocationAmount_" + cat)) $("settingsLocationAmount_" + cat).value = getSetting("locationAmount_" + cat, "") || ""; });
+    TARIFF_CATS_LOCATION.forEach(cat => { if ($("settingsAbonnementAmount_" + cat)) $("settingsAbonnementAmount_" + cat).value = getSetting("abonnementAmount_" + cat, "") || ""; });
+    TARIFF_CATS_LOCATION.forEach(cat => { FORFAIT_TIERS.forEach(tier => { if ($(`settingsForfaitPrice_${cat}_${tier}`)) $(`settingsForfaitPrice_${cat}_${tier}`).value = getSetting(`forfaitPrice_${cat}_${tier}`, "") || ""; }); });
+    if ($("settingsForfaitHourRatio")) $("settingsForfaitHourRatio").value = getSetting("forfaitHourRatio", "") || "";
     if ($("settingsTariffDetailed")) $("settingsTariffDetailed").checked = tariffDetailedEnabled();
     renderTariffDetailedFields();
     toggleTariffDetailedSections();
@@ -7980,9 +8116,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   function updateReservationWizardLabels() {
     const enabled = isLongTermRentalEnabled();
     const btnLabel = $("reservationWizardBtnLabel");
-    if (btnLabel) btnLabel.textContent = enabled ? "Réserver un créneau (essai ou prêt longue durée)" : "Réserver un créneau (essai)";
+    if (btnLabel) btnLabel.textContent = enabled ? "Réserver un créneau (essai ou location journalière ou hebdomadaire)" : "Réserver un créneau (essai)";
     const question = $("wizardStep1Question");
-    if (question) question.textContent = enabled ? "Souhaitez-vous un essai ou un prêt longue durée ?" : "Souhaitez-vous faire un essai ?";
+    if (question) question.textContent = enabled ? "Souhaitez-vous un essai ou une location journalière ou hebdomadaire ?" : "Souhaitez-vous faire un essai ?";
     // Côté personnel (onglet Matériel) : seul le bouton global « Réserver un créneau » (en haut
     // de l'onglet, liste complète par type) suit ce réglage. Celui de chaque fiche matériel
     // (« 📅 Réserver », réservation future sur ce seul matériel) reste toujours visible, y compris
@@ -8005,15 +8141,45 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     }
     const enabled = $("settingsLongTermRentalEnabled").checked;
     setSetting("longTermRentalEnabled", enabled ? "true" : "false");
-    addGenericHistory("Modification réglages", "Location longue durée", "", "", enabled ? "Prêt longue durée autorisé." : "Prêt longue durée verrouillé.");
+    addGenericHistory("Modification réglages", "Location journalière ou hebdomadaire", "", "", enabled ? "Location journalière ou hebdomadaire autorisée." : "Location journalière ou hebdomadaire verrouillée.");
     const ok = await persist(["settings", "history"]);
     updateReservationWizardLabels();
     toast(ok ? "Réglage enregistré." : "Réglage enregistré localement (hors ligne).");
     if (statusEl) {
       statusEl.textContent = ok
-        ? `✅ Enregistré dans la base de données — ${enabled ? "prêt longue durée autorisé" : "prêt longue durée verrouillé"}.`
+        ? `✅ Enregistré dans la base de données — ${enabled ? "location journalière ou hebdomadaire autorisée" : "location journalière ou hebdomadaire verrouillée"}.`
         : `⚠️ Hors ligne : ce changement n'est pour l'instant que sur cet appareil, il n'a pas atteint le tableur. Rechargez la page une fois reconnecté pour vérifier.`;
     }
+  }
+
+  // Active/désactive TOUTE la partie « Location longue durée » (abonnements mensuels + forfaits
+  // prépayés, onglet dédié) : une fonctionnalité entièrement optionnelle, sans aucun effet sur le
+  // reste de l'application tant qu'elle n'est pas activée (aucun onglet, aucune case, aucune
+  // écriture). Par défaut désactivée (contrairement à isLongTermRentalEnabled, qui est l'ancien
+  // réglage « Location journalière ou hebdomadaire », activé par défaut).
+  function longTermSubscriptionsEnabled() {
+    return getSetting("subscriptionsEnabled", "") === "true";
+  }
+  async function saveSubscriptionsEnabledSetting() {
+    const statusEl = $("settingsSubscriptionsStatus");
+    if (busy) return;
+    if (!canUse("settings")) {
+      toast("Action non autorisée.", "error");
+      if (statusEl) statusEl.textContent = "";
+      $("settingsSubscriptionsEnabled").checked = longTermSubscriptionsEnabled();
+      return;
+    }
+    const enabled = $("settingsSubscriptionsEnabled").checked;
+    setSetting("subscriptionsEnabled", enabled ? "true" : "false");
+    addGenericHistory("Modification réglages", "Location longue durée", "", "", enabled ? "Activée (abonnements + forfaits)." : "Désactivée.");
+    const ok = await persist(["settings", "history"]);
+    toast(ok ? "Réglage enregistré." : "Réglage enregistré localement (hors ligne).");
+    if (statusEl) {
+      statusEl.textContent = ok
+        ? `✅ Enregistré dans la base de données — ${enabled ? "activée" : "désactivée"}.`
+        : `⚠️ Hors ligne : ce changement n'est pour l'instant que sur cet appareil, il n'a pas atteint le tableur. Rechargez la page une fois reconnecté pour vérifier.`;
+    }
+    renderAll();
   }
 
   // Montant à afficher dès qu'un prêt de ce type (essai ou location longue durée) est marqué
@@ -8066,6 +8232,339 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const v = Number(getSetting(`${prefix}Amount_${cat}`, ""));
     return v > 0 ? v : null;
   }
+  // Tarif mensuel de la LOCATION LONGUE DURÉE (abonnement, onglet « 🔁 Location longue durée »,
+  // réglable dans Réglages › 💶 Tarifs des prêts) : un matériel précis réservé à un client sur
+  // plusieurs mois, facturé mois par mois — distinct du prêt/location courte du planning (voir
+  // reservationTariffAmount). Mêmes catégories éligibles que la location courte (ni accessoire,
+  // ni vario) : voir TARIFF_CATS_LOCATION. Clé de réglage : « abonnementAmount_<catégorie> ».
+  function subscriptionTariffAmount(type) {
+    const cat = tariffCategoryForType(type);
+    if (!TARIFF_CATS_LOCATION.includes(cat)) return null;
+    const v = Number(getSetting(`abonnementAmount_${cat}`, ""));
+    return v > 0 ? v : null;
+  }
+  // FORFAITS PRÉPAYÉS (location longue durée, onglet dédié) : un client achète un solde de
+  // jours (5, 10 ou 20), décompté à chaque utilisation. Mêmes catégories éligibles que
+  // l'abonnement (ni accessoire, ni vario) : voir TARIFF_CATS_LOCATION. Prix réglable par
+  // catégorie et par palier dans Réglages › 💶 Tarifs des prêts (clé « forfaitPrice_<cat>_<jours> »).
+  const FORFAIT_TIERS = [5, 10, 20];
+  function forfaitPrice(type, tier) {
+    const cat = tariffCategoryForType(type);
+    if (!TARIFF_CATS_LOCATION.includes(cat) || !FORFAIT_TIERS.includes(Number(tier))) return null;
+    const v = Number(getSetting(`forfaitPrice_${cat}_${tier}`, ""));
+    return v > 0 ? v : null;
+  }
+  // Jours décomptés par heure de vol (réglable, défaut 0,5 — voir Réglages). Une « journée »
+  // ou une « semaine » d'utilisation décomptent un nombre de jours fixe (voir forfaitUsageDays).
+  function forfaitHourRatio() {
+    const v = Number(getSetting("forfaitHourRatio", ""));
+    return v > 0 ? v : 0.5;
+  }
+  // Jours décomptés d'un forfait selon le type d'utilisation enregistrée par le personnel.
+  // kind : "jour" (1 journée = 1 jour décompté), "semaine" (= 4,5 jours, comme la grille tarifaire
+  // de la location journalière/hebdomadaire), ou "heures" (nombre d'heures de vol × le ratio
+  // réglable ci-dessus, arrondi à 2 décimales).
+  function forfaitUsageDays(kind, hours) {
+    if (kind === "jour") return 1;
+    if (kind === "semaine") return 4.5;
+    if (kind === "heures") return Math.round(Math.max(0, Number(hours) || 0) * forfaitHourRatio() * 100) / 100;
+    return 0;
+  }
+
+  // ======================================================================
+  // LOCATION LONGUE DURÉE — onglet dédié (abonnements mensuels + forfaits prépayés).
+  // Entièrement optionnelle (voir longTermSubscriptionsEnabled) : tant qu'elle n'est pas
+  // activée dans Réglages, cet onglet est inaccessible et rien ici n'est jamais appelé
+  // depuis le reste de l'application (essai, emprunt, location journalière/hebdomadaire,
+  // planning) — aucune des fonctions ci-dessous n'est référencée hors de ce module et de
+  // l'onglet « 🔁 Location longue durée » lui-même.
+  // ======================================================================
+  let longTermSubTab = "abonnements";
+  function switchLongTermSubTab(tab) {
+    longTermSubTab = tab === "forfaits" ? "forfaits" : "abonnements";
+    show("ltAbonnementsPage", longTermSubTab === "abonnements");
+    show("ltForfaitsPage", longTermSubTab === "forfaits");
+    $("ltSubTabAbonnements").classList.toggle("tab-on", longTermSubTab === "abonnements");
+    $("ltSubTabAbonnements").classList.toggle("tab-off", longTermSubTab !== "abonnements");
+    $("ltSubTabForfaits").classList.toggle("tab-on", longTermSubTab === "forfaits");
+    $("ltSubTabForfaits").classList.toggle("tab-off", longTermSubTab !== "forfaits");
+  }
+
+  // Matériel éligible (Voile/Sellette/Secours uniquement, comme la location journalière/
+  // hebdomadaire — voir TARIFF_CATS_LOCATION) et actuellement disponible.
+  function longTermEligibleItems() {
+    return Object.values(appData.items).filter(it => it.status === "Disponible" && TARIFF_CATS_LOCATION.includes(tariffCategoryForType(it.type)));
+  }
+
+  function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
+
+  // Pour chaque contrat actif, s'assure qu'une ligne de paiement existe pour chaque mois écoulé
+  // depuis la date de début jusqu'au mois courant (inclus) — « à payer » par défaut à sa création.
+  // N'écrit (et ne persiste) que s'il manque vraiment une ligne ; appelable sans risque à chaque rendu.
+  function ensureSubscriptionPaymentRows() {
+    if (!longTermSubscriptionsEnabled() || (currentRole !== "admin" && currentRole !== "manager")) return;
+    const now = new Date();
+    let added = false;
+    Object.values(appData.subscriptions).forEach(c => {
+      if (c.status !== "Actif") return;
+      const start = new Date(c.startDate);
+      if (isNaN(start.getTime())) return;
+      const have = new Set(Object.values(appData.subscriptionPayments).filter(p => p.contractId === c.id).map(p => p.month));
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 1);
+      let guard = 0;
+      while (cursor <= last && guard < 600) {   // garde-fou : jamais plus de 50 ans d'un coup
+        const mk = monthKey(cursor);
+        if (!have.has(mk)) {
+          const id = `SUBP-${c.id}-${mk}`;
+          appData.subscriptionPayments[id] = { id, contractId: c.id, month: mk, amount: c.monthlyAmount, payment: "À payer", paidAt: "" };
+          added = true;
+        }
+        cursor.setMonth(cursor.getMonth() + 1);
+        guard++;
+      }
+    });
+    if (added) persist(["subscriptionPayments"]);
+  }
+
+  function ltOnItemSelectChange() {
+    const id = $("ltNewItemSelect").value;
+    const it = appData.items[id];
+    if (it && $("ltNewMonthlyAmount")) {
+      const amount = subscriptionTariffAmount(it.type);
+      $("ltNewMonthlyAmount").value = amount || "";
+    }
+  }
+
+  function renderLtItemSelect() {
+    const sel = $("ltNewItemSelect");
+    if (!sel) return;
+    const cur = sel.value;
+    const items = longTermEligibleItems();
+    sel.innerHTML = `<option value="">— Choisir un matériel disponible —</option>` +
+      items.map(it => `<option value="${esc(it.id)}">${esc(itemLabel(it))}</option>`).join("");
+    if (cur && items.some(it => it.id === cur)) sel.value = cur;
+  }
+
+  async function createLongTermContract() {
+    if (busy) return;
+    if (!canUse("planning")) { toast("Action non autorisée.", "error"); return; }
+    const itemId = $("ltNewItemSelect").value;
+    const it = appData.items[itemId];
+    if (!it || it.status !== "Disponible") { toast("Choisissez un matériel disponible.", "error"); renderLongTerm(); return; }
+    const name = $("ltNewClientName").value.trim();
+    const email = $("ltNewClientEmail").value.trim();
+    const phone = $("ltNewClientPhone").value.trim();
+    if (!name) { toast("Le nom du client est obligatoire.", "error"); return; }
+    const startDate = $("ltNewStartDate").value || today();
+    const monthlyAmount = Number($("ltNewMonthlyAmount").value) || 0;
+    if (monthlyAmount <= 0) { toast("Le tarif mensuel doit être supérieur à 0.", "error"); return; }
+
+    const id = `SUB-${Date.now()}`;
+    appData.subscriptions[id] = {
+      id, itemId, itemLabel: itemLabel(it), itemType: it.type,
+      clientName: name, clientEmail: email, clientPhone: phone,
+      monthlyAmount, startDate, status: "Actif", createdAt: new Date().toISOString(), endedAt: ""
+    };
+    it.status = "Loué";
+    const payId = `SUBP-${id}-${monthKey(new Date(startDate))}`;
+    appData.subscriptionPayments[payId] = { id: payId, contractId: id, month: monthKey(new Date(startDate)), amount: monthlyAmount, payment: "À payer", paidAt: "" };
+    addHistory("Location longue durée", it, name, email, `Contrat d'abonnement créé : ${formatAmount(monthlyAmount)} €/mois à partir du ${startDate}.`);
+
+    const ok = await persist(["items", "subscriptions", "subscriptionPayments", "history"]);
+    toast(ok ? "Contrat créé." : "Contrat enregistré localement (hors ligne).");
+    $("ltNewClientName").value = ""; $("ltNewClientEmail").value = ""; $("ltNewClientPhone").value = ""; $("ltNewMonthlyAmount").value = "";
+    renderAll();
+  }
+
+  async function setSubscriptionPayment(paymentId, value) {
+    if (currentRole !== "admin" && currentRole !== "manager") return;
+    const p = appData.subscriptionPayments[paymentId];
+    if (!p) return;
+    p.payment = PAYMENT_STATES.includes(value) ? value : "";
+    if (p.payment === "Payé") p.paidAt = new Date().toISOString(); else p.paidAt = "";
+    const c = appData.subscriptions[p.contractId];
+    addGenericHistory("Paiement", c ? c.itemLabel : "Abonnement", c ? c.clientName : "", c ? c.clientEmail : "", `Paiement ${p.month} : ${p.payment || "non précisé"}`);
+    const ok = await persist(["subscriptionPayments", "history"]);
+    toast(ok ? "Paiement mis à jour." : "Modification enregistrée localement (hors ligne).");
+    renderAll();
+  }
+
+  async function endLongTermContract(contractId) {
+    if (busy) return;
+    if (!canUse("planning")) { toast("Action non autorisée.", "error"); return; }
+    const c = appData.subscriptions[contractId];
+    if (!c || c.status !== "Actif") return;
+    if (!confirm(`Terminer le contrat de ${c.clientName} (${c.itemLabel}) ? Le matériel repassera disponible.`)) return;
+    c.status = "Terminé";
+    c.endedAt = new Date().toISOString();
+    const it = appData.items[c.itemId];
+    // Le matériel ne repasse disponible que s'il n'est pas retenu par un autre engagement
+    // actif (un seul contrat à la fois par matériel en pratique, ce garde-fou coûte peu).
+    const stillHeld = Object.values(appData.subscriptions).some(o => o.id !== c.id && o.itemId === c.itemId && o.status === "Actif");
+    if (it && it.status === "Loué" && !stillHeld) it.status = "Disponible";
+    addHistory("Location longue durée", it || { id: c.itemId }, c.clientName, c.clientEmail, "Contrat d'abonnement terminé.");
+    const ok = await persist(["items", "subscriptions", "history"]);
+    toast(ok ? "Contrat terminé." : "Modification enregistrée localement (hors ligne).");
+    renderAll();
+  }
+
+  function renderLongTermContracts() {
+    renderLtItemSelect();
+    const active = Object.values(appData.subscriptions).filter(c => c.status === "Actif").sort((a, b) => a.startDate < b.startDate ? 1 : -1);
+    const ended = Object.values(appData.subscriptions).filter(c => c.status !== "Actif").sort((a, b) => (b.endedAt || "") < (a.endedAt || "") ? -1 : 1);
+    const canEdit = canUse("planning");
+    const card = (c, isActive) => {
+      const payments = Object.values(appData.subscriptionPayments).filter(p => p.contractId === c.id).sort((a, b) => a.month < b.month ? 1 : -1);
+      const rows = payments.map(p => `<div class="flex items-center justify-between text-[11px] py-0.5">
+        <span>${esc(p.month)}</span>
+        ${canEdit && isActive
+          ? `<select onchange="setSubscriptionPayment('${esc(p.id)}', this.value)" class="p-0.5 border border-slate-300 rounded text-[10px] bg-white">
+              <option value=""${p.payment ? "" : " selected"}>💶 non précisé</option>
+              ${PAYMENT_STATES.map(v => `<option value="${v}"${p.payment === v ? " selected" : ""}>💶 ${v}</option>`).join("")}
+            </select>`
+          : paymentBadge(p)}
+        <span class="font-bold">${esc(formatAmount(p.amount))} €</span>
+      </div>`).join("") || `<p class="text-[11px] text-slate-400">Aucun mois facturé.</p>`;
+      return `<div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+        <div class="flex items-center justify-between">
+          <p class="font-bold">${esc(c.itemLabel)} — ${esc(c.clientName)}</p>
+          ${isActive && canEdit ? `<button onclick="endLongTermContract('${esc(c.id)}')" class="text-[11px] text-rose-600 hover:underline">Terminer</button>` : `<span class="text-[11px] text-slate-400">Terminé le ${esc((c.endedAt || "").slice(0, 10))}</span>`}
+        </div>
+        <p class="text-[11px] text-slate-500">${esc(c.clientEmail)}${c.clientPhone ? " · " + esc(c.clientPhone) : ""} — depuis le ${esc(c.startDate)} · ${esc(formatAmount(c.monthlyAmount))} €/mois</p>
+        <div class="border-t border-slate-100 pt-1">${rows}</div>
+      </div>`;
+    };
+    const activeEl = $("ltActiveList");
+    if (activeEl) activeEl.innerHTML = active.length ? active.map(c => card(c, true)).join("") : `<p class="text-[11px] text-slate-400">Aucun contrat actif.</p>`;
+    const endedEl = $("ltEndedList");
+    if (endedEl) endedEl.innerHTML = ended.length ? ended.map(c => card(c, false)).join("") : `<p class="text-[11px] text-slate-400">Aucun contrat terminé.</p>`;
+  }
+
+  function ftRefreshPrice() {
+    const type = $("ftNewType").value, tier = $("ftNewTier").value;
+    if ($("ftNewAmount")) $("ftNewAmount").value = forfaitPrice(type, tier) || "";
+  }
+
+  async function createForfait() {
+    if (busy) return;
+    if (!canUse("planning")) { toast("Action non autorisée.", "error"); return; }
+    const type = $("ftNewType").value;
+    const tier = Number($("ftNewTier").value);
+    const name = $("ftNewClientName").value.trim();
+    const email = $("ftNewClientEmail").value.trim();
+    const phone = $("ftNewClientPhone").value.trim();
+    const amount = Number($("ftNewAmount").value) || 0;
+    if (!name) { toast("Le nom du client est obligatoire.", "error"); return; }
+    if (amount <= 0) { toast("Le prix du forfait doit être supérieur à 0.", "error"); return; }
+    const id = `FOR-${Date.now()}`;
+    const purchaseDate = today();
+    const expires = new Date(purchaseDate); expires.setMonth(expires.getMonth() + 12);
+    appData.forfaits[id] = {
+      id, itemType: type, tier, daysTotal: tier, daysUsed: 0, amount,
+      clientName: name, clientEmail: email, clientPhone: phone,
+      purchaseDate, expiresAt: expires.toISOString().slice(0, 10), status: "Actif", createdAt: new Date().toISOString()
+    };
+    addGenericHistory("Location longue durée", `Forfait ${tier}j ${type}`, name, email, `Forfait de ${tier} jours vendu (${formatAmount(amount)} €).`);
+    const ok = await persist(["forfaits", "history"]);
+    toast(ok ? "Forfait vendu." : "Forfait enregistré localement (hors ligne).");
+    $("ftNewClientName").value = ""; $("ftNewClientEmail").value = ""; $("ftNewClientPhone").value = ""; $("ftNewAmount").value = "";
+    renderAll();
+  }
+
+  // Décompte une utilisation : kind = "jour" (1j), "semaine" (4,5j) ou "heures" (prompt du
+  // nombre d'heures de vol, converti automatiquement en jours — voir forfaitUsageDays).
+  async function recordForfaitUsage(forfaitId, kind) {
+    if (busy) return;
+    if (!canUse("planning")) { toast("Action non autorisée.", "error"); return; }
+    const f = appData.forfaits[forfaitId];
+    if (!f || f.status !== "Actif") return;
+    let hours = null, label;
+    if (kind === "heures") {
+      const raw = prompt("Nombre d'heures de vol effectuées :", "1");
+      if (raw === null) return;
+      hours = Number(String(raw).replace(",", "."));
+      if (!(hours > 0)) { toast("Nombre d'heures invalide.", "error"); return; }
+      label = `${hours} h de vol`;
+    } else label = kind === "jour" ? "1 journée" : "1 semaine";
+    const days = forfaitUsageDays(kind, hours);
+    const remaining = f.daysTotal - f.daysUsed;
+    if (days > remaining + 0.001) {
+      if (!confirm(`Il ne reste que ${remaining} jour(s) sur ce forfait ; cette utilisation (${days} j) dépasse le solde. Enregistrer quand même ?`)) return;
+    }
+    f.daysUsed = Math.round((f.daysUsed + days) * 100) / 100;
+    if (f.daysUsed >= f.daysTotal - 0.001) f.status = "Épuisé";
+    const uid = `FORU-${Date.now()}`;
+    appData.forfaitUsages[uid] = { id: uid, forfaitId: f.id, date: today(), label, daysDeducted: days, createdAt: new Date().toISOString() };
+    addGenericHistory("Location longue durée", `Forfait ${f.tier}j ${f.itemType}`, f.clientName, f.clientEmail, `Utilisation : ${label} (−${days} j).`);
+    const ok = await persist(["forfaits", "forfaitUsages", "history"]);
+    toast(ok ? "Utilisation enregistrée." : "Enregistré localement (hors ligne).");
+    renderAll();
+  }
+
+  async function cancelForfait(forfaitId) {
+    if (busy) return;
+    if (!canUse("planning")) { toast("Action non autorisée.", "error"); return; }
+    const f = appData.forfaits[forfaitId];
+    if (!f || f.status !== "Actif") return;
+    if (!confirm(`Annuler le forfait de ${f.clientName} ?`)) return;
+    f.status = "Annulé";
+    addGenericHistory("Location longue durée", `Forfait ${f.tier}j ${f.itemType}`, f.clientName, f.clientEmail, "Forfait annulé.");
+    const ok = await persist(["forfaits", "history"]);
+    toast(ok ? "Forfait annulé." : "Modification enregistrée localement (hors ligne).");
+    renderAll();
+  }
+
+  function expireForfaitsIfNeeded() {
+    if (!longTermSubscriptionsEnabled() || (currentRole !== "admin" && currentRole !== "manager")) return;
+    const now = today();
+    let changed = false;
+    Object.values(appData.forfaits).forEach(f => {
+      if (f.status === "Actif" && f.expiresAt && f.expiresAt < now) { f.status = "Expiré"; changed = true; }
+    });
+    if (changed) persist(["forfaits"]);
+  }
+
+  function renderForfaits() {
+    expireForfaitsIfNeeded();
+    const active = Object.values(appData.forfaits).filter(f => f.status === "Actif").sort((a, b) => a.purchaseDate < b.purchaseDate ? 1 : -1);
+    const ended = Object.values(appData.forfaits).filter(f => f.status !== "Actif").sort((a, b) => a.purchaseDate < b.purchaseDate ? 1 : -1);
+    const canEdit = canUse("planning");
+    const card = (f, isActive) => {
+      const usages = Object.values(appData.forfaitUsages).filter(u => u.forfaitId === f.id).sort((a, b) => a.date < b.date ? 1 : -1);
+      const remaining = Math.round((f.daysTotal - f.daysUsed) * 100) / 100;
+      const rows = usages.map(u => `<div class="flex items-center justify-between text-[11px] py-0.5">
+        <span>${esc(u.date)} — ${esc(u.label)}</span><span class="font-bold">−${esc(String(u.daysDeducted))} j</span>
+      </div>`).join("") || `<p class="text-[11px] text-slate-400">Aucune utilisation enregistrée.</p>`;
+      return `<div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+        <div class="flex items-center justify-between">
+          <p class="font-bold">Forfait ${esc(String(f.tier))}j ${esc(f.itemType)} — ${esc(f.clientName)}</p>
+          ${isActive && canEdit ? `<button onclick="cancelForfait('${esc(f.id)}')" class="text-[11px] text-rose-600 hover:underline">Annuler</button>` : `<span class="text-[11px] text-slate-400">${esc(f.status)}</span>`}
+        </div>
+        <p class="text-[11px] text-slate-500">${esc(f.clientEmail)}${f.clientPhone ? " · " + esc(f.clientPhone) : ""} — acheté le ${esc(f.purchaseDate)} · ${esc(formatAmount(f.amount))} € · valable jusqu'au ${esc(f.expiresAt)}</p>
+        <p class="text-[11px] font-bold ${remaining <= 0 ? "text-rose-600" : "text-emerald-700"}">Solde : ${esc(String(remaining))} / ${esc(String(f.daysTotal))} jour(s)</p>
+        ${isActive && canEdit ? `<div class="flex gap-1 flex-wrap">
+          <button onclick="recordForfaitUsage('${esc(f.id)}', 'jour')" class="px-2 py-1 border border-slate-300 rounded text-[11px] hover:bg-slate-50">− 1 journée</button>
+          <button onclick="recordForfaitUsage('${esc(f.id)}', 'semaine')" class="px-2 py-1 border border-slate-300 rounded text-[11px] hover:bg-slate-50">− 1 semaine</button>
+          <button onclick="recordForfaitUsage('${esc(f.id)}', 'heures')" class="px-2 py-1 border border-slate-300 rounded text-[11px] hover:bg-slate-50">− heures de vol…</button>
+        </div>` : ""}
+        <div class="border-t border-slate-100 pt-1">${rows}</div>
+      </div>`;
+    };
+    const activeEl = $("ftActiveList");
+    if (activeEl) activeEl.innerHTML = active.length ? active.map(f => card(f, true)).join("") : `<p class="text-[11px] text-slate-400">Aucun forfait actif.</p>`;
+    const endedEl = $("ftEndedList");
+    if (endedEl) endedEl.innerHTML = ended.length ? ended.map(f => card(f, false)).join("") : `<p class="text-[11px] text-slate-400">Aucun forfait terminé.</p>`;
+  }
+
+  function renderLongTerm() {
+    if (!$("adminLongTermPage")) return;
+    if (!longTermSubscriptionsEnabled()) return;
+    ensureSubscriptionPaymentRows();
+    renderLongTermContracts();
+    renderForfaits();
+  }
+
   function formatAmount(n) {
     const v = Number(n) || 0;
     return (Math.round(v * 100) % 100 === 0) ? String(Math.round(v)) : v.toFixed(2);
@@ -8126,6 +8625,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const reload = () => {
       TARIFF_CATS_ESSAI.forEach(cat => { if ($("settingsEssaiAmount_" + cat)) $("settingsEssaiAmount_" + cat).value = getSetting("essaiAmount_" + cat, "") || ""; });
       TARIFF_CATS_LOCATION.forEach(cat => { if ($("settingsLocationAmount_" + cat)) $("settingsLocationAmount_" + cat).value = getSetting("locationAmount_" + cat, "") || ""; });
+      TARIFF_CATS_LOCATION.forEach(cat => { if ($("settingsAbonnementAmount_" + cat)) $("settingsAbonnementAmount_" + cat).value = getSetting("abonnementAmount_" + cat, "") || ""; });
+      TARIFF_CATS_LOCATION.forEach(cat => { FORFAIT_TIERS.forEach(tier => { if ($(`settingsForfaitPrice_${cat}_${tier}`)) $(`settingsForfaitPrice_${cat}_${tier}`).value = getSetting(`forfaitPrice_${cat}_${tier}`, "") || ""; }); });
+      if ($("settingsForfaitHourRatio")) $("settingsForfaitHourRatio").value = getSetting("forfaitHourRatio", "") || "";
       if ($("settingsTariffDetailed")) $("settingsTariffDetailed").checked = tariffDetailedEnabled();
       renderTariffDetailedFields();
       toggleTariffDetailedSections();
@@ -8147,6 +8649,25 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       setSetting("locationAmount_" + cat, v);
       summary.push(`Location ${cat} : ${v || "—"} €`);
     });
+    TARIFF_CATS_LOCATION.forEach(cat => {
+      const v = $("settingsAbonnementAmount_" + cat).value.trim();
+      setSetting("abonnementAmount_" + cat, v);
+      summary.push(`Abonnement ${cat} : ${v || "—"} €/mois`);
+    });
+    TARIFF_CATS_LOCATION.forEach(cat => {
+      FORFAIT_TIERS.forEach(tier => {
+        const el = $(`settingsForfaitPrice_${cat}_${tier}`);
+        if (!el) return;
+        const v = el.value.trim();
+        setSetting(`forfaitPrice_${cat}_${tier}`, v);
+        summary.push(`Forfait ${cat} ${tier}j : ${v || "—"} €`);
+      });
+    });
+    if ($("settingsForfaitHourRatio")) {
+      const v = $("settingsForfaitHourRatio").value.trim();
+      setSetting("forfaitHourRatio", v);
+      summary.push(`Forfait, jours/heure de vol : ${v || "0,5 (défaut)"}`);
+    }
     const detailed = $("settingsTariffDetailed") ? $("settingsTariffDetailed").checked : false;
     setSetting("tariffDetailed", detailed ? "true" : "false");
     let detailedCount = 0;
@@ -8635,7 +9156,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
   function wizardChooseType(type) {
     if (type === "location" && !isLongTermRentalEnabled()) {
-      toast("Le prêt longue durée n'est pas disponible actuellement.", "error");
+      toast("La location journalière ou hebdomadaire n'est pas disponible actuellement.", "error");
       return;
     }
     wizard.type = type;
@@ -8819,7 +9340,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const dueLabel = new Date(wizard.end).toLocaleString("fr-FR");
     $("wizardSummary").innerHTML = `
       <p><strong>Bénéficiaire :</strong> ${esc(wizard.name)}${wizard.isStaffBeneficiary ? " (personnel)" : ""}</p>
-      <p><strong>Type :</strong> ${wizard.type === "essai" ? "Essai" : "Prêt longue durée"}</p>
+      <p><strong>Type :</strong> ${wizard.type === "essai" ? "Essai" : "Location journalière ou hebdomadaire"}</p>
       <p><strong>Créneau :</strong> du ${esc(new Date(wizard.start).toLocaleString("fr-FR"))} au ${esc(dueLabel)}</p>
       <p><strong>Matériel :</strong></p>
       <ul>${ids.map(id => `<li>• ${esc(reservationItemLabel(id))}</li>`).join("")}</ul>`;
@@ -8868,7 +9389,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       // locations et des plannings soit centralisé dans la même feuille. Une sellette du stock
       // partagé n'a pas de fiche équipement (appData.items) : addHistory, qui en exige une,
       // n'est utilisable que pour un équipement suivi individuellement.
-      const note = `${wizard.type === "essai" ? "Essai" : "Prêt longue durée"} du ${new Date(wizard.start).toLocaleString("fr-FR")} au ${new Date(wizard.end).toLocaleString("fr-FR")}`;
+      const note = `${wizard.type === "essai" ? "Essai" : "Location journalière ou hebdomadaire"} du ${new Date(wizard.start).toLocaleString("fr-FR")} au ${new Date(wizard.end).toLocaleString("fr-FR")}`;
       if (isStockReservationId(itemId)) {
         addGenericHistory("Réservation", reservationItemLabel(itemId), wizard.name, wizard.email, note);
       } else {
@@ -8897,7 +9418,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
     sendTransactionalMail("booking", {
       name: wizard.name, email: wizard.email,
-      type: wizard.type === "essai" ? "Essai" : "Prêt longue durée",
+      type: wizard.type === "essai" ? "Essai" : "Location journalière ou hebdomadaire",
       items: wizard.selectedIds.map(id => "- " + reservationItemLabel(id)).join("\n"),
       start: new Date(wizard.start).toLocaleString("fr-FR"),
       end: new Date(wizard.end).toLocaleString("fr-FR"),
@@ -8993,7 +9514,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     return p.type === "essai" ? "⏱️ Essai"
       : p.type === "immediat" ? "🏃 Emprunt immédiat"
       : p.type === "moniteur" ? "🪂 Emprunt moniteur"
-      : "📅 Prêt longue durée";
+      : "📅 Location journalière ou hebdomadaire";
   }
 
   // État d'une réservation / d'un emprunt, pour la couleur des points du planning visuel :
@@ -9017,7 +9538,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     ["essai", "bg-sky-500", "Essai"],
     ["immediat", "bg-amber-500", "Emprunt immédiat"],
     ["moniteur", "bg-purple-500", "Emprunt moniteur"],
-    ["location", "bg-green-600", "Prêt longue durée"]
+    ["location", "bg-green-600", "Location journalière ou hebdomadaire"]
   ];
 
   // Types affichés dans le planning visuel : décocher un type le masque sur
@@ -10624,7 +11145,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-12.170";
+  const APP_VERSION = "2026-11-12.171";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -10638,6 +11159,17 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 171, title: "Nouveau : Location longue durée (abonnements + forfaits)", aud: "staff", items: [
+      { icon: "🔁", t: "Nouvel onglet « 🔁 Location longue durée » (facultatif)", steps: [
+        "Entièrement désactivé par défaut : à activer dans Réglages (« Location longue durée » — case à cocher). Tant qu'elle n'est pas activée, rien ne change dans l'application : l'onglet reste invisible et aucune autre fonctionnalité n'est affectée.",
+        "Deux systèmes distincts dans cet onglet : « Abonnements » (un matériel assigné à un client sur la durée, facturé et suivi mois par mois) et « Forfaits » (packs prépayés de 5, 10 ou 20 jours, avec décompte à l'usage).",
+        "Tarifs réglables dans Réglages › 💶 Tarifs des prêts : montant mensuel par type d'équipement pour les abonnements, et prix par palier (5/10/20 j) pour les forfaits, ainsi que le ratio heures de vol → jours décomptés.",
+        "Pour un forfait, le décompte (1 journée, 1 semaine = 4,5 j, ou un nombre d'heures de vol) est calculé automatiquement selon ce ratio, mais déclenché par le personnel via un bouton dédié dans la fiche du forfait — il n'est pas débité automatiquement lors d'un prêt ou d'une location."
+      ] },
+      { icon: "✏️", t: "Renommage : « Prêt longue durée » devient « Location journalière ou hebdomadaire »", steps: [
+        "Changement d'appellation uniquement (dans le planning, les réglages de tarifs et les messages) pour éviter la confusion avec le nouveau système d'abonnements — aucune donnée ni aucun fonctionnement n'est modifié pour ce type de réservation existant."
+      ] }
+    ] },
     { v: 170, title: "Liste des constructeurs mise à jour", aud: "staff", items: [
       { icon: "🪂", t: "Règles de révision : nouvelles marques", steps: [
         "Ajout de Flow, AirG, Plume, Level Wings, UP et Sky ; retrait de Niviuk et Phi (elles passent à la valeur générale de 100 h).",
