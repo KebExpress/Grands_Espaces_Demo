@@ -507,7 +507,8 @@
               <div class="col-span-2 grid grid-cols-2 gap-2">
               <label class="text-[11px] text-slate-500">Révision tous les (mois)<input type="number" id="newItemRevisionMonths" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="12 par défaut"></label>
               <label class="text-[11px] text-slate-500">ou toutes les (heures de vol)<input type="number" id="newItemRevisionHours" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="100 par défaut"></label>
-              <p class="col-span-2 text-[10px] text-slate-400">Vide = valeur par défaut (12 mois ; 100 h pour voile et sellette, aucune pour un secours). 0 = critère désactivé.</p>
+              <p class="col-span-2 text-[10px] text-slate-400">Vide = valeur par défaut (12 mois ; heures selon le constructeur de la voile, 100 h sinon pour voile et sellette, aucune pour un secours). 0 = critère désactivé.</p>
+              <details class="col-span-2 text-[11px]"><summary class="cursor-pointer text-emerald-700 font-bold">📋 Règles de révision des constructeurs</summary><div data-brand-rev-ref class="mt-1"></div></details>
             </div>
             <label class="text-[11px] text-slate-500 col-span-2">Prix de vente conseillé (manuel, facultatif — remplace le calcul si renseigné)<input data-fin="1" type="number" id="newItemSalePriceManual" min="0" step="0.01" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1800"></label>
             </div>
@@ -656,6 +657,10 @@
         <div id="settingsTariffCard" class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
           <h4 class="font-bold text-sm">💶 Tarifs des prêts</h4>
           <p class="text-[10px] text-slate-500">Montant affiché automatiquement dès qu'un prêt (en cours ou réservé) est marqué « À payer », selon le type d'équipement concerné. Laissez à 0 ou vide pour ne rien afficher.</p>
+          <label class="flex items-start gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 p-2 rounded cursor-pointer">
+            <input type="checkbox" id="settingsTariffDetailed" onchange="toggleTariffDetailedSections()" class="mt-0.5">
+            <span>Tarifs différents selon l'homologation de la voile et le type de sellette</span>
+          </label>
           <div>
             <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Essai</p>
             <div class="grid grid-cols-2 gap-2">
@@ -664,6 +669,14 @@
               <label class="text-[11px] text-slate-500">Parachute de secours (€)<input type="number" id="settingsEssaiAmount_Secours" min="0" step="0.01" placeholder="ex. 5" class="w-full p-2 border border-slate-300 rounded"></label>
               <label class="text-[11px] text-slate-500">Accessoire (€)<input type="number" id="settingsEssaiAmount_Accessoire" min="0" step="0.01" placeholder="ex. 2" class="w-full p-2 border border-slate-300 rounded"></label>
             </div>
+            <div id="settingsEssaiVoileEnBox" hidden class="mt-2 pl-2 border-l-2 border-slate-200 space-y-1">
+              <p class="text-[10px] text-slate-400">Par homologation de voile (vide = utilise le tarif Voile ci-dessus)</p>
+              <div class="grid grid-cols-2 gap-2" id="settingsEssaiVoileEnGrid"></div>
+            </div>
+            <div id="settingsEssaiSelletteStBox" hidden class="mt-2 pl-2 border-l-2 border-slate-200 space-y-1">
+              <p class="text-[10px] text-slate-400">Par type de sellette (vide = utilise le tarif Sellette ci-dessus)</p>
+              <div class="grid grid-cols-2 gap-2" id="settingsEssaiSelletteStGrid"></div>
+            </div>
           </div>
           <div class="border-t border-slate-100 pt-2">
             <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Location longue durée</p>
@@ -671,6 +684,14 @@
               <label class="text-[11px] text-slate-500">Voile (€)<input type="number" id="settingsLocationAmount_Voile" min="0" step="0.01" placeholder="ex. 50" class="w-full p-2 border border-slate-300 rounded"></label>
               <label class="text-[11px] text-slate-500">Sellette (€)<input type="number" id="settingsLocationAmount_Sellette" min="0" step="0.01" placeholder="ex. 30" class="w-full p-2 border border-slate-300 rounded"></label>
               <label class="text-[11px] text-slate-500 col-span-2">Parachute de secours (€)<input type="number" id="settingsLocationAmount_Secours" min="0" step="0.01" placeholder="ex. 20" class="w-full p-2 border border-slate-300 rounded"></label>
+            </div>
+            <div id="settingsLocationVoileEnBox" hidden class="mt-2 pl-2 border-l-2 border-slate-200 space-y-1">
+              <p class="text-[10px] text-slate-400">Par homologation de voile (vide = utilise le tarif Voile ci-dessus)</p>
+              <div class="grid grid-cols-2 gap-2" id="settingsLocationVoileEnGrid"></div>
+            </div>
+            <div id="settingsLocationSelletteStBox" hidden class="mt-2 pl-2 border-l-2 border-slate-200 space-y-1">
+              <p class="text-[10px] text-slate-400">Par type de sellette (vide = utilise le tarif Sellette ci-dessus)</p>
+              <div class="grid grid-cols-2 gap-2" id="settingsLocationSelletteStGrid"></div>
             </div>
             <p class="text-[10px] text-slate-400 mt-1">Les accessoires (casque compris) ne sont pas concernés par la location longue durée.</p>
           </div>
@@ -1099,7 +1120,8 @@
           <div class="col-span-2 grid grid-cols-2 gap-2">
               <label class="text-[11px] text-slate-500">Révision tous les (mois)<input type="number" id="editItemRevisionMonths" oninput="refreshEditItemComputed()" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="12 par défaut"></label>
               <label class="text-[11px] text-slate-500">ou toutes les (heures de vol)<input type="number" id="editItemRevisionHours" oninput="refreshEditItemComputed()" min="0" step="1" class="w-full p-2 border border-slate-300 rounded" placeholder="100 par défaut"></label>
-              <p class="col-span-2 text-[10px] text-slate-400">Vide = valeur par défaut (12 mois ; 100 h pour voile et sellette, aucune pour un secours). 0 = critère désactivé.</p>
+              <p class="col-span-2 text-[10px] text-slate-400">Vide = valeur par défaut (12 mois ; heures selon le constructeur de la voile, 100 h sinon pour voile et sellette, aucune pour un secours). 0 = critère désactivé.</p>
+              <details class="col-span-2 text-[11px]"><summary class="cursor-pointer text-emerald-700 font-bold">📋 Règles de révision des constructeurs</summary><div data-brand-rev-ref class="mt-1"></div></details>
             </div>
             <label class="text-[11px] text-slate-500 col-span-2">Prix de vente conseillé (manuel, facultatif — remplace le calcul si renseigné)<input data-fin="1" type="number" id="editItemSalePriceManual" min="0" step="0.01" oninput="refreshEditItemComputed()" class="w-full p-2 border border-slate-300 rounded" placeholder="ex. 1800"></label>
           <p id="editItemComputedInfo" class="col-span-2 text-[11px] text-slate-600 bg-slate-50 rounded p-2"></p>
@@ -2210,10 +2232,72 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // Critères de révision effectifs d'un article : { months, hours } (0 = critère désactivé).
   // Par défaut : 12 mois, et 100 h de vol pour une voile / sellette. Un secours n'a pas de
   // critère d'heures : il se révise 1 an après sa mise en service (puis après chaque révision).
+  // Règles de révision des voiles par constructeur (manuels et étiquettes de certification,
+  // relevés en novembre 2026). months = intervalle en usage privé ; hours = plafond d'heures ;
+  // pro = intervalle en école / biplace / usage intensif (0 = non précisé par le constructeur).
+  // Le manuel et l'étiquette de la voile font foi : les champs de l'article restent prioritaires.
+  const BRAND_REVISION_RULES = [
+    { name: "Advance", prefix: "advance", months: 24, hours: 150, lightHours: 100, pro: 12, note: "ou 150 vols. Modèles légers (Pi, Theta ULS, Xi, Omega ULS) : 100 h / 100 vols. Plus de 150 h par an : chaque année." },
+    { name: "AirG", keys: ["airg", "airgfamily", "airgproducts"], prefix: "airg", months: 0, hours: 100, pro: 0, unverified: true, note: "Règle non publiée en ligne : 100 h par défaut, à vérifier dans le manuel de la voile." },
+    { name: "Flow", prefix: "flow", months: 24, hours: 100, pro: 0, note: "Selon le modèle : 2 ans / 100 h (Fusion, F2 Light, Mystic) ou 1 an / 100 h (Cosmos, Panorama 2)." },
+    { name: "Gin", prefix: "gin", months: 24, hours: 100, pro: 12, note: "100 à 150 h selon le modèle. Compétition (Boomerang) : 12 mois / 100 h. Gonflage compté double." },
+    { name: "Level Wings", keys: ["level", "levelwings"], prefix: "levelwing", months: 0, hours: 100, pro: 0, unverified: true, note: "Règle non publiée en ligne : 100 h par défaut, à vérifier dans le manuel de la voile." },
+    { name: "Nova", prefix: "nova", months: 24, hours: 100, pro: 12, note: "3 ans après l'achat si le Trim Tuning (vers 20 h) a été fait. Ou 200 décollages. École / biplace : chaque année." },
+    { name: "Ozone", prefix: "ozone", months: 24, hours: 100, pro: 12, note: "1re révision à 24 mois / 100 h, puis chaque année au-delà de 80 à 100 h par an." },
+    { name: "Plume", keys: ["plume", "plumeparagliders"], prefix: "plumepara", months: 0, hours: 100, pro: 0, unverified: true, note: "Règle non publiée en ligne : 100 h par défaut, à vérifier dans le manuel de la voile." },
+    { name: "Sky", keys: ["sky", "skyparagliders", "skycz"], months: 0, hours: 100, pro: 0, unverified: true, note: "Règle actuelle non publiée en ligne (un ancien manuel imposait un contrôle à 200 h) : 100 h par défaut, à vérifier dans le manuel." },
+    { name: "Skywalk", prefix: "skywalk", months: 24, hours: 150, pro: 0, note: "150 à 200 h selon le modèle." },
+    { name: "Supair", prefix: "supair", months: 24, hours: 100, pro: 0, note: "" },
+    { name: "UP", keys: ["up", "upparagliders", "upinternational"], months: 24, hours: 100, pro: 12, unverified: true, note: "2 ans, plus souvent en usage commercial. Plafond d'heures non précisé : 100 h par défaut. Performance Check conseillé au-delà de 80 h." }
+  ];
+  // Règle constructeur applicable à une voile (null pour les autres types ou une marque inconnue).
+  // keys = noms exacts reconnus ; prefix = début de nom reconnu (« Gin Gliders », « Flow Paragliders »…).
+  function brandRevisionRule(type, brand, subtype) {
+    if (type !== "Voile") return null;
+    const k = brandKey(brand);
+    if (!k) return null;
+    const rule = BRAND_REVISION_RULES.find(r => (r.keys && r.keys.includes(k)) || (r.prefix && k.startsWith(r.prefix)));
+    if (!rule) return null;
+    const light = !!rule.lightHours && /\blight\b/.test(searchNormalize(String(subtype || "")));
+    return { rule, hours: light ? rule.lightHours : rule.hours, light };
+  }
+  // Heures par défaut : celles du constructeur de la voile, sinon 100 h (voile / sellette) ou
+  // aucune (secours). Mois par défaut : 12, car le matériel de prêt est en usage intensif
+  // (contrôle annuel demandé par Nova, Phi, Advance… pour l'école et le biplace).
+  function defaultRevisionHours(type, brand, subtype) {
+    if (type === "Secours") return 0;
+    const br = brandRevisionRule(type, brand, subtype);
+    return br ? br.hours : 100;
+  }
   function revisionRules(item) {
     const num = v => (v !== undefined && v !== "" && v !== null && !isNaN(Number(v)) && Number(v) >= 0) ? Number(v) : null;
     const m = num(item && item.revisionMonths), h = num(item && item.revisionHours);
-    return { months: m === null ? 12 : m, hours: h === null ? (item && item.type === "Secours" ? 0 : 100) : h };
+    return { months: m === null ? 12 : m, hours: h === null ? defaultRevisionHours(item && item.type, item && item.brand, item && item.subtype) : h };
+  }
+  // Placeholders des champs « Révision » : affichent la valeur qui s'appliquera si le champ reste vide.
+  function refreshRevisionPlaceholders() {
+    ["newItem", "editItem"].forEach(p => {
+      const t = $(p + "Type"), b = $(p + "Brand"), st = $(p + "Subtype"), h = $(p + "RevisionHours");
+      if (!t || !h) return;
+      const type = t.value, brand = b ? canonicalBrand(b.value) : "", sub = st ? st.value : "";
+      const br = brandRevisionRule(type, brand, sub);
+      const hrs = defaultRevisionHours(type, brand, sub);
+      h.placeholder = br ? `${hrs} (${br.rule.name}${br.light ? " Light" : ""})` : (hrs ? `${hrs} par défaut` : "aucune par défaut");
+    });
+  }
+  // Tableau de référence des règles constructeurs, affiché sous les champs de révision.
+  function renderBrandRevisionRefs() {
+    const rows = BRAND_REVISION_RULES.map(r => `<tr class="border-t border-slate-100 align-top">
+      <td class="py-1 pr-2 font-bold">${esc(r.name)}${r.unverified ? ' <span class="font-normal text-amber-600">(à vérifier)</span>' : ""}</td>
+      <td class="py-1 pr-2 whitespace-nowrap">${r.months ? r.months + " mois" : "?"}</td>
+      <td class="py-1 pr-2 whitespace-nowrap">${r.hours} h${r.unverified && !r.months ? " *" : ""}${r.lightHours ? ` (Light ${r.lightHours} h)` : ""}</td>
+      <td class="py-1 pr-2 whitespace-nowrap">${r.pro ? r.pro + " mois" : "—"}</td>
+      <td class="py-1 text-slate-500">${esc(r.note)}</td></tr>`).join("");
+    const html = `<div class="overflow-x-auto"><table class="w-full text-[10px] text-left">
+      <thead><tr class="text-slate-400 uppercase"><th class="pr-2">Marque</th><th class="pr-2">Privé</th><th class="pr-2">Plafond</th><th class="pr-2">École / biplace</th><th>Remarques</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      <p class="text-[10px] text-slate-400 mt-1">Au premier des deux termes atteint. Pour une voile, l'appli prend les heures du constructeur et 12 mois (matériel de prêt = usage intensif). Le manuel et l'étiquette de la voile font foi : renseignez les champs ci-dessus s'ils diffèrent (* : valeur par défaut de l'appli, faute de règle publiée). Autres marques : 100 h. Après un incident (arbre, eau, crash), contrôle immédiat.</p>`;
+    document.querySelectorAll("[data-brand-rev-ref]").forEach(el => { el.innerHTML = html; });
   }
 
   function computeNextRevisionInfo(item) {
@@ -2432,7 +2516,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
   // Admin / gestionnaire peuvent corriger le paiement d'un prêt en cours (ex. « À payer » devenu « Payé »).
   function paymentControl(it) {
-    const amount = it && it.payment === "À payer" ? reservationTariffAmount(itemLoanType(it), it.type) : null;
+    const amount = it && it.payment === "À payer" ? reservationTariffAmount(itemLoanType(it), it.type, it) : null;
     if (currentRole !== "admin" && currentRole !== "manager") return paymentBadge(it, amount);
     return `<select onchange="setLoanPayment('${esc(String(it.id)).replace(/'/g, "&#39;")}', this.value)" class="ml-1 p-0.5 border border-slate-300 rounded text-[10px] bg-white">
       <option value=""${it.payment ? "" : " selected"}>💶 non précisé</option>
@@ -4382,6 +4466,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     sel.value = v;
   }
   async function brandSelectChanged(sel) {
+    refreshRevisionPlaceholders();
+    if (sel.id === "editItemBrand") refreshEditItemComputed();
     if (sel.value !== "__new__") return;
     sel.value = "";
     if (busy) return;
@@ -7134,6 +7220,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   function toggleLifecycleFields(typeSelectId, lifecycleContainerId, hourlyContainerId) {
     const typeSel = $(typeSelectId);
     const lifecycle = $(lifecycleContainerId);
+    refreshRevisionPlaceholders();
     const hourly = $(hourlyContainerId);
     if (!typeSel) return;
     const type = typeSel.value;
@@ -7282,7 +7369,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       lastRevisionHours: existing ? existing.lastRevisionHours : "",
       salePriceManual: $("editItemSalePriceManual") ? $("editItemSalePriceManual").value : "",
       revisionMonths: $("editItemRevisionMonths") ? $("editItemRevisionMonths").value : "",
-      revisionHours: $("editItemRevisionHours") ? $("editItemRevisionHours").value : ""
+      revisionHours: $("editItemRevisionHours") ? $("editItemRevisionHours").value : "",
+      brand: $("editItemBrand") ? canonicalBrand($("editItemBrand").value) : (existing ? existing.brand : ""),
+      subtype: $("editItemSubtype") ? $("editItemSubtype").value : (existing ? existing.subtype : "")
     };
     const computed = computeSalePrice(draft);
     const { value: price, manual } = effectiveSalePrice(draft);
@@ -7791,6 +7880,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     $("settingsLongTermRentalEnabled").checked = isLongTermRentalEnabled();
     TARIFF_CATS_ESSAI.forEach(cat => { if ($("settingsEssaiAmount_" + cat)) $("settingsEssaiAmount_" + cat).value = getSetting("essaiAmount_" + cat, "") || ""; });
     TARIFF_CATS_LOCATION.forEach(cat => { if ($("settingsLocationAmount_" + cat)) $("settingsLocationAmount_" + cat).value = getSetting("locationAmount_" + cat, "") || ""; });
+    if ($("settingsTariffDetailed")) $("settingsTariffDetailed").checked = tariffDetailedEnabled();
+    renderTariffDetailedFields();
+    toggleTariffDetailedSections();
     if ($("settingsTariffStatus")) $("settingsTariffStatus").textContent = "";
     renderBrandSettings();
     renderCategorieSettings();
@@ -7938,18 +8030,40 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     if (type === "Voile" || type === "Sellette" || type === "Secours") return type;
     return "Accessoire";
   }
+  // Case « Tarifs différents selon l'homologation de la voile et le type de sellette » (Réglages).
+  // Quand activée, une voile/sellette dont l'homologation (en) / le type particulier (subtype) a
+  // son propre montant renseigné utilise ce montant-là plutôt que le tarif Voile/Sellette général —
+  // qui reste alors la valeur par défaut pour les articles sans montant spécifique renseigné.
+  function tariffDetailedEnabled() { return getSetting("tariffDetailed", "") === "true"; }
+  // Clé de réglage pour un montant détaillé par homologation (voile) ou type particulier (sellette).
+  function tariffDetailedKey(prefix, cat, name) {
+    return `${prefix}Amount_${cat}_${cat === "Voile" ? "en" : "st"}_${colorKey(name)}`;
+  }
   // kind : la valeur de « type » d'une ligne de planning — "essai", "location", mais aussi
   // "immediat" (emprunt/prêt tiers immédiat, sans réservation préalable) et "moniteur" (prêt
   // tiers saisi par le personnel). Seule une « location » longue durée a son propre tarif ;
   // tout le reste (essai réservé, emprunt immédiat, prêt moniteur, ou absence de réservation —
   // paiement posé directement sur un prêt en cours) retombe sur le tarif « essai », car ce sont
   // dans tous les cas des prêts courts, non réservés à l'avance.
-  function reservationTariffAmount(kind, type) {
+  // ref (facultatif) : l'article concerné (appData.items[...] ou appData.stock[...]), pour aller
+  // chercher, si la case détaillée est cochée, son homologation (voile) ou son type (sellette).
+  function reservationTariffAmount(kind, type, ref) {
     const cat = tariffCategoryForType(type);
     const isLocation = kind === "location";
     if (isLocation && !TARIFF_CATS_LOCATION.includes(cat)) return null;
     if (!isLocation && !TARIFF_CATS_ESSAI.includes(cat)) return null;
-    const v = Number(getSetting(`${isLocation ? "location" : "essai"}Amount_${cat}`, ""));
+    const prefix = isLocation ? "location" : "essai";
+    if (tariffDetailedEnabled() && ref) {
+      if (cat === "Voile" && ref.en) {
+        const v1 = Number(getSetting(tariffDetailedKey(prefix, "Voile", ref.en), ""));
+        if (v1 > 0) return v1;
+      } else if (cat === "Sellette" && ref.subtype) {
+        const first = colorList(ref.subtype)[0];
+        const v2 = first ? Number(getSetting(tariffDetailedKey(prefix, "Sellette", first), "")) : 0;
+        if (v2 > 0) return v2;
+      }
+    }
+    const v = Number(getSetting(`${prefix}Amount_${cat}`, ""));
     return v > 0 ? v : null;
   }
   function formatAmount(n) {
@@ -7966,16 +8080,44 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const p = Object.values(appData.planning).find(p => p.itemId === it.id && p.status === "Réservé" && p.type === "location");
     return p ? "location" : "essai";
   }
-  // Équivalent pour une ligne de planning (réservation pas encore remise) : catégorie
-  // d'équipement, qu'il s'agisse d'un matériel suivi par numéro de série (appData.items) ou
-  // d'une référence du stock partagé réservée en quantité (ex. sellette sans S/N).
+  // Référence de l'article concerné par une ligne de planning (réservation pas encore remise) :
+  // un matériel suivi par numéro de série (appData.items) ou une référence du stock partagé
+  // réservée en quantité (ex. sellette sans S/N).
+  function reservationEquipmentRef(p) {
+    if (isStockReservationId(p.itemId)) return appData.stock[p.itemId] || null;
+    return appData.items[p.itemId] || null;
+  }
+  // Catégorie d'équipement correspondante (Voile/Sellette/Secours/… côté matériel, ou catégorie
+  // de stock pour une référence partagée).
   function reservationEquipmentType(p) {
-    if (isStockReservationId(p.itemId)) {
-      const r = appData.stock[p.itemId];
-      return r ? r.category : null;
-    }
-    const it = appData.items[p.itemId];
-    return it ? it.type : null;
+    const ref = reservationEquipmentRef(p);
+    return ref ? (ref.category || ref.type) : null;
+  }
+
+  // Construit une grille de champs « montant (€) » pour chaque nom de la liste (homologations de
+  // voile EN_CATEGORIES, ou types de sellette getSubtypeList("Sellette")) — un champ par nom, avec
+  // sa clé de réglage en attribut data-tariff-key (lue/enregistrée génériquement, sans id par champ).
+  function renderTariffDetailedGrid(gridId, prefix, cat, names) {
+    const el = $(gridId); if (!el) return;
+    el.innerHTML = names.map(name => {
+      const key = tariffDetailedKey(prefix, cat, name);
+      return `<label class="text-[11px] text-slate-500">${esc(name)} (€)<input type="number" min="0" step="0.01" placeholder="ex. 0" class="w-full p-2 border border-slate-300 rounded" data-tariff-key="${esc(key)}" value="${esc(getSetting(key, "") || "")}"></label>`;
+    }).join("");
+  }
+  function renderTariffDetailedFields() {
+    renderTariffDetailedGrid("settingsEssaiVoileEnGrid", "essai", "Voile", EN_CATEGORIES);
+    renderTariffDetailedGrid("settingsEssaiSelletteStGrid", "essai", "Sellette", getSubtypeList("Sellette"));
+    renderTariffDetailedGrid("settingsLocationVoileEnGrid", "location", "Voile", EN_CATEGORIES);
+    renderTariffDetailedGrid("settingsLocationSelletteStGrid", "location", "Sellette", getSubtypeList("Sellette"));
+  }
+  // Affiche/masque les 4 grilles détaillées selon l'état de la case — purement visuel : les
+  // montants déjà saisis restent en mémoire (et enregistrés) même si la case est ensuite décochée.
+  function toggleTariffDetailedSections() {
+    const on = $("settingsTariffDetailed") ? $("settingsTariffDetailed").checked : false;
+    show("settingsEssaiVoileEnBox", on);
+    show("settingsEssaiSelletteStBox", on);
+    show("settingsLocationVoileEnBox", on);
+    show("settingsLocationSelletteStBox", on);
   }
 
   async function saveTariffSettings() {
@@ -7984,6 +8126,9 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const reload = () => {
       TARIFF_CATS_ESSAI.forEach(cat => { if ($("settingsEssaiAmount_" + cat)) $("settingsEssaiAmount_" + cat).value = getSetting("essaiAmount_" + cat, "") || ""; });
       TARIFF_CATS_LOCATION.forEach(cat => { if ($("settingsLocationAmount_" + cat)) $("settingsLocationAmount_" + cat).value = getSetting("locationAmount_" + cat, "") || ""; });
+      if ($("settingsTariffDetailed")) $("settingsTariffDetailed").checked = tariffDetailedEnabled();
+      renderTariffDetailedFields();
+      toggleTariffDetailedSections();
     };
     if (!canUse("settings")) {
       toast("Action non autorisée.", "error");
@@ -8002,6 +8147,15 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       setSetting("locationAmount_" + cat, v);
       summary.push(`Location ${cat} : ${v || "—"} €`);
     });
+    const detailed = $("settingsTariffDetailed") ? $("settingsTariffDetailed").checked : false;
+    setSetting("tariffDetailed", detailed ? "true" : "false");
+    let detailedCount = 0;
+    document.querySelectorAll("#settingsTariffCard [data-tariff-key]").forEach(inp => {
+      const v = inp.value.trim();
+      setSetting(inp.dataset.tariffKey, v);
+      if (v) detailedCount++;
+    });
+    summary.push(detailed ? `Tarifs détaillés activés (${detailedCount} montant(s) spécifique(s))` : "Tarifs détaillés désactivés");
     addGenericHistory("Modification réglages", "Tarifs des prêts", "", "", summary.join(" · ") + ".");
     const ok = await persist(["settings", "history"]);
     toast(ok ? "Tarifs enregistrés." : "Tarifs enregistrés localement (hors ligne).");
@@ -8913,7 +9067,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // qui n'a pas encore été remise au client (bouton « 📤 Donner au client » pas encore utilisé) —
   // la même valeur est ensuite reprise automatiquement lors de la remise (voir doHandover).
   function reservationPaymentControl(p) {
-    const amount = p && p.payment === "À payer" ? reservationTariffAmount(p.type, reservationEquipmentType(p)) : null;
+    const amount = p && p.payment === "À payer" ? reservationTariffAmount(p.type, reservationEquipmentType(p), reservationEquipmentRef(p)) : null;
     if (currentRole !== "admin" && currentRole !== "manager") return paymentBadge(p, amount);
     return `<select onchange="setReservationPayment('${esc(String(p.bookingId)).replace(/'/g, "&#39;")}', this.value)" class="ml-1 p-0.5 border border-slate-300 rounded text-[10px] bg-white">
       <option value=""${p.payment ? "" : " selected"}>💶 non précisé</option>
@@ -10470,7 +10624,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-09.167";
+  const APP_VERSION = "2026-11-12.170";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -10484,6 +10638,27 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 170, title: "Liste des constructeurs mise à jour", aud: "staff", items: [
+      { icon: "🪂", t: "Règles de révision : nouvelles marques", steps: [
+        "Ajout de Flow, AirG, Plume, Level Wings, UP et Sky ; retrait de Niviuk et Phi (elles passent à la valeur générale de 100 h).",
+        "Advance et Skywalk : 150 h (Advance Light : 100 h). Gin, Nova, Ozone, Supair, Flow, UP : 100 h.",
+        "AirG, Plume, Level Wings et Sky n'ont pas de règle publiée en ligne : 100 h par défaut, marquées « à vérifier » dans le tableau. Reportez la valeur du manuel dans la fiche de la voile si elle diffère."
+      ] }
+    ] },
+    { v: 169, title: "Révisions des voiles selon le constructeur", aud: "staff", items: [
+      { icon: "🪂", t: "Seuil d'heures de révision adapté à chaque marque de voile", steps: [
+        "Pour une voile, si le champ « ou toutes les (heures de vol) » est vide, l'appli applique désormais le plafond du constructeur (tableau « 📋 Règles de révision des constructeurs »), 100 h pour les marques absentes du tableau.",
+        "L'intervalle en mois reste de 12 mois par défaut : le matériel de prêt est en usage intensif, et la plupart des constructeurs demandent alors un contrôle annuel.",
+        "Le champ montre la valeur qui s'appliquera, par exemple « 150 (Advance) ». Une valeur saisie sur l'article reste prioritaire.",
+        "Sous les champs de révision, « 📋 Règles de révision des constructeurs » ouvre le tableau de référence. Les alertes « Révisions à venir » tiennent compte de ces règles automatiquement."
+      ] }
+    ] },
+    { v: 168, title: "Tarifs par homologation de voile et type de sellette", aud: "staff", items: [
+      { icon: "🪪", t: "Réglages › 💶 Tarifs des prêts : tarifs différenciés (facultatif)", steps: [
+        "Nouvelle case à cocher « Tarifs différents selon l'homologation de la voile et le type de sellette ». Une fois cochée, un montant peut être réglé pour chaque homologation (Acro, EN A à EN D, CCC…) et chaque type de sellette (Light, Montagne, Airbag…), pour l'essai comme pour la location longue durée.",
+        "Un équipement sans montant spécifique renseigné (ou si la case est décochée) continue d'utiliser le tarif général Voile/Sellette, comme avant — rien ne change sans action de votre part."
+      ] }
+    ] },
     { v: 167, title: "Correctif : paiement d'une réservation non enregistré", aud: "staff", items: [
       { icon: "🛠️", t: "Statut de paiement d'une réservation enfin enregistré", steps: [
         "Poser Payé / À payer / Gratuit sur une réservation (planning) semblait fonctionner (message de succès) mais n'était jamais réellement conservé dans la base : la colonne correspondante n'existait pas encore dans cet onglet. Corrigé — elle est créée automatiquement, sans rien à faire de votre côté."
@@ -11563,6 +11738,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   togglePTVFields("newItemType", "newItemPTVField");
   refreshSubtypeField("newItemType", "newItemSubtype");
   switchUserMode("item");
+  renderBrandRevisionRefs();
+  refreshRevisionPlaceholders();
+  document.addEventListener("input", e => {
+    const id = e.target && e.target.id;
+    if (id === "newItemSubtype" || id === "editItemSubtype") { refreshRevisionPlaceholders(); if (id === "editItemSubtype") refreshEditItemComputed(); }
+  });
   restoreSession();
   fetchCloudData();
   openInviteFromLink();
