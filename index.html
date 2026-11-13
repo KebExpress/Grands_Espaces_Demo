@@ -615,7 +615,12 @@
       </div>
 
       <div id="adminPlanningPage" hidden class="space-y-3">
-        <div class="bg-white border border-slate-200 rounded-xl p-3">
+        <div id="planningCalendarCard" class="bg-white border border-slate-200 rounded-xl p-3">
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="font-bold text-sm">📅 Calendrier mensuel</h4>
+            <button type="button" onclick="togglePanel('planningCalendarCard')" id="panelToggle-planningCalendarCard" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">▾</button>
+          </div>
+          <div id="panelBody-planningCalendarCard">
           <div class="flex items-center justify-between mb-2">
             <button onclick="planningCalendarShift(-1)" class="px-2 py-1 border border-slate-300 rounded text-xs">◀</button>
             <p id="planningCalendarTitle" class="font-bold text-sm"></p>
@@ -627,6 +632,7 @@
           <div id="planningCalendarLegend"></div>
           <h5 class="text-xs font-bold text-slate-600 mt-3 mb-1">📋 Réservations à venir — ce qui n'est pas prêtable</h5>
           <div id="planningCalendarUpcoming" class="space-y-1 text-xs max-h-72 overflow-y-auto"></div>
+          </div>
         </div>
         <div id="planningList" class="space-y-2 text-xs"></div>
       </div>
@@ -2208,7 +2214,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // ▾/▸ replie/déplie le corps de l'encart, et l'état choisi est mémorisé (localStorage) pour
   // rester replié après un changement d'onglet ou un rafraîchissement des données.
   function panelCollapsed(id) {
-    try { return localStorage.getItem("panelCollapsed:" + id) === "1"; } catch (e) { return false; }
+    // Repliés par défaut (pas de choix explicite enregistré) : seul un choix explicite — l'un ou
+    // l'autre sens — est mémorisé, pour ne garder visible que l'essentiel à l'ouverture de chaque
+    // onglet.
+    try { const v = localStorage.getItem("panelCollapsed:" + id); return v === null ? true : v === "1"; } catch (e) { return true; }
   }
   function setPanelCollapsed(id, collapsed) {
     try { localStorage.setItem("panelCollapsed:" + id, collapsed ? "1" : "0"); } catch (e) { /* mode privé */ }
@@ -2250,6 +2259,62 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
   function panelToggleBtnState(id, collapsed) {
     return `<button type="button" onclick="togglePanel('${id}')" id="panelToggle-${id}" title="Réduire / déplier" class="px-2 py-0.5 border border-slate-300 rounded text-slate-500 hover:bg-slate-50 shrink-0">${collapsed ? "▸" : "▾"}</button>`;
+  }
+
+  // Repère une "sous-fenêtre" secondaire : un encart blanc à bordure arrondie (formulaire de
+  // création, réglage, calendrier, statistiques…). Les listes principales de chaque onglet
+  // (clients, articles, stock, historique…) ne portent pas cette classe et restent donc toujours
+  // visibles — seules les sous-fenêtres sont concernées par le repli automatique.
+  function isCardShell(el) {
+    return el.tagName === "DIV" && el.classList.contains("bg-white") && el.classList.contains("rounded-xl") && el.classList.contains("border");
+  }
+  let autoCardSeq = 1;
+  // Ajoute automatiquement un bouton ▾/▸ à chaque sous-fenêtre de chaque onglet qui n'en a pas déjà
+  // un câblé à la main, repliée par défaut (voir panelCollapsed). Idempotent (dataset.panelWired) :
+  // peut être rappelée à chaque renderAdmin() sans dupliquer les en-têtes déjà construits.
+  function autoWireCollapsibleCards() {
+    const roots = ["adminAlertsPage", "adminStockPage", "adminFinancesPage", "adminArchivesPage", "adminItemsPage",
+      "adminClientsPage", "adminUsersPage", "adminPlanningPage", "adminHistoryPage", "adminLongTermPage", "adminSettingsPage"];
+    roots.forEach(rootId => {
+      const root = $(rootId);
+      if (!root) return;
+      Array.from(root.querySelectorAll("div")).filter(isCardShell).forEach(card => {
+        if (card.dataset.panelWired) return;
+        // Une sous-fenêtre imbriquée dans une autre déjà retenue n'est pas traitée séparément :
+        // seul le niveau externe de chaque encart est repliable.
+        let p = card.parentElement, nested = false;
+        while (p && p !== root) { if (isCardShell(p)) { nested = true; break; } p = p.parentElement; }
+        if (nested) return;
+        card.dataset.panelWired = "1";
+        wireCardPanel(card);
+      });
+    });
+  }
+  function wireCardPanel(card) {
+    // Déjà câblée à la main dans le HTML d'origine (un panelBody-<id> existe déjà à l'intérieur) :
+    // on applique seulement l'état mémorisé (désormais replié par défaut).
+    const existingBody = card.querySelector('[id^="panelBody-"]');
+    if (existingBody) { applyPanelState(existingBody.id.slice("panelBody-".length)); return; }
+    if (!card.id) card.id = "autoCard" + (autoCardSeq++);
+    const id = card.id;
+    let titleEl = card.querySelector(":scope > h4, :scope > h3");
+    if (!titleEl) titleEl = Array.from(card.children).find(c => c.tagName === "P" && c.classList.contains("font-bold"));
+    const header = document.createElement("div");
+    header.className = "flex items-center justify-between gap-2";
+    if (titleEl) header.appendChild(titleEl);
+    else { const h = document.createElement("h4"); h.className = "font-bold text-sm"; h.textContent = "Détails"; header.appendChild(h); }
+    header.appendChild(htmlToNode(panelToggleBtn(id)));
+    const body = document.createElement("div");
+    body.id = "panelBody-" + id;
+    Array.from(card.childNodes).forEach(node => body.appendChild(node));
+    card.appendChild(header);
+    card.appendChild(body);
+    applyPanelState(id);
+  }
+  function htmlToNode(html) {
+    const t = document.createElement("template");
+    t.innerHTML = html.trim();
+    return t.content.firstChild;
   }
 
   function esc(v) {
@@ -6044,6 +6109,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   }
 
   function renderAdmin() {
+    autoWireCollapsibleCards();
     renderAlerts();
     renderItems();
     renderPacks();
@@ -11619,7 +11685,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-12.173";
+  const APP_VERSION = "2026-11-13.174";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -11633,6 +11699,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 174, title: "Toutes les sous-fenêtres des onglets sont désormais repliables (et repliées par défaut)", aud: "staff", items: [
+      { icon: "▾", t: "Un bouton ▾/▸ sur chaque formulaire, réglage, calendrier ou encart secondaire", steps: [
+        "Dans tous les onglets (Alertes, Matériel, Stock, Clients, Personnel, Planning, Historique, Finances, Archives, Location longue durée, Réglages), chaque sous-fenêtre — formulaire de création, réglage, calendrier, statistiques — a maintenant un bouton ▾/▸ pour la réduire ou la déplier.",
+        "Elles s'affichent toutes repliées à l'ouverture, pour ne garder visible que l'essentiel : les grandes listes (clients, articles, stock, historique, planning…) restent elles toujours affichées en entier, seules les sous-fenêtres secondaires sont concernées.",
+        "Le choix fait pour chaque sous-fenêtre (repliée ou dépliée) est mémorisé sur l'appareil et reste valable après un changement d'onglet ou un rechargement de la page."
+      ] }
+    ] },
     { v: 173, title: "Packs complets (voile+sellette+secours+casque) pour abonnements et forfaits", aud: "staff", items: [
       { icon: "⛑️", t: "Les packs peuvent maintenant inclure un casque", steps: [
         "Dans Matériel › Packs, un 4e emplacement « Casque » complète voile/sellette/secours. Le casque est choisi parmi les références de stock existantes (il n'est jamais numéroté individuellement, comme le reste du stock de casques)."
