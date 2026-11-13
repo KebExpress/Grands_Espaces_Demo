@@ -2034,7 +2034,7 @@
   // Ces listes sont l'ordre de colonnes attendu ; si le tableur diffère,
   // l'ordre réel relevé à la lecture fait foi (voir buildRows).
   const SHEET_FIELDS = {
-    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt", "rev"],
+    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "poids", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt", "rev"],
     users:   ["id", "name", "username", "password", "role", "email", "blocked", "protected"],
     clients: ["id", "name", "email", "phone", "address", "postalCode", "city", "country", "createdAt", "blocked"],
     history: ["id", "date", "action", "itemId", "itemLabel", "person", "email", "note"],
@@ -2050,7 +2050,7 @@
     // le casque n'est jamais un article suivi individuellement, voir STOCK_CATS) ;
     // l'accessoire (checkbox client) reste toujours au libre choix, donc jamais fixé ici.
     packs: ["id", "name", "description", "voileId", "selletteId", "secoursId", "casqueId", "createdAt"],
-    stock: ["id", "category", "brand", "model", "size", "color", "shelf", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic", "subtype"],
+    stock: ["id", "category", "brand", "model", "size", "color", "shelf", "poids", "qty", "loans", "min", "note", "createdAt", "priceHT", "priceTTC", "pricePublic", "subtype"],
     // Location longue durée (abonnement mensuel) : un contrat par matériel assigné à un client
     // sur une période prolongée, distinct du planning (essai / prêt / location courte).
     // packId : renseigné à la place d'itemId/itemType quand le contrat porte sur un pack
@@ -2073,10 +2073,10 @@
   // dans le tableur. Sur un onglet vide, doGet ne renvoie aucun en-tête ;
   // écrire une colonne de trop ferait sortir doPost de la plage de la feuille.
   const OPTIONAL_COLUMNS = {
-    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt", "rev"],
+    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "poids", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt", "rev"],
     users: ["blocked", "protected"],
     clients: ["address", "postalCode", "city", "country", "blocked"],
-    stock: ["priceHT", "priceTTC", "pricePublic", "subtype"],
+    stock: ["poids", "priceHT", "priceTTC", "pricePublic", "subtype"],
     archives: ["destination"],
     // Colonne ajoutée après coup (voir Code.gs, AUTO_SHEETS) : absente des tableurs déjà en
     // place tant qu'une lecture n'a pas eu lieu depuis la mise à jour du serveur.
