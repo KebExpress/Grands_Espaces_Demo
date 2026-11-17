@@ -960,6 +960,13 @@
               <textarea id="settingsAdminAlertBody" rows="3" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
             </div>
             <div>
+              <label for="settingsConflictReminderSubject" class="block text-xs font-bold text-slate-600">Objet — rappel réservation en conflit (1 h avant)</label>
+              <input type="text" id="settingsConflictReminderSubject" class="w-full p-2 border border-slate-300 rounded text-xs">
+              <label for="settingsConflictReminderBody" class="block text-xs font-bold text-slate-600 mt-1">Corps</label>
+              <textarea id="settingsConflictReminderBody" rows="3" class="w-full p-2 border border-slate-300 rounded text-xs font-mono"></textarea>
+              <p class="text-[10px] text-slate-400 mt-0.5">Envoyé automatiquement à l'emprunteur une heure avant le début d'une réservation client avec laquelle son emprunt est en conflit (voir « Emprunter malgré tout » dans l'onglet Matériel/Prêt tiers).</p>
+            </div>
+            <div>
               <label for="settingsBookingSubject" class="block text-xs font-bold text-slate-600">Objet — confirmation de réservation</label>
               <input type="text" id="settingsBookingSubject" class="w-full p-2 border border-slate-300 rounded text-xs">
               <label for="settingsBookingBody" class="block text-xs font-bold text-slate-600 mt-1">Corps</label>
@@ -1111,6 +1118,21 @@
         <button onclick="scanBorrowChoiceThirdParty()" class="w-full px-4 py-2 border border-purple-300 text-purple-700 rounded text-xs">🎯 Pour une autre personne</button>
       </div>
       <button onclick="closeModal('scanBorrowChoiceModal')" class="w-full px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+    </div>
+  </div>
+
+  <!-- MODAL : avertissement avant d'emprunter un matériel déjà réservé plus tard (personnel ET
+       client en libre-service, voir confirmBorrowDespiteUpcomingReservation) — fenêtre maison en
+       rouge plutôt qu'une boîte de dialogue navigateur, pour que l'alerte soit visuellement nette
+       quel que soit le parcours. -->
+  <div id="conflictWarningModal" hidden class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl border-2 border-rose-600">
+      <h3 class="font-bold text-lg text-rose-600">⚠ Matériel déjà réservé</h3>
+      <p id="conflictWarningMessage" class="text-sm text-rose-600 font-bold whitespace-pre-line"></p>
+      <div class="flex justify-end gap-2 pt-1">
+        <button onclick="conflictWarningRespond(false)" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+        <button onclick="conflictWarningRespond(true)" class="px-4 py-2 bg-rose-600 text-white font-bold rounded text-xs">Emprunter malgré tout</button>
+      </div>
     </div>
   </div>
 
@@ -2034,7 +2056,7 @@
   // Ces listes sont l'ordre de colonnes attendu ; si le tableur diffère,
   // l'ordre réel relevé à la lecture fait foi (voir buildRows).
   const SHEET_FIELDS = {
-    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "poids", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt", "rev"],
+    items:   ["id", "shelf", "type", "brand", "model", "sn", "en", "ptvMin", "ptvMax", "hours", "flights", "status", "borrowerName", "borrowerEmail", "borrowedAt", "overdueAlerted", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "poids", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt", "conflictDueAt", "conflictAlerted", "rev"],
     users:   ["id", "name", "username", "password", "role", "email", "blocked", "protected"],
     clients: ["id", "name", "email", "phone", "address", "postalCode", "city", "country", "createdAt", "blocked"],
     history: ["id", "date", "action", "itemId", "itemLabel", "person", "email", "note"],
@@ -2073,7 +2095,7 @@
   // dans le tableur. Sur un onglet vide, doGet ne renvoie aucun en-tête ;
   // écrire une colonne de trop ferait sortir doPost de la plage de la feuille.
   const OPTIONAL_COLUMNS = {
-    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "poids", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt", "rev"],
+    items: ["borrowedAt", "en", "overdueAlerted", "ptvMin", "ptvMax", "dateMiseEnService", "couleur", "prixAchat", "prixHeureVol", "taille", "poids", "coefVente", "lastRevisionDate", "lastRevisionHours", "unavailableNote", "pretConstructeur", "loanKind", "salePriceManual", "pairedSecoursId", "categorie", "revisionMonths", "revisionHours", "payment", "subtype", "dueAt", "conflictDueAt", "conflictAlerted", "rev"],
     users: ["blocked", "protected"],
     clients: ["address", "postalCode", "city", "country", "blocked"],
     stock: ["poids", "priceHT", "priceTTC", "pricePublic", "subtype"],
@@ -2164,6 +2186,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     overdueBody: "Bonjour {name},\n\nLe délai de {threshold} heures est dépassé pour {item}, emprunté le {borrowedAt}.\nMerci de le restituer au plus vite.",
     adminAlertSubject: "Alerte retard - {item}",
     adminAlertBody: "{name} ({email}) n'a pas restitué {item} depuis plus de {threshold} heures (emprunté le {borrowedAt}).",
+    conflictReminderSubject: "Rappel : matériel réservé à restituer - {item}",
+    conflictReminderBody: "Bonjour {name},\n\nLe matériel suivant a été emprunté alors qu'une réservation client existait déjà pour la même période. Merci de le restituer avant {dueAt} (début de cette réservation) :\n{item}\n\nMerci de le restituer à temps pour ne pas pénaliser le client qui l'attend.",
     bookingSubject: "Confirmation de réservation - {type}",
     bookingBody: "Bonjour {name},\n\nVotre réservation ({type}) est confirmée.\n\nMatériel réservé :\n{items}\n\nDébut : {start}\nÀ restituer le : {end}\n\n--- Contrat de prêt ---\n{contract}",
     newAccountSubject: "Votre compte {role} - {name}",
@@ -2872,11 +2896,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   const MAIL_KIND_ENABLE_KEYS = {
     pickup: "mailEnablePickup", "return": "mailEnableReturn", reminder: "mailEnableReminder",
     overdueClient: "mailEnableOverdueClient", overdueAdmin: "mailEnableAdminAlert",
+    conflictReminder: "mailEnableConflictReminder",
     booking: "mailEnableBooking", newAccount: "mailEnableNewAccount"
   };
   const MAIL_KIND_TOGGLE_LABELS = {
     pickup: "Prise de matériel", "return": "Restitution", reminder: "Rappel manuel (bouton « Envoyer un rappel » dans Alertes)",
     overdueClient: "Rappel client en cas de retard (automatique)", overdueAdmin: "Alerte administrateur en cas de retard (automatique)",
+    conflictReminder: "Rappel automatique 1 h avant une réservation en conflit (matériel emprunté malgré une réservation à venir)",
     booking: "Confirmation de réservation", newAccount: "Nouveau compte (moniteur/gestionnaire/administrateur)"
   };
   function mailKindEnabled(kind) {
@@ -5005,6 +5031,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       toast("Une voile Acro / Speed / Parakite est réservée aux personnes habilitées.", "error");
       return;
     }
+    // Avertissement (même fenêtre rouge que pour le personnel) si l'un de ces matériels a déjà
+    // une réservation à venir : le client peut tout de même emprunter, mais est prévenu avant de
+    // valider, pas seulement le personnel via le rappel automatique.
+    if (!await confirmBorrowDespiteUpcomingReservation(ids)) return;
 
     const thresholdHours = getMailSettings().thresholdHours;
     const dueAt = new Date(new Date(stamp).getTime() + thresholdHours * 3600000).toISOString();
@@ -5019,6 +5049,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       it.loanKind = "";
       it.payment = "";
       it.dueAt = "";
+      // Réservation à venir sur ce matériel : déjà confirmée (voir confirmBorrowDespiteUpcomingReservation
+      // ci-dessus) — on mémorise simplement son échéance pour le rappel automatique une heure avant
+      // (voir checkUpcomingConflictsClientSide).
+      const upcomingConflict = nextUpcomingReservation(id);
+      it.conflictDueAt = upcomingConflict ? upcomingConflict.start : "";
+      it.conflictAlerted = "";
       addHistory("Prêt", it, name, email, "");
 
       // Bloque ce matériel dans le système de planning pendant la durée du
@@ -5152,6 +5188,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     it.loanKind = "";
     it.payment = "";
     it.dueAt = "";
+    it.conflictDueAt = ""; it.conflictAlerted = "";
     addHistory("Restitution", it, borrower, borrowerEmail, note);
     // Libère le créneau de planning de l'emprunt immédiat correspondant.
     closePlanningForReturnedItem(id);
@@ -5233,12 +5270,13 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // Demande au moniteur le motif de l'emprunt (test personnel ou stage) avant de finaliser —
   // cette question ne concerne que le rôle moniteur ; admin/gestionnaire emprunte directement.
   let pendingInstructorBorrowId = null;
-  function instructorBorrowItem(id) {
+  async function instructorBorrowItem(id) {
     if (busy) return;
     if (!canSelfLoan()) { toast("Action non autorisée.", "error"); return; }
     const it = appData.items[id];
     if (!it || it.status !== "Disponible") { toast("Ce matériel n'est plus disponible.", "error"); renderAll(); return; }
     if (restrictedIdsBlocked([id]).length) { toast("Cette voile est réservée aux personnes habilitées.", "error"); return; }
+    if (!await confirmBorrowDespiteUpcomingReservation(id)) return;
 
     if (currentRole === "instructor") {
       pendingInstructorBorrowId = id;
@@ -5278,6 +5316,12 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     it.loanKind = "moniteur";
     it.payment = "Gratuit";
     it.dueAt = "";
+    // Réservation à venir sur ce matériel : déjà confirmée (voir confirmBorrowDespiteUpcomingReservation,
+    // appelé par instructorBorrowItem avant d'arriver ici) — on mémorise simplement son échéance pour
+    // le rappel automatique une heure avant (voir checkUpcomingConflictsClientSide).
+    const upcomingConflict = nextUpcomingReservation(id);
+    it.conflictDueAt = upcomingConflict ? upcomingConflict.start : "";
+    it.conflictAlerted = "";
     const purposeLabel = purpose === "stage" ? "Stage" : purpose === "test" ? "Test" : purpose === "personnel" ? "Personnel" : "";
     const baseNote = currentRole === "instructor" ? "Emprunt libre par un moniteur" : `Emprunt personnel (${roleLabel(currentRole)})`;
     addHistory("Emprunt moniteur", it, name, email, purposeLabel ? `${baseNote} · Motif : ${purposeLabel}` : baseNote);
@@ -6022,12 +6066,19 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       return;
     }
 
+    // Remise immédiate (pas une réservation pour plus tard, voir ci-dessus) : avertir si ce
+    // matériel a une réservation à venir, avant de le marquer « Loué ».
+    if (!await confirmBorrowDespiteUpcomingReservation(thirdPartyBorrowItemId)) return;
+    const upcomingConflict = nextUpcomingReservation(thirdPartyBorrowItemId);
+
     it.status = "Loué";
     it.borrowerName = name;
     it.borrowerEmail = email;
     it.borrowedAt = stamp;
     it.dueAt = isDefaultWindow ? "" : openEnd;
     it.loanKind = "moniteur";
+    it.conflictDueAt = upcomingConflict ? upcomingConflict.start : "";
+    it.conflictAlerted = "";
     // Un moniteur prête toujours gratuitement ; administrateur et gestionnaire choisissent.
     it.payment = currentRole === "instructor" ? "Gratuit" : (["Payé", "À payer", "Gratuit"].includes($("thirdPartyPayment") && $("thirdPartyPayment").value) ? $("thirdPartyPayment").value : "Gratuit");
     addHistory("Emprunt moniteur", it, name, email, `Prêt pour un tiers, effectué par ${currentUser ? currentUser.name : roleLabel(currentRole)} · Paiement : ${it.payment}`);
@@ -6309,7 +6360,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
           </div>
         </div>
         <ul class="space-y-0.5 text-slate-600">
-          ${list.map(i => `<li>• ${esc(itemLabel(i))} <span class="text-slate-400">(${esc(i.sn || "sans S/N")})</span> ${paymentControl(i)}</li>`).join("")}
+          ${list.map(i => `<li>• ${esc(itemLabel(i))} <span class="text-slate-400">(${esc(i.sn || "sans S/N")})</span> ${paymentControl(i)}
+            ${i.conflictDueAt ? `<br><span class="text-rose-600 font-bold text-[11px]">⚠ réservé à partir du ${esc(formatBookingDateTime(i.conflictDueAt))} — à restituer avant</span>` : ""}</li>`).join("")}
         </ul>
         ${isStaffViewer() ? reminderBlock(list) : ""}
         <button onclick="openReturnModal(${esc(JSON.stringify(ids))})" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 rounded">Enregistrer la restitution</button>
@@ -8425,6 +8477,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     $("settingsOverdueBody").value = m.overdueBody;
     $("settingsAdminAlertSubject").value = m.adminAlertSubject;
     $("settingsAdminAlertBody").value = m.adminAlertBody;
+    $("settingsConflictReminderSubject").value = m.conflictReminderSubject;
+    $("settingsConflictReminderBody").value = m.conflictReminderBody;
     $("settingsBookingSubject").value = m.bookingSubject;
     $("settingsBookingBody").value = m.bookingBody;
     $("settingsNewAccountSubject").value = m.newAccountSubject;
@@ -9288,6 +9342,8 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     setSetting("overdueBody", $("settingsOverdueBody").value);
     setSetting("adminAlertSubject", $("settingsAdminAlertSubject").value);
     setSetting("adminAlertBody", $("settingsAdminAlertBody").value);
+    setSetting("conflictReminderSubject", $("settingsConflictReminderSubject").value);
+    setSetting("conflictReminderBody", $("settingsConflictReminderBody").value);
     setSetting("bookingSubject", $("settingsBookingSubject").value);
     setSetting("bookingBody", $("settingsBookingBody").value);
     setSetting("newAccountSubject", $("settingsNewAccountSubject").value);
@@ -9345,6 +9401,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     else if (kind === "reminder") { subject = m.reminderSubject; body = m.reminderBody; }
     else if (kind === "overdueClient") { subject = m.overdueSubject; body = m.overdueBody; }
     else if (kind === "overdueAdmin") { subject = m.adminAlertSubject; body = m.adminAlertBody; }
+    else if (kind === "conflictReminder") { subject = m.conflictReminderSubject; body = m.conflictReminderBody; }
     else if (kind === "booking") { subject = m.bookingSubject; body = m.bookingBody; }
     else if (kind === "newAccount") { subject = m.newAccountSubject; body = m.newAccountBody; }
     else return;
@@ -9428,7 +9485,34 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     renderAlerts();
   }
 
+  // Repli côté navigateur (même principe que checkOverdueRentalsClientSide ci-dessus) pour le
+  // rappel « réservation en conflit » : un matériel emprunté malgré une réservation client à venir
+  // (voir confirmBorrowDespiteUpcomingReservation) porte son échéance dans conflictDueAt. Une heure
+  // avant celle-ci, un email est envoyé à l'emprunteur (une seule fois, conflictAlerted empêche la
+  // répétition). Le déclencheur Apps Script (checkOverdueRentals côté serveur) fait la même chose
+  // même si personne n'a la page ouverte.
+  function hasBeenConflictAlerted(v) { return v === true || String(v || "").trim().toLowerCase() === "true" || !!(v && new Date(v).getTime()); }
+  async function checkUpcomingConflictsClientSide() {
+    if (currentRole !== "admin" || !online) return;
+    const now = Date.now();
+    const due = Object.values(appData.items).filter(i =>
+      i.status === "Loué" && i.conflictDueAt && !hasBeenConflictAlerted(i.conflictAlerted) &&
+      (new Date(i.conflictDueAt).getTime() - now) / 3600000 <= 1
+    );
+    if (!due.length) return;
+
+    for (const item of due) {
+      const vars = { name: item.borrowerName, email: item.borrowerEmail, item: itemLabel(item),
+        dueAt: formatBookingDateTime(item.conflictDueAt) };
+      await sendTransactionalMail("conflictReminder", vars);
+      item.conflictAlerted = new Date().toISOString();
+    }
+    await persist(["items"]);
+    renderAlerts();
+  }
+
   setInterval(checkOverdueRentalsClientSide, 5 * 60 * 1000);
+  setInterval(checkUpcomingConflictsClientSide, 5 * 60 * 1000);
 
   /* ------------------------------------------------------------------ */
   /*  RAFRAÎCHISSEMENT AUTOMATIQUE (toutes les 5 secondes)               */
@@ -9750,6 +9834,62 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       p.status === "Réservé" &&
       intervalsOverlap(start, end, new Date(p.start).getTime(), new Date(p.end).getTime())
     );
+  }
+
+  // Réservation future la plus proche sur ce matériel (pas encore commencée) : contrairement à
+  // planningConflictsForItem (qui compare à un créneau précis, utilisé par l'assistant de
+  // réservation), un emprunt immédiat n'a pas de date de fin connue à l'avance — on regarde donc
+  // simplement s'il existe une réservation « Réservé » qui commence après maintenant, quelle que
+  // soit son échéance. Utilisée pour avertir avant un emprunt immédiat (scan, emprunt libre,
+  // prêt tiers) qui risquerait de rendre ce matériel indisponible au moment prévu, et pour
+  // programmer le rappel automatique une heure avant cette échéance (voir
+  // checkUpcomingConflictsClientSide et conflictDueAt/conflictAlerted sur l'article).
+  function nextUpcomingReservation(itemId) {
+    const now = Date.now();
+    return Object.values(appData.planning)
+      .filter(p => p.itemId === itemId && p.status === "Réservé" && new Date(p.start).getTime() > now)
+      .sort((a, b) => new Date(a.start) - new Date(b.start))[0] || null;
+  }
+
+  // Fenêtre maison (rouge) remplaçant la boîte de dialogue navigateur pour l'avertissement de
+  // conflit : contrairement à confirm(), elle ne peut pas être stylée, et le constat doit sauter
+  // aux yeux pour le personnel comme pour le client en libre-service. Résolution différée via une
+  // Promise, le clic sur l'un des deux boutons (voir markup "conflictWarningModal") appelant
+  // conflictWarningRespond(true|false).
+  let pendingConflictWarningResolve = null;
+  function openConflictWarningModal(message) {
+    return new Promise(resolve => {
+      $("conflictWarningMessage").textContent = message;
+      pendingConflictWarningResolve = resolve;
+      openModal("conflictWarningModal");
+    });
+  }
+  function conflictWarningRespond(ok) {
+    closeModal("conflictWarningModal");
+    const resolve = pendingConflictWarningResolve;
+    pendingConflictWarningResolve = null;
+    if (resolve) resolve(ok);
+  }
+
+  // Avertit (personnel OU client en libre-service) avant un emprunt immédiat si un ou plusieurs
+  // de ces matériels ont une réservation à venir — renvoie false (et annule l'emprunt) si la
+  // personne décline. Si elle confirme malgré tout, l'appelant mémorise l'échéance de chaque
+  // réservation sur l'article concerné (voir conflictDueAt) pour le rappel automatique une heure
+  // avant. Accepte un identifiant unique ou un tableau (un client en libre-service peut emprunter
+  // plusieurs articles à la fois, voir confirmAndSubmitBorrow).
+  async function confirmBorrowDespiteUpcomingReservation(itemIds) {
+    const ids = Array.isArray(itemIds) ? itemIds : [itemIds];
+    const conflicts = ids
+      .map(id => ({ id, conflict: nextUpcomingReservation(id) }))
+      .filter(c => c.conflict);
+    if (!conflicts.length) return true;
+    const lines = conflicts.map(c => {
+      const when = formatBookingDateTime(c.conflict.start);
+      const label = itemLabel(appData.items[c.id]);
+      return `${label} : réservé à partir du ${when} pour ${c.conflict.clientName || "un client"}.`;
+    });
+    const message = `⚠ ${conflicts.length > 1 ? "Ces matériels sont" : "Ce matériel est"} déjà réservé(s) :\n\n${lines.join("\n")}\n\nL'emprunter maintenant risque de le rendre indisponible à ce moment-là.\n\nEmprunter malgré tout ?`;
+    return await openConflictWarningModal(message);
   }
 
   // Sellette du stock partagé (non suivie individuellement, pas de numéro de série) réservable
@@ -10929,6 +11069,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       it.status = "Disponible";
       it.borrowerName = ""; it.borrowerEmail = ""; it.borrowedAt = "";
       it.overdueAlerted = false; it.loanKind = ""; it.payment = ""; it.dueAt = "";
+      it.conflictDueAt = ""; it.conflictAlerted = "";
       addHistory("Annulation", it, borrower, borrowerEmail, "Prêt annulé avec la réservation (aucun vol/heure comptabilisé).");
       closePlanningForReturnedItem(id);
     });
@@ -11685,7 +11826,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-13.174";
+  const APP_VERSION = "2026-11-17.175";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -11699,6 +11840,17 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 175, title: "Avertissement en rouge avant d'emprunter un matériel déjà réservé, et rappel automatique 1 h avant", aud: "all", items: [
+      { icon: "⚠", t: "Un avertissement en rouge avant d'emprunter un matériel réservé plus tard", steps: [
+        "Au scan d'une voile, à un emprunt libre par un moniteur, à un prêt pour un tiers avec remise immédiate, ou lors d'un emprunt en libre-service par un client : si ce matériel a déjà une réservation à venir (créée dans Planning), une fenêtre rouge prévient avant de valider l'emprunt, en précisant l'heure de la réservation et le nom du client concerné.",
+        "Il faut confirmer pour emprunter malgré tout (par exemple pour un vol très court) ; en cas d'annulation, l'emprunt n'a pas lieu."
+      ] },
+      { icon: "⏰", t: "Un rappel automatique envoyé 1 h avant la réservation en conflit", steps: [
+        "Si le matériel est emprunté malgré l'avertissement (ou lors d'un emprunt client), un email de rappel est envoyé automatiquement à l'emprunteur une heure avant le début de la réservation suivante, pour l'inciter à restituer à temps.",
+        "Ce rappel fonctionne même si personne n'a l'application ouverte dans son navigateur : il est envoyé par le même mécanisme que les alertes de retard.",
+        "Le sujet et le texte de ce rappel se personnalisent dans Réglages › Modèles de mail, comme les autres types de mail."
+      ] }
+    ] },
     { v: 174, title: "Toutes les sous-fenêtres des onglets sont désormais repliables (et repliées par défaut)", aud: "staff", items: [
       { icon: "▾", t: "Un bouton ▾/▸ sur chaque formulaire, réglage, calendrier ou encart secondaire", steps: [
         "Dans tous les onglets (Alertes, Matériel, Stock, Clients, Personnel, Planning, Historique, Finances, Archives, Location longue durée, Réglages), chaque sous-fenêtre — formulaire de création, réglage, calendrier, statistiques — a maintenant un bouton ▾/▸ pour la réduire ou la déplier.",
