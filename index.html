@@ -1992,8 +1992,11 @@
   <!-- MODAL : impression groupée des QR codes (A4, 4 par ligne × 6 lignes) -->
   <div id="qrPrintModal" hidden class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="backdropClose(event, 'qrPrintModal')">
     <div class="bg-white w-full max-w-lg rounded-xl p-5 space-y-3 shadow-xl max-h-[92vh] flex flex-col">
-      <h3 class="font-bold text-lg">🖨️ Imprimer les QR codes</h3>
-      <p class="text-[11px] text-slate-500">Feuille A4 : 4 QR codes par ligne, 6 lignes (24 par page). Décochez ce que vous ne voulez pas imprimer.</p>
+      <div class="flex items-start justify-between gap-2">
+        <h3 class="font-bold text-lg">🖨️ Imprimer les QR codes</h3>
+        <button onclick="openLabelFormatModal()" title="Réglages du format d'étiquette" class="px-2 py-1 border border-slate-300 rounded text-xs whitespace-nowrap">⚙️ Format</button>
+      </div>
+      <p id="qrPrintFormatInfo" class="text-[11px] text-slate-500"></p>
       <div class="grid grid-cols-2 gap-2 text-xs">
         <input type="search" id="qrPrintSearch" oninput="renderQrPrintList()" placeholder="Filtrer (marque, modèle, S/N…)" class="p-2 border border-slate-300 rounded">
         <select id="qrPrintType" onchange="renderQrPrintList()" class="p-2 border border-slate-300 rounded"></select>
@@ -2011,6 +2014,130 @@
     </div>
   </div>
   <div id="qrPrintArea" aria-hidden="true"></div>
+
+  <!-- MODAL : réglages du format d'impression des étiquettes (voir labelPrintSettings dans le JS)
+       — format de planche (interne A4, Avery 65×38mm/10, ou personnalisé), informations affichées
+       sur chaque étiquette, taille du QR code, et grille des emplacements à ignorer (planche déjà
+       partiellement utilisée, pour ne pas gaspiller d'étiquettes). -->
+  <div id="labelFormatModal" hidden class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onclick="backdropClose(event, 'labelFormatModal')">
+    <div class="bg-white w-full max-w-md rounded-xl p-5 space-y-3 shadow-xl max-h-[92vh] overflow-y-auto">
+      <h3 class="font-bold text-lg">⚙️ Format d'impression des étiquettes</h3>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-600">Planche</label>
+        <select id="lfPreset" onchange="labelFormatApplyPreset(this.value)" class="w-full p-2 border border-slate-300 rounded text-sm">
+          <option value="a4_24">Format interne — A4, 24 QR codes/page (4×6)</option>
+          <option value="avery10">Avery — étiquettes 65 × 38,5 mm, 10/planche A5 (2×5)</option>
+          <option value="custom">Personnalisé</option>
+        </select>
+      </div>
+
+      <div id="lfCustomFields" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-600">Taille de la planche</label>
+          <div class="grid grid-cols-3 gap-2 mt-0.5">
+            <select id="lfPageChoice" onchange="labelFormatPageChoiceChanged()" class="col-span-3 p-2 border border-slate-300 rounded text-sm">
+              <option value="A4">A4 (210 × 297 mm)</option>
+              <option value="A5">A5 (148 × 210 mm)</option>
+              <option value="custom">Personnalisé (mm)</option>
+            </select>
+          </div>
+          <div id="lfPageCustomDims" hidden class="grid grid-cols-2 gap-2 mt-1">
+            <input type="number" id="lfPageW" min="20" step="0.5" placeholder="Largeur (mm)" class="p-2 border border-slate-300 rounded text-sm">
+            <input type="number" id="lfPageH" min="20" step="0.5" placeholder="Hauteur (mm)" class="p-2 border border-slate-300 rounded text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Colonnes</label>
+            <input type="number" id="lfCols" min="1" max="12" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Lignes</label>
+            <input type="number" id="lfRows" min="1" max="20" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Largeur étiquette (mm)</label>
+            <input type="number" id="lfLabelW" min="5" step="0.1" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Hauteur étiquette (mm)</label>
+            <input type="number" id="lfLabelH" min="5" step="0.1" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Espacement horizontal (mm)</label>
+            <input type="number" id="lfGapX" min="0" step="0.1" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Espacement vertical (mm)</label>
+            <input type="number" id="lfGapY" min="0" step="0.1" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Marge haute (mm)</label>
+            <input type="number" id="lfMarginTop" min="0" step="0.1" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600">Marge gauche (mm)</label>
+            <input type="number" id="lfMarginLeft" min="0" step="0.1" class="w-full p-2 border border-slate-300 rounded text-sm">
+          </div>
+        </div>
+        <button type="button" onclick="labelFormatAutoCenter()" class="w-full px-3 py-1.5 border border-slate-300 rounded text-xs">↔️ Centrer automatiquement la grille sur la planche</button>
+        <p class="text-[11px] text-slate-500">Pour un format personnalisé ou centré automatiquement, vérifiez toujours avec « Imprimer une planche de test » ci-dessous avant d'utiliser de vraies étiquettes.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-600">Taille du QR code</label>
+        <input type="range" id="lfQrPct" min="30" max="90" step="1" oninput="$('lfQrPctVal').textContent=this.value+'%'" class="w-full">
+        <p class="text-[11px] text-slate-500 text-right"><span id="lfQrPctVal"></span> de la plus petite dimension de l'étiquette</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-600">Position du QR code sur l'étiquette</label>
+        <select id="lfQrSide" class="w-full p-2 border border-slate-300 rounded text-sm mt-0.5">
+          <option value="right">À droite, informations à gauche</option>
+          <option value="left">À gauche, informations à droite</option>
+          <option value="top">Au-dessus, informations centrées dessous</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-600">Informations imprimées sur l'étiquette (en plus du QR code)</label>
+        <div class="space-y-1 mt-1 text-sm">
+          <label class="flex items-center gap-2"><input type="checkbox" id="lfFieldMain"> Marque et modèle</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="lfFieldSub"> Type / taille / étagère</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="lfFieldSn"> Numéro de série</label>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button onclick="closeModal('labelFormatModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+        <button onclick="printLabelAlignmentTest()" class="px-4 py-2 border border-indigo-300 text-indigo-700 rounded text-xs whitespace-nowrap">🧪 Planche de test</button>
+        <button onclick="saveLabelFormat()" class="flex-1 px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-xs">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : emplacements à ignorer sur LA planche physique de cette impression (planche Avery ou
+       personnalisée déjà partiellement utilisée) — s'ouvre juste après la sélection du matériel à
+       imprimer (qrPrintModal) et juste avant l'impression elle-même ; ce choix n'est JAMAIS
+       enregistré comme réglage par défaut (voir labelSkipPositions, remis à zéro à chaque
+       ouverture). Ne s'affiche pas pour le format interne A4 (pas de planche pré-découpée). -->
+  <div id="labelSkipModal" hidden class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onclick="backdropClose(event, 'labelSkipModal')">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 space-y-3 shadow-xl">
+      <h3 class="font-bold text-lg">♻️ Planche déjà entamée ?</h3>
+      <p class="text-[11px] text-slate-500">Cliquez sur les emplacements déjà retirés de LA planche que vous allez mettre dans l'imprimante maintenant, pour ne pas imprimer dessus. Ce choix n'est valable que pour cette impression — ce n'est pas enregistré.</p>
+      <div class="flex gap-2 text-xs">
+        <button type="button" onclick="labelSkipModalSetAll(false)" class="px-2 py-1 border border-slate-300 rounded">Toutes neuves</button>
+        <button type="button" onclick="labelSkipModalSetAll(true)" class="px-2 py-1 border border-slate-300 rounded">Toutes déjà utilisées</button>
+      </div>
+      <div id="labelSkipModalGrid"></div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="closeModal('labelSkipModal')" class="px-4 py-2 border border-slate-300 rounded text-xs">Annuler</button>
+        <button onclick="confirmLabelSkipAndPrint()" class="flex-1 px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-xs">🖨️ Imprimer</button>
+      </div>
+    </div>
+  </div>
 
   <!-- TOAST -->
   <div id="toast" hidden class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm font-bold shadow-lg"></div>
@@ -11295,7 +11422,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
   function launchPrint() {
     document.body.classList.add("qr-printing");
-    const done = () => { document.body.classList.remove("qr-printing"); $("qrPrintArea").innerHTML = ""; window.removeEventListener("afterprint", done); };
+    // Retire la règle @page personnalisée (voir injectLabelPageStyle) après l'impression, pour que
+    // le prochain envoi au format interne retrouve ses marges A4 habituelles (8 mm) — sans effet si
+    // aucune règle personnalisée n'a été posée.
+    const done = () => { document.body.classList.remove("qr-printing"); $("qrPrintArea").innerHTML = ""; removeLabelPageStyle(); window.removeEventListener("afterprint", done); };
     window.addEventListener("afterprint", done);
     setTimeout(() => { try { window.print(); } catch (e) { done(); toast("Impression impossible depuis cette fenêtre.", "error"); } }, 250);
   }
@@ -11324,6 +11454,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
     const types = Array.from(new Set(items.map(i => i.type || "Autre"))).sort();
     $("qrPrintType").innerHTML = `<option value="">Tous les types</option>` + types.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
     $("qrPrintSearch").value = "";
+    renderQrPrintFormatInfo();
     renderQrPrintList();
     openModal("qrPrintModal");
   }
@@ -11340,8 +11471,10 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
 
   function qrPrintUpdateCount() {
     const n = Object.keys(qrPrintChecked).filter(id => qrPrintChecked[id] && qrPrintable(appData.items[id])).length;
-    const pages = Math.ceil(n / 24);
-    $("qrPrintCount").textContent = `${n} QR code(s) · ${pages} page(s) A4`;
+    const fmt = getLabelPrintSettings();
+    const perPage = fmt.presetId === "a4_24" ? 24 : fmt.cols * fmt.rows;
+    const pages = Math.ceil(n / perPage);
+    $("qrPrintCount").textContent = `${n} QR code(s) · ${pages} planche(s)`;
   }
 
   function renderQrPrintList() {
@@ -11365,21 +11498,339 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
       .filter(i => qrPrintChecked[i.id] && qrPrintable(i))
       .sort((a, b) => String(a.type).localeCompare(String(b.type), "fr") || String(a.brand).localeCompare(String(b.brand), "fr") || String(a.model).localeCompare(String(b.model), "fr"));
     if (!chosen.length) { toast("Cochez au moins un matériel.", "error"); return; }
-    const PER_PAGE = 24;   // 4 colonnes × 6 lignes
-    let html = "";
-    for (let p = 0; p < chosen.length; p += PER_PAGE) {
-      const cells = chosen.slice(p, p + PER_PAGE).map(i => {
-        const { l1, l2 } = qrLines(i);
-        return `<div class="qr-cell"><div class="qr-img" data-qr="${esc(i.id)}"></div><div class="qr-l1">${esc(l1)}</div><div class="qr-l2">${esc(l2)}</div></div>`;
-      });
-      while (cells.length < PER_PAGE) cells.push(`<div></div>`);
-      html += `<div class="qr-page">${cells.join("")}</div>`;
+    const fmt = getLabelPrintSettings();
+    if (fmt.presetId === "a4_24") {
+      // Format interne historique : impression immédiate, mise en page figée (classes CSS
+      // .qr-page/.qr-cell), inchangée pour ne rien casser pour qui ne configure jamais de format
+      // personnalisé — pas d'étape « planche déjà entamée » pour ce format (ce n'est pas une
+      // planche d'étiquettes adhésives du commerce).
+      executeQrPrint(fmt, chosen, []);
+      return;
     }
+    // Format Avery / personnalisé : planche d'étiquettes adhésives du commerce — on demande
+    // d'abord si la planche qui va être mise dans l'imprimante a déjà été partiellement utilisée.
+    // Ce choix ne concerne que CETTE impression : il n'est jamais enregistré comme réglage par défaut.
+    openLabelSkipModal(fmt, chosen);
+  }
+
+  // Dessine et lance l'impression effective (QR + fermeture des fenêtres), pour le format interne
+  // A4 comme pour un format personnalisé, avec les emplacements à ignorer propres à CETTE
+  // impression (jamais persistés — voir openLabelSkipModal / confirmLabelSkipAndPrint).
+  function executeQrPrint(fmt, chosen, skipPositions) {
     const area = $("qrPrintArea");
-    area.innerHTML = html;
+    if (fmt.presetId === "a4_24") {
+      const PER_PAGE = 24;   // 4 colonnes × 6 lignes
+      let html = "";
+      for (let p = 0; p < chosen.length; p += PER_PAGE) {
+        const cells = chosen.slice(p, p + PER_PAGE).map(i => {
+          const { l1, l2 } = qrLines(i);
+          return `<div class="qr-cell"><div class="qr-img" data-qr="${esc(i.id)}"></div><div class="qr-l1">${esc(l1)}</div><div class="qr-l2">${esc(l2)}</div></div>`;
+        });
+        while (cells.length < PER_PAGE) cells.push(`<div></div>`);
+        html += `<div class="qr-page">${cells.join("")}</div>`;
+      }
+      area.innerHTML = html;
+    } else {
+      // Format Avery / personnalisé : grille et tailles calculées dynamiquement (voir
+      // buildCustomLabelHtml) à partir des réglages enregistrés dans labelFormatModal.
+      injectLabelPageStyle(fmt);
+      area.innerHTML = buildCustomLabelHtml(Object.assign({}, fmt, { skipPositions }), chosen);
+    }
     area.querySelectorAll("[data-qr]").forEach(el => drawQr(el, itemQrUrl(el.getAttribute("data-qr")), 256));
     closeModal("qrPrintModal");
+    closeModal("labelSkipModal");
     launchPrint();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /*  FORMAT D'ÉTIQUETTE PERSONNALISABLE (planches du commerce, Avery…) */
+  /* ---------------------------------------------------------------- */
+  // Réglage persistant (par appareil, comme panelCollapsed) : planche choisie, dimensions,
+  // informations affichées et emplacements à ignorer (planche déjà partiellement utilisée).
+  const LABEL_FORMAT_STORAGE_KEY = "kebloc_labelFormat_v1";
+  const LABEL_PAGE_SIZES = { A4: { w: 210, h: 297 }, A5: { w: 148, h: 210 } };
+
+  function defaultLabelFormat(presetId) {
+    if (presetId === "avery10" || presetId === "custom") {
+      // Avery 65 × 38,5 mm, 10 étiquettes/planche A5 (2 colonnes × 5 lignes), marges réelles du
+      // produit : 8 mm latérales, 14 mm en haut. L'espacement horizontal de 2 mm complète la
+      // largeur A5 exactement : 2 × 65 + 2 = 132 mm + 2 × 8 mm de marge = 148 mm. Un décalage fin
+      // du contenu de chaque côté de la gouttière (pas de l'écart lui-même) corrige le léger défaut
+      // d'alignement observé à l'impression réelle — voir labelCellHtml, colIndex/totalCols.
+      return {
+        presetId, pageChoice: "A5", page: { w: 148, h: 210 },
+        cols: 2, rows: 5, labelW: 65, labelH: 38.5, gapX: 2, gapY: 0,
+        marginTop: 14, marginLeft: 8,
+        qrPct: 55, qrSide: "right", fields: { main: true, sub: true, sn: false }
+      };
+    }
+    return { presetId: "a4_24", cols: 4, rows: 6 };
+  }
+
+  function getLabelPrintSettings() {
+    try {
+      const raw = localStorage.getItem(LABEL_FORMAT_STORAGE_KEY);
+      if (raw) { const parsed = JSON.parse(raw); if (parsed && parsed.presetId) return parsed; }
+    } catch (e) { /* localStorage indisponible ou valeur corrompue : on retombe sur le défaut. */ }
+    return defaultLabelFormat("a4_24");
+  }
+
+  function saveLabelPrintSettingsToStorage(fmt) {
+    try { localStorage.setItem(LABEL_FORMAT_STORAGE_KEY, JSON.stringify(fmt)); } catch (e) { /* hors ligne/plein : réglage non mémorisé, sans impact bloquant. */ }
+  }
+
+  // Copie de travail éditée dans labelFormatModal, appliquée seulement au clic sur « Enregistrer ».
+  let lfDraft = null;
+
+  function openLabelFormatModal() {
+    lfDraft = JSON.parse(JSON.stringify(getLabelPrintSettings()));
+    if (lfDraft.presetId === "a4_24") {
+      // On propose Avery comme point de départ si rien n'a encore été personnalisé : l'interne
+      // reste sélectionnable, mais l'utilisateur vient ici pour configurer une vraie planche.
+      lfDraft = defaultLabelFormat("avery10");
+    }
+    $("lfPreset").value = lfDraft.presetId === "a4_24" ? "a4_24" : lfDraft.presetId;
+    labelFormatFillForm();
+    openModal("labelFormatModal");
+  }
+
+  function labelFormatApplyPreset(presetId) {
+    if (presetId === "a4_24") { lfDraft = defaultLabelFormat("a4_24"); $("lfCustomFields").hidden = true; return; }
+    lfDraft = defaultLabelFormat(presetId);
+    labelFormatFillForm();
+  }
+
+  function labelFormatPageChoiceChanged() {
+    const choice = $("lfPageChoice").value;
+    show("lfPageCustomDims", choice === "custom");
+    if (choice !== "custom") {
+      lfDraft.page = Object.assign({}, LABEL_PAGE_SIZES[choice]);
+      $("lfPageW").value = lfDraft.page.w; $("lfPageH").value = lfDraft.page.h;
+    }
+  }
+
+  // Reconstruit entièrement le formulaire (champs + grille des emplacements) à partir de lfDraft.
+  function labelFormatFillForm() {
+    const fmt = lfDraft;
+    const isA4_24 = fmt.presetId === "a4_24";
+    show("lfCustomFields", !isA4_24);
+    if (!isA4_24) {
+      const knownSize = Object.keys(LABEL_PAGE_SIZES).find(k => LABEL_PAGE_SIZES[k].w === fmt.page.w && LABEL_PAGE_SIZES[k].h === fmt.page.h);
+      $("lfPageChoice").value = knownSize || "custom";
+      show("lfPageCustomDims", !knownSize);
+      $("lfPageW").value = fmt.page.w; $("lfPageH").value = fmt.page.h;
+      $("lfCols").value = fmt.cols; $("lfRows").value = fmt.rows;
+      $("lfLabelW").value = fmt.labelW; $("lfLabelH").value = fmt.labelH;
+      $("lfGapX").value = fmt.gapX; $("lfGapY").value = fmt.gapY;
+      $("lfMarginTop").value = fmt.marginTop; $("lfMarginLeft").value = fmt.marginLeft;
+      $("lfQrPct").value = fmt.qrPct; $("lfQrPctVal").textContent = fmt.qrPct + "%";
+      $("lfQrSide").value = fmt.qrSide || "top";
+      $("lfFieldMain").checked = !!fmt.fields.main;
+      $("lfFieldSub").checked = !!fmt.fields.sub;
+      $("lfFieldSn").checked = !!fmt.fields.sn;
+    }
+  }
+
+  // Relit tous les champs du formulaire dans lfDraft (appelé juste avant de centrer, tester ou
+  // enregistrer, pour que la dernière valeur tapée par l'utilisateur ne soit jamais perdue).
+  function labelFormatReadForm() {
+    if (lfDraft.presetId === "a4_24") return lfDraft;
+    const pageChoice = $("lfPageChoice").value;
+    lfDraft.page = pageChoice === "custom"
+      ? { w: Number($("lfPageW").value) || lfDraft.page.w, h: Number($("lfPageH").value) || lfDraft.page.h }
+      : Object.assign({}, LABEL_PAGE_SIZES[pageChoice]);
+    lfDraft.cols = Math.max(1, Number($("lfCols").value) || lfDraft.cols);
+    lfDraft.rows = Math.max(1, Number($("lfRows").value) || lfDraft.rows);
+    lfDraft.labelW = Number($("lfLabelW").value) || lfDraft.labelW;
+    lfDraft.labelH = Number($("lfLabelH").value) || lfDraft.labelH;
+    lfDraft.gapX = Number($("lfGapX").value) || 0;
+    lfDraft.gapY = Number($("lfGapY").value) || 0;
+    lfDraft.marginTop = Number($("lfMarginTop").value) || 0;
+    lfDraft.marginLeft = Number($("lfMarginLeft").value) || 0;
+    lfDraft.qrPct = Number($("lfQrPct").value) || lfDraft.qrPct;
+    lfDraft.qrSide = $("lfQrSide").value;
+    lfDraft.fields = { main: $("lfFieldMain").checked, sub: $("lfFieldSub").checked, sn: $("lfFieldSn").checked };
+    return lfDraft;
+  }
+
+  function labelFormatAutoCenter() {
+    labelFormatReadForm();
+    const fmt = lfDraft;
+    fmt.marginLeft = Math.max(0, Math.round(((fmt.page.w - (fmt.cols * fmt.labelW + (fmt.cols - 1) * fmt.gapX)) / 2) * 10) / 10);
+    fmt.marginTop = Math.max(0, Math.round(((fmt.page.h - (fmt.rows * fmt.labelH + (fmt.rows - 1) * fmt.gapY)) / 2) * 10) / 10);
+    $("lfMarginLeft").value = fmt.marginLeft; $("lfMarginTop").value = fmt.marginTop;
+    toast("Marges centrées : vérifiez avec une planche de test.", "success");
+  }
+
+  // Emplacements à ignorer sur LA planche qui va être imprimée maintenant : jamais enregistré
+  // dans lfDraft/localStorage (voir labelSkipModal) — état remis à zéro à chaque ouverture.
+  let labelSkipPositions = [];
+  let pendingSkipFmt = null;
+  let pendingPrintItems = [];
+
+  function openLabelSkipModal(fmt, items) {
+    labelSkipPositions = [];
+    pendingSkipFmt = fmt;
+    pendingPrintItems = items;
+    renderLabelSkipModalGrid();
+    openModal("labelSkipModal");
+  }
+
+  function renderLabelSkipModalGrid() {
+    const fmt = pendingSkipFmt;
+    const total = fmt.cols * fmt.rows;
+    let html = `<div style="display:grid;grid-template-columns:repeat(${fmt.cols},minmax(28px,1fr));gap:4px">`;
+    for (let pos = 0; pos < total; pos++) {
+      const used = labelSkipPositions.includes(pos);
+      html += `<button type="button" onclick="toggleLabelSkipModalCell(${pos})" class="aspect-square border rounded text-[10px] flex items-center justify-center ${used ? "bg-slate-200 border-slate-300 text-slate-400 line-through" : "bg-emerald-50 border-emerald-300 text-emerald-700"}">${pos + 1}</button>`;
+    }
+    html += `</div>`;
+    $("labelSkipModalGrid").innerHTML = html;
+  }
+
+  function toggleLabelSkipModalCell(pos) {
+    const idx = labelSkipPositions.indexOf(pos);
+    if (idx === -1) labelSkipPositions.push(pos); else labelSkipPositions.splice(idx, 1);
+    renderLabelSkipModalGrid();
+  }
+
+  function labelSkipModalSetAll(used) {
+    const total = pendingSkipFmt.cols * pendingSkipFmt.rows;
+    labelSkipPositions = used ? Array.from({ length: total }, (_, i) => i) : [];
+    renderLabelSkipModalGrid();
+  }
+
+  function confirmLabelSkipAndPrint() {
+    executeQrPrint(pendingSkipFmt, pendingPrintItems, labelSkipPositions);
+  }
+
+  function saveLabelFormat() {
+    labelFormatReadForm();
+    saveLabelPrintSettingsToStorage(lfDraft);
+    closeModal("labelFormatModal");
+    qrPrintUpdateCount();
+    renderQrPrintFormatInfo();
+    toast("Format d'étiquette enregistré.", "success");
+  }
+
+  // Libellés affichés sur une étiquette : repris de qrLines() (marque/modèle, type/taille/étagère)
+  // plus le numéro de série, chacun optionnel selon lfDraft.fields / le format enregistré.
+  function labelFieldLines(item) {
+    const { l1, l2 } = qrLines(item);
+    const l3 = item.sn ? `S/N ${item.sn}` : "";
+    return { l1, l2, l3 };
+  }
+
+  // Un seul emplacement de planche, au format donné : avec un article (QR + infos), ou vide
+  // (rien n'est imprimé — ni bordure, ni texte — que ce soit parce que l'emplacement est marqué
+  // comme déjà utilisé, ou parce qu'il ne reste plus d'article à placer).
+  // fmt.qrSide détermine la disposition : "right" (infos à gauche, QR à droite — défaut Avery,
+  // demandé pour une étiquette large et basse), "left" (symétrique), ou "top" (QR au-dessus, texte
+  // centré dessous — disposition historique du format interne A4, utilisée aussi par défaut pour
+  // un format personnalisé qui ne précise rien).
+  // colIndex/totalCols (position de l'étiquette dans la grille) servent uniquement au décalage de
+  // calibration ci-dessous ; optionnels, un appel sans ces deux arguments ne décale rien.
+  function labelCellHtml(fmt, item, colIndex, totalCols) {
+    if (!item) return `<div></div>`;
+    const qrMm = Math.max(4, (fmt.qrPct / 100) * Math.min(fmt.labelW, fmt.labelH)).toFixed(2);
+    const fMain = Math.max(6, fmt.labelH * 0.16).toFixed(1);
+    const fSub = Math.max(5, fmt.labelH * 0.11).toFixed(1);
+    const { l1, l2, l3 } = labelFieldLines(item);
+    const side = fmt.qrSide === "left" || fmt.qrSide === "right" ? fmt.qrSide : "top";
+    const textAlign = side === "top" ? "center" : "left";
+    const lineStyle = (size) => `font-size:${size}pt;line-height:1.1;max-width:100%;overflow:hidden;text-align:${textAlign}`;
+    const lines = (fmt.fields.main ? `<div style="${lineStyle(fMain)};font-weight:bold">${esc(l1)}</div>` : "")
+      + (fmt.fields.sub && l2 ? `<div style="${lineStyle(fSub)};color:#333">${esc(l2)}</div>` : "")
+      + (fmt.fields.sn && l3 ? `<div style="${lineStyle(fSub)};color:#333">${esc(l3)}</div>` : "");
+    if (side === "top") {
+      const qrBlock = `<div class="qr-img" data-qr="${esc(item.id)}" style="width:${qrMm}mm;height:${qrMm}mm;flex:0 0 auto"></div>`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;color:#000;font-family:Arial,sans-serif;box-sizing:border-box;padding:1mm">${qrBlock}${lines}</div>`;
+    }
+    // Décalage de calibration constaté sur une vraie planche Avery (pas l'écart entre colonnes,
+    // mais le contenu de chaque côté de la gouttière) : dans la colonne la plus à gauche, le bloc
+    // collé au bord qui touche la gouttière (à droite de la cellule) est ramené de 2 mm vers
+    // l'intérieur ; dans la colonne la plus à droite, le bloc collé au bord qui touche la gouttière
+    // (à gauche de la cellule) est avancé de 4 mm vers l'intérieur. Sans effet à une seule colonne.
+    const isFirstCol = totalCols > 1 && colIndex === 0;
+    const isLastCol = totalCols > 1 && colIndex === totalCols - 1;
+    const qrIsRightmost = side === "right";
+    const qrShift = (qrIsRightmost && isFirstCol) ? ";margin-right:2mm" : (!qrIsRightmost && isLastCol ? ";margin-left:4mm" : "");
+    const textShift = (!qrIsRightmost && isFirstCol) ? ";margin-right:2mm" : (qrIsRightmost && isLastCol ? ";margin-left:4mm" : "");
+    const qrBlock = `<div class="qr-img" data-qr="${esc(item.id)}" style="width:${qrMm}mm;height:${qrMm}mm;flex:0 0 auto${qrShift}"></div>`;
+    const textBlock = `<div style="display:flex;flex-direction:column;justify-content:center;min-width:0;overflow:hidden${textShift}">${lines}</div>`;
+    const parts = side === "right" ? textBlock + qrBlock : qrBlock + textBlock;
+    return `<div style="display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:1.5mm;overflow:hidden;color:#000;font-family:Arial,sans-serif;box-sizing:border-box;padding:1mm">${parts}</div>`;
+  }
+
+  function labelPageWrapperHtml(fmt, innerHtml, isLast) {
+    const style = `width:${fmt.page.w}mm;height:${fmt.page.h}mm;box-sizing:border-box;padding-top:${fmt.marginTop}mm;padding-left:${fmt.marginLeft}mm;display:grid;grid-template-columns:repeat(${fmt.cols},${fmt.labelW}mm);grid-template-rows:repeat(${fmt.rows},${fmt.labelH}mm);column-gap:${fmt.gapX}mm;row-gap:${fmt.gapY}mm;${isLast ? "" : "break-after:page;page-break-after:always;"}`;
+    return `<div style="${style}">${innerHtml}</div>`;
+  }
+
+  // Place les articles sur autant de planches que nécessaire. Les emplacements ignorés
+  // (fmt.skipPositions, planche déjà partiellement utilisée) ne s'appliquent qu'à la toute
+  // première planche : les planches suivantes sont supposées neuves et complètes.
+  function buildCustomLabelHtml(fmt, items) {
+    const total = fmt.cols * fmt.rows;
+    const skip = fmt.skipPositions || [];
+    const pagesHtml = [];
+    let idx = 0, pageNum = 0;
+    do {
+      const cells = [];
+      for (let pos = 0; pos < total; pos++) {
+        const isSkipped = pageNum === 0 && skip.includes(pos);
+        const item = (!isSkipped && idx < items.length) ? items[idx] : null;
+        if (item) idx++;
+        cells.push(labelCellHtml(fmt, item, pos % fmt.cols, fmt.cols));
+      }
+      pagesHtml.push(cells.join(""));
+      pageNum++;
+    } while (idx < items.length);
+    return pagesHtml.map((html, i) => labelPageWrapperHtml(fmt, html, i === pagesHtml.length - 1)).join("");
+  }
+
+  // Planche "à blanc" (sans QR ni vraies données) pour vérifier l'alignement physique sur une
+  // vraie planche d'étiquettes avant de l'utiliser pour de vrais articles — chaque emplacement
+  // affiche juste son numéro, dans un cadre, pour repérer d'éventuels décalages de marge.
+  function buildLabelTestHtml(fmt) {
+    const total = fmt.cols * fmt.rows;
+    const cells = [];
+    for (let pos = 0; pos < total; pos++) {
+      cells.push(`<div style="display:flex;align-items:center;justify-content:center;border:0.3mm dashed #c33;box-sizing:border-box;font-family:Arial,sans-serif;font-size:7pt;color:#c33">${pos + 1}</div>`);
+    }
+    return labelPageWrapperHtml(fmt, cells.join(""), true);
+  }
+
+  function printLabelAlignmentTest() {
+    const fmt = labelFormatReadForm();
+    injectLabelPageStyle(fmt);
+    $("qrPrintArea").innerHTML = buildLabelTestHtml(fmt);
+    launchPrint();
+  }
+
+  // Règle @page dynamique (taille de planche + marge 0, le remplissage se faisant via le padding
+  // de labelPageWrapperHtml) : posée juste avant l'impression d'un format personnalisé, retirée
+  // après impression (voir launchPrint) pour ne pas affecter le format interne A4/8 mm par défaut.
+  function injectLabelPageStyle(fmt) {
+    removeLabelPageStyle();
+    const st = document.createElement("style");
+    st.id = "labelPageDynamicStyle";
+    st.textContent = `@media print { @page { size: ${fmt.page.w}mm ${fmt.page.h}mm; margin: 0; } }`;
+    document.head.appendChild(st);
+  }
+  function removeLabelPageStyle() { const el = document.getElementById("labelPageDynamicStyle"); if (el) el.remove(); }
+
+  function renderQrPrintFormatInfo() {
+    const fmt = getLabelPrintSettings();
+    const el = $("qrPrintFormatInfo");
+    if (!el) return;
+    if (fmt.presetId === "a4_24") {
+      el.textContent = "Feuille A4 : 4 QR codes par ligne, 6 lignes (24 par page). Décochez ce que vous ne voulez pas imprimer.";
+    } else {
+      const per = fmt.cols * fmt.rows;
+      el.textContent = `Format personnalisé : ${fmt.cols} × ${fmt.rows} = ${per} étiquette(s)/planche (${fmt.labelW} × ${fmt.labelH} mm). ` +
+        `Décochez ce que vous ne voulez pas imprimer ; vous pourrez indiquer si la planche est déjà entamée juste avant l'impression.`;
+    }
   }
 
   function showQr(id) {
@@ -11570,7 +12021,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
     ["loginModal", "borrowConfirmModal", "returnModal", "qrModal",
-     "qrPrintModal", "editItemModal", "editClientModal", "clientHistoryModal", "sellItemModal", "editArchiveModal", "itemTimelineModal", "thirdPartyBorrowModal", "editUserModal", "contractModal", "wizardModal", "historyDetailModal", "newClientModal", "clientRegisterQrModal", "clientRegisterModal", "editReturnDateModal", "editBeneficiaryModal", "legalNoticeModal", "handoverAddressModal", "faqModal"].forEach(id => closeModal(id));
+     "qrPrintModal", "labelFormatModal", "labelSkipModal", "editItemModal", "editClientModal", "clientHistoryModal", "sellItemModal", "editArchiveModal", "itemTimelineModal", "thirdPartyBorrowModal", "editUserModal", "contractModal", "wizardModal", "historyDetailModal", "newClientModal", "clientRegisterQrModal", "clientRegisterModal", "editReturnDateModal", "editBeneficiaryModal", "legalNoticeModal", "handoverAddressModal", "faqModal"].forEach(id => closeModal(id));
   });
 
   /* ------------------------------------------------------------------ */
@@ -11826,7 +12277,7 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   /* ------------------------------------------------------------------ */
   // Numéro de version de CE fichier : les applications déjà installées comparent ce numéro
   // à celui du fichier en ligne et se mettent à jour d'elles-mêmes (voir checkForAppUpdate).
-  const APP_VERSION = "2026-11-17.175";
+  const APP_VERSION = "2026-11-18.183";
   // Affichage du numéro de version : V99, puis V1.00 (build 100), V1.01 (build 101)… à partir de 100.
   function vLabel(n) { n = Number(n) || 0; return n >= 100 ? "V" + (n / 100).toFixed(2) : "V" + n; }
   { const vb = document.getElementById("appVersionBadge"); if (vb) vb.textContent = vLabel(APP_VERSION.split(".").pop()); }
@@ -11840,6 +12291,21 @@ Les mots de passe sont hachés (jamais stockés en clair), l'accès aux données
   // aud : "all" (tout le monde) ou "staff" (moniteur, gestionnaire, administrateur).
   // go : action proposée pour essayer tout de suite.
   const CHANGELOG = [
+    { v: 176, title: "Format d'étiquette personnalisable pour l'impression des QR codes (planches du commerce)", aud: "staff", items: [
+      { icon: "⚙️", t: "Le bouton « Format » dans Imprimer les QR codes", steps: [
+        "Dans la fenêtre d'impression des QR codes, un bouton « ⚙️ Format » permet de choisir entre le format interne (A4, 24 QR codes/page) et une planche d'étiquettes du commerce, par exemple une planche Avery 65 × 38,5 mm à 10 étiquettes/planche A5 (marges 8 mm latérales, 14 mm en haut), proposée en préréglage.",
+        "Chaque dimension est modifiable : taille de la planche (A4, A5 ou mesures personnalisées), nombre de colonnes/lignes, largeur et hauteur de l'étiquette, espacements et marges — avec un bouton pour centrer automatiquement la grille, à affiner avec la planche de test ci-dessous.",
+        "La taille du QR code se règle avec un curseur, sa position sur l'étiquette se choisit (à droite, à gauche, ou au-dessus des informations), et les informations imprimées en plus du QR (marque/modèle, type/taille/étagère, numéro de série) se choisissent indépendamment."
+      ] },
+      { icon: "🧪", t: "Une planche de test pour vérifier l'alignement avant d'utiliser de vraies étiquettes", steps: [
+        "Le bouton « Planche de test » imprime une feuille avec juste les cadres et numéros d'emplacement (sans QR code), pour vérifier que la grille tombe bien sur les vraies étiquettes avant de les utiliser pour de vrais articles."
+      ] },
+      { icon: "♻️", t: "Réutiliser une planche déjà partiellement utilisée", steps: [
+        "Juste après avoir choisi le matériel à imprimer et juste avant l'impression, une fenêtre « Planche déjà entamée ? » propose de cocher les emplacements déjà retirés de LA planche qui va être mise dans l'imprimante : l'impression les laisse vides au lieu d'imprimer dans le vide.",
+        "Ce choix ne concerne que l'impression en cours — il n'est jamais enregistré comme réglage par défaut — et ne s'applique qu'à la première planche imprimée ; les planches suivantes, si plusieurs sont nécessaires, sont considérées neuves.",
+        "Le format interne A4 (planches de papier standard) n'affiche pas cette étape : l'impression se lance directement, comme avant."
+      ] }
+    ] },
     { v: 175, title: "Avertissement en rouge avant d'emprunter un matériel déjà réservé, et rappel automatique 1 h avant", aud: "all", items: [
       { icon: "⚠", t: "Un avertissement en rouge avant d'emprunter un matériel réservé plus tard", steps: [
         "Au scan d'une voile, à un emprunt libre par un moniteur, à un prêt pour un tiers avec remise immédiate, ou lors d'un emprunt en libre-service par un client : si ce matériel a déjà une réservation à venir (créée dans Planning), une fenêtre rouge prévient avant de valider l'emprunt, en précisant l'heure de la réservation et le nom du client concerné.",
